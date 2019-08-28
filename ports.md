@@ -1,6 +1,10 @@
 # Ports used by Istio and Istio-on-a-VM
 
 
-| Istio service | Istio Port | New Port |
-| istio-pilot   | 8080       | 15080    |
-|  
+| Istio service | Port         | Description           |
+| istio-pilot | 15080 (8080) | HTTP interface, debug |
+| istio-pilot | 15010        | GRPC, plain           |
+| istio-pilot | 15011        | GRPC, MTLS           |
+| istio-pilot | 15014        | prometheus           |
+| istio-pilot | 15876 (9876)  | ctrlz           |
+| citadel | 1 

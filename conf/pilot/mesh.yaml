@@ -3,21 +3,21 @@
 # This includes values used in inject template - not everything
 
 defaultConfig:
-  interceptionMode: REDIRECT
-
-  # TODO: annotation override. "--drainDuration"
-  drainDuration: 45s
-
-  parentShutdownDuration: 1m0s
-
   discoveryAddress: istio-pilot.istio-system:15010
 
-  connectTimeout: 1s
+  interceptionMode: REDIRECT
+
+  connectTimeout: 5s
+  drainDuration: 45s
+  parentShutdownDuration: 1m0s
+
   envoyMetricsServiceAddress: ""
 
   proxyAdminPort: 15000
   concurrency: 0
 
+  proxyAddress: 15001
 
+  statNameLength: 189
 
-
+  customConfigFile: "conf/sidecar/envoy_bootstrap_v2.json"
