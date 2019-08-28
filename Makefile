@@ -39,17 +39,38 @@ pilot:
         --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
 
 
+# A second Pilot instance, but using Galley config. Both pilots are based on the same config dir.
+pilot-galley:
+	yq m conf/pilot/mesh.yaml conf/pilot/mesh-galley.yaml > conf/pilot/gen-mesh-galley.yaml
+	yq w -i conf/pilot/gen-mesh-galley.yaml configSources[0].address ${IP}:9901
+	docker stop pilot-galley || true
+	docker run -it --rm --name=pilot-galley  \
+		-p 127.0.0.1:16080:8080 \
+		-p 0.0.0.0:16010:15010 \
+		-p 127.0.0.1:16014:15014 \
+		-p 127.0.0.1:16876:9876 \
+        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
+		-v ${PWD}/conf/istio:/var/lib/istio/istio \
+		-e PILOT_ENABLE_PROTOCOL_SNIFFING=true \
+	 ${HUB}/pilot:${TAG} \
+    	 discovery --meshConfig /var/lib/istio/pilot/gen-mesh-galley.yaml \
+    	--secureGrpcAddr="" \
+    	--plugins="authz" \
+        --registries=MCP \
+        --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
+
+
 # Start galley, using a local directory as config source.
 # Passing kubeconfig instead of configPath will use K8S server, file must be included in the galley directory or mounted.
 galley:
 	docker stop galley || true
 	docker run -it --rm --name=galley  \
-		-p 127.0.0.1:15901:9901 \
+		-p 0.0.0.0:9901:9901 \
 		-p 127.0.0.1:15015:15015 \
 		-p 127.0.0.1:15877:9877 \
         -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
         -v ${PWD}/conf/galley:/var/lib/istio/galley \
-		-v ${PWD}/conf/istio:/var/lib/istio/istio \
+		-v ${PWD}/conf/istio/test:/var/lib/istio/istio \
 	 ${HUB}/galley:${TAG} \
     	 server -c /var/lib/istio/galley/galley.yaml \
     	    --meshConfigFile /var/lib/istio/pilot/mesh.yaml \
