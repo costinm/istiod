@@ -16,7 +16,7 @@ defaultConfig:
   proxyAdminPort: 15000
   concurrency: 0
 
-  proxyAddress: 15001
+  #proxyAddress: 15001
 
   statNameLength: 189
 

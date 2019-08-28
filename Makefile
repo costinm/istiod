@@ -38,6 +38,23 @@ pilot:
         --configDir /var/lib/istio/istio --registries=MCP \
         --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
 
+
+# Start galley, using a local directory as config source.
+# Passing kubeconfig instead of configPath will use K8S server, file must be included in the galley directory or mounted.
+galley:
+	docker stop galley || true
+	docker run -it --rm --name=galley  \
+		-p 127.0.0.1:15901:9901 \
+		-p 127.0.0.1:15015:15015 \
+		-p 127.0.0.1:15877:9877 \
+        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
+        -v ${PWD}/conf/galley:/var/lib/istio/galley \
+		-v ${PWD}/conf/istio:/var/lib/istio/istio \
+	 ${HUB}/galley:${TAG} \
+    	 server -c /var/lib/istio/galley/galley.yaml \
+    	    --meshConfigFile /var/lib/istio/pilot/mesh.yaml \
+			--configPath /var/lib/istio/istio
+
 # Same as pilot, but running on local machine. Easy to attach a debugger/step.
 #
 run-local-pilot:
