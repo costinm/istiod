@@ -13,6 +13,10 @@ NS=fortio
 
 IP ?= $(shell hostname --ip-address)
 
+# Set to "-it --rm" to run the docker images in foreground, for testing.
+# Default is to set the images as daemon.
+DOCKER_START=-d
+
 # Start pilot in a docker container, using a local set of files, no k8s used.
 # If configDir is specified, it will be used as a direct source of config, instead of CRDs. Will skip creation
 # of the kubeClient as long as 'registries' doesn't include k8s.
@@ -22,8 +26,8 @@ IP ?= $(shell hostname --ip-address)
 #
 # Plugins: authz, authn, mixer, health
 pilot:
-	docker stop pilot || true
-	docker run -it --rm --name=pilot  \
+	docker rm -f pilot || true
+	docker run ${DOCKER_START} --name=pilot  \
 		-p 127.0.0.1:15080:8080 \
 		-p 0.0.0.0:15010:15010 \
 		-p 127.0.0.1:15014:15014 \
