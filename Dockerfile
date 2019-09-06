@@ -1,9 +1,11 @@
-FROM istionightly/ci:2019-07-01 AS istio-build
+FROM istionightly/ci:2019-08-14 AS istio-build
 #RUN make
+
+#RUN GOPATH="" go get -v -u istio.io/istio/pilot/cmd/pilot-agent
 
 ####
 
-FROM golang:1.12-alpine AS build
+FROM golang:1.13-alpine AS build
 RUN apk add --no-cache git
 #WORKDIR /src
 #COPY go.mod go.sum ./
@@ -12,12 +14,26 @@ RUN apk add --no-cache git
 #RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' \
 #        -o /bin/a.out ./cmd/cloudshell_open
 
+RUN GOPATH="" go get -v -u istio.io/istio/pilot/cmd/pilot-agent
+
 
 ####
 
 #### Fortio
 
 FROM fortio/fortio:latest AS fortio
+
+# Istio proxy using upstream envoy/alpine
+FROM envoyproxy/envoy-alpine AS proxy-alpine
+
+
+### SSH for testing
+FROM envoyproxy/envoy-alpine AS envoy-gw
+RUN apk add --no-cache git openssh
+
+
+###
+
 
 ### Test for Istio sidecar
 

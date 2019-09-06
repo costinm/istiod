@@ -7,4 +7,8 @@
 | istio-pilot | 15011        | GRPC, MTLS           |
 | istio-pilot | 15014        | prometheus           |
 | istio-pilot | 15876 (9876)  | ctrlz           |
+| galley      | 15901        | GRPC, plain  |
+| galley      | 15015        | monitoring  |
+| galley      | 15877        | ctrlz  |
+
 | citadel | 1 
