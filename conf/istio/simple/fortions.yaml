@@ -7,11 +7,13 @@ metadata:
   name: default
   namespace: fortio
 spec:
+
   egress:
     - hosts:
         - "fortio/*"
-
+        - "test/*"
 ---
+
 
 # Test workload entry
 apiVersion: networking.istio.io/v1alpha3
