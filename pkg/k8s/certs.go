@@ -16,6 +16,7 @@ package k8s
 import (
 	"crypto/sha1"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -23,7 +24,10 @@ import (
 
 	"istio.io/istio/security/pkg/pki/util"
 	"istio.io/pkg/log"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
+	kubelib "istio.io/istio/pkg/kube"
 	cert "k8s.io/api/certificates/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +44,17 @@ const (
 
 	defaultCA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 )
+
+// CreateClientset is a helper function that builds a kubernetes Clienset from a kubeconfig
+// filepath. See `BuildClientConfig` for kubeconfig loading rules.
+func CreateClientset(kubeconfig, context string) (*kubernetes.Clientset, *rest.Config, error) {
+	c, err := kubelib.BuildClientConfig(kubeconfig, context)
+	if err != nil {
+		return nil, nil, err
+	}
+	kc, err := kubernetes.NewForConfig(c)
+	return kc, c, err
+}
 
 // Generate a certificate and key from k8s CA
 //
@@ -71,7 +86,7 @@ func GenKeyCertK8sCA(certClient certclient.CertificatesV1beta1Interface, hosts s
 	// 2. Submit the CSR
 	h := sha1.New()
 	h.Write([]byte(hosts))
-	csrName := string(h.Sum(nil))
+	csrName := base64.URLEncoding.EncodeToString(h.Sum(nil))
 	numRetries := 3
 	r, err := submitCSR(certClient, csrName, csrPEM, numRetries)
 	if err != nil {

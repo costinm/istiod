@@ -1,12 +1,12 @@
 package k8s
 
 import (
-	kubelib "istio.io/istio/pkg/kube"
 	"testing"
 )
 
 func TestCerts(t *testing.T) {
-	client, err := kubelib.CreateClientset("", "")
+
+	client, kcfg, err := CreateClientset("", "")
 	if err != nil {
 		t.Fatal("Missing K8S", err)
 	}
@@ -16,16 +16,10 @@ func TestCerts(t *testing.T) {
 		t.Fatal("Fail to generate cert", err)
 	}
 
-	t.Log("Key", string(keyPEM))
+	t.Log("Key\n", string(keyPEM))
 
-	// Include the root cert in the chain
-	caCert, err := readCACert("")
-	if err != nil {
-		t.Fatal("Fail to generate cert", err)
-	}
+	caCert := kcfg.TLSClientConfig.CAData
 	certChain = append(certChain, caCert...)
 
-	t.Log("Cert Chain: ", string(certChain))
-	t.Log("CA:", string(caCert))
-
+	t.Log("Cert Chain:\n", string(certChain))
 }
