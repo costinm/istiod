@@ -10,6 +10,10 @@ import (
 	agent "istio.io/istio/pkg/bootstrap"
 )
 
+// Envoy sidecar starting. The combined binary will start a sidecar if certs are present.
+// To simplify, the envoy is running alongside control plane binary, same container.
+// This can also be used in applications that run a sidecar directly.
+
 // Should be called at the end, if we receive SIGINT or SIGTERM
 func DrainEnvoy(base string, cfg *meshv1.ProxyConfig) {
 	// Simplified version:
