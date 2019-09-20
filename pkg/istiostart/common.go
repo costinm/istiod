@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"github.com/gogo/protobuf/types"
 	"istio.io/istio/galley/pkg/server/settings"
+	"istio.io/istio/pilot/pkg/proxy/envoy"
 	"istio.io/istio/pkg/config/mesh"
+	"istio.io/istio/pkg/keepalive"
 	"istio.io/istio/security/pkg/nodeagent/cache"
 	"istio.io/istio/security/pkg/nodeagent/sds"
 	"istio.io/istio/security/pkg/nodeagent/secretfetcher"
@@ -18,7 +20,6 @@ import (
 
 	meshv1 "istio.io/api/mesh/v1alpha1"
 
-	"istio.io/istio/galley/pkg/server"
 	agent "istio.io/istio/pkg/bootstrap"
 )
 
@@ -52,12 +53,17 @@ func (s *Server) InitCommon(args *PilotArgs) {
 // This is expected to run in a Docker or K8S environment, with a volume with user configs mounted.
 //
 //
+// Defaults:
+// - http port 15007
+// - grpc on 15010
+//- config from $ISTIO_CONFIG or ./conf
 func Init() (*Server, error) {
 	baseDir := "."
 	//meshConfigFile := baseDir + "/conf/pilot/mesh.yaml"
 
-	mcfg := mesh.DefaultMeshConfig()
+	mcfgObj := mesh.DefaultMeshConfig()
 
+	mcfg := &mcfgObj
 	mcfg.AuthPolicy = meshv1.MeshConfig_NONE
 
 	mcfg.DisablePolicyChecks = true
@@ -85,6 +91,33 @@ func Init() (*Server, error) {
 		ServiceCluster: "istio",
 	}
 
+	// Create a test pilot discovery service configured to watch the tempDir.
+	args := PilotArgs{
+		Namespace: "testing",
+		DiscoveryOptions: envoy.DiscoveryServiceOptions{
+			HTTPAddr:        ":12007",
+			GrpcAddr:        ":12010",
+			SecureGrpcAddr:  ":12011",
+			EnableCaching:   true,
+			EnableProfiling: true,
+		},
+
+		Mesh: MeshArgs{
+
+			MixerAddress:    "localhost:9091",
+			RdsRefreshDelay: types.DurationProto(10 * time.Millisecond),
+		},
+		Config: ConfigArgs{},
+
+		// MCP is messing up with the grpc settings...
+		MCPMaxMessageSize:        1024 * 1024 * 64,
+		MCPInitialWindowSize:     1024 * 1024 * 64,
+		MCPInitialConnWindowSize: 1024 * 1024 * 64,
+
+		MeshConfig:       mcfg,
+		KeepaliveOptions: keepalive.DefaultOption(),
+	}
+
 	// Load config from the in-process Galley.
 	// We can also configure Envoy to listen on 9901 and galley on different port, and LB
 	mcfg.ConfigSources = []*meshv1.ConfigSource{
@@ -93,18 +126,49 @@ func Init() (*Server, error) {
 		},
 	}
 
-	err := startGalley(baseDir)
+	gargs := settings.DefaultArgs()
+
+	// Default dir.
+	// If not set, will attempt to use K8S.
+	gargs.ConfigPath = baseDir + "/conf/istio/simple"
+	// TODO: load a json file to override defaults (for all components)
+
+	gargs.ValidationArgs.EnableValidation = false
+	gargs.ValidationArgs.EnableReconcileWebhookConfiguration = false
+	gargs.APIAddress = "tcp://0.0.0.0:12901"
+	gargs.Insecure = true
+	gargs.EnableServer = true
+	gargs.DisableResourceReadyCheck = true
+	// Use Galley Ctrlz for all services.
+	gargs.IntrospectionOptions.Port = 12876
+
+	// The file is loaded and watched by Galley using galley/pkg/meshconfig watcher/reader
+	// Current code in galley doesn't expose it - we'll use 2 Caches instead.
+
+	// Defaults are from pkg/config/mesh
+
+	// Actual files are loaded by galley/pkg/src/fs, which recursively loads .yaml and .yml files
+	// The files are suing YAMLToJSON, but interpret Kind, APIVersion
+
+	gargs.MeshConfigFile = baseDir + "/conf/pilot/mesh.yaml"
+	gargs.MonitoringPort = 12015
+
+	server, err := NewServer(args)
 	if err != nil {
 		return nil, err
 	}
 
-	server, err := InitPilot(baseDir, &mcfg)
+
+
+	server.Galley = NewProcessing2(gargs)
+
+	err = server.Init()
 	if err != nil {
 		return nil, err
 	}
 
 	// Start the SDS server for TLS certs
-	err = StartSDS(baseDir, &mcfg)
+	err = StartSDS(baseDir, args.MeshConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -211,39 +275,13 @@ func startEnvoy(baseDir string, mcfg *meshv1.MeshConfig) error {
 
 // Start the galley component, with its args.
 
-func startGalley(baseDir string) error {
-	args := settings.DefaultArgs()
+	// Galley by default initializes some probes - we'll use Pilot probes instead, since it also checks for galley
+	// TODO: have  the probes check all other components
 
-	// Default dir.
-	// If not set, will attempt to use K8S.
-	args.ConfigPath = baseDir + "/conf/istio/simple"
-	// TODO: load a json file to override defaults (for all components)
+	// Validation is not included in hyperistio - standalone Galley or external address should be used, it's not
+	// part of the minimal set.
 
-	args.ValidationArgs.EnableValidation = false
-	args.ValidationArgs.EnableReconcileWebhookConfiguration = false
-	args.APIAddress = "tcp://0.0.0.0:12901"
-	args.Insecure = true
-	args.EnableServer = true
-	args.DisableResourceReadyCheck = true
-	// Use Galley Ctrlz for all services.
-	args.IntrospectionOptions.Port = 12876
+	// Monitoring, profiling are common across all components, skipping as part of Galley startup
+	// Ctrlz is custom for galley - setting it up here.
 
-	// The file is loaded and watched by Galley using galley/pkg/meshconfig watcher/reader
-	// Current code in galley doesn't expose it - we'll use 2 Caches instead.
 
-	// Defaults are from pkg/config/mesh
-
-	// Actual files are loaded by galley/pkg/src/fs, which recursively loads .yaml and .yml files
-	// The files are suing YAMLToJSON, but interpret Kind, APIVersion
-
-	args.MeshConfigFile = baseDir + "/conf/pilot/mesh.yaml"
-	args.MonitoringPort = 12015
-
-	gs := server.New(args)
-	err := gs.Start()
-	if err != nil {
-		log.Fatalln("Galley startup error", err)
-	}
-
-	return nil
-}

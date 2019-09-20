@@ -205,12 +205,21 @@ type Server struct {
 	mux              *http.ServeMux
 	fileWatcher      filewatcher.FileWatcher
 	Args             PilotArgs
+
+	CertKey   []byte
+	CertChain []byte
+	RootCA    []byte
+	Galley    *Processing2
 }
 
 var podNamespaceVar = env.RegisterStringVar("POD_NAMESPACE", "", "")
 
-// NewServer creates a new Server instance based on the provided arguments.
+// NewServer creates a new Server instance, using defaults for combined Istio and loading optional mesh config
+// file.
+//
+//
 func NewServer(args PilotArgs) (*Server, error) {
+
 	// If the namespace isn't set, try looking it up from the environment.
 	if args.Namespace == "" {
 		args.Namespace = podNamespaceVar.Get()
@@ -230,39 +239,48 @@ func NewServer(args PilotArgs) (*Server, error) {
 		Args: args,
 	}
 	s.fileWatcher = filewatcher.NewWatcher()
+	return s, nil
+}
 
+func (s *Server) Init() error {
 	prometheus.EnableHandlingTimeHistogram()
+	args := s.Args
 
 	//// Apply the arguments to the configuration.
 	//if err := s.initKubeClient(&args); err != nil {
 	//	return nil, fmt.Errorf("kube client: %v", err)
 	//}
 	if err := s.initMesh(&args); err != nil {
-		return nil, fmt.Errorf("mesh: %v", err)
+		return fmt.Errorf("mesh: %v", err)
 	}
 	if err := s.initMeshNetworks(&args); err != nil {
-		return nil, fmt.Errorf("mesh networks: %v", err)
+		return fmt.Errorf("mesh networks: %v", err)
 	}
 	if err := s.initConfigController(&args); err != nil {
-		return nil, fmt.Errorf("config controller: %v", err)
+		return fmt.Errorf("config controller: %v", err)
 	}
 	if err := s.initServiceControllers(&args); err != nil {
-		return nil, fmt.Errorf("service controllers: %v", err)
+		return fmt.Errorf("service controllers: %v", err)
 	}
 	if err := s.initDiscoveryService(&args); err != nil {
-		return nil, fmt.Errorf("discovery service: %v", err)
+		return fmt.Errorf("discovery service: %v", err)
 	}
 	//if err := s.initMonitor(&args); err != nil {
 	//	return nil, fmt.Errorf("monitor: %v", err)
 	//}
 
-	return s, nil
+	return nil
 }
 
 // Start starts all components of the Pilot discovery service on the port specified in DiscoveryServiceOptions.
 // If Port == 0, a port number is automatically chosen. Content serving is started by this method,
 // but is executed asynchronously. Serving can be canceled at any time by closing the provided stop channel.
 func (s *Server) Start(stop <-chan struct{}) error {
+	err := s.Galley.Start()
+	if err != nil {
+		return err
+	}
+
 	// Now start all of the components.
 	for _, fn := range s.startFuncs {
 		if err := fn(stop); err != nil {
