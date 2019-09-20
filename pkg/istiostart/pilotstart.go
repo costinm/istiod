@@ -63,7 +63,6 @@ import (
 	"istio.io/istio/pilot/pkg/serviceregistry/aggregate"
 	"istio.io/istio/pilot/pkg/serviceregistry/consul"
 	"istio.io/istio/pilot/pkg/serviceregistry/external"
-	controller2 "istio.io/istio/pilot/pkg/serviceregistry/kube/controller"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/config/schemas"
@@ -141,7 +140,6 @@ type MeshArgs struct {
 type ConfigArgs struct {
 	ClusterRegistriesNamespace string
 	KubeConfig                 string
-	ControllerOptions          controller2.Options
 	FileDir                    string
 	DisableInstallCRDs         bool
 
@@ -169,6 +167,7 @@ type PilotArgs struct {
 	Mesh                     MeshArgs
 	Config                   ConfigArgs
 	Service                  ServiceArgs
+	DomainSuffix             string
 	MeshConfig               *meshconfig.MeshConfig
 	NetworksConfigFile       string
 	CtrlZOptions             *ctrlz.Options
@@ -408,7 +407,7 @@ func (s *Server) initMCPConfigController(args *PilotArgs) error {
 	}
 
 	options := coredatamodel.Options{
-		DomainSuffix: args.Config.ControllerOptions.DomainSuffix,
+		DomainSuffix: args.DomainSuffix,
 		ClearDiscoveryServerCache: func() {
 			s.EnvoyXdsServer.ConfigUpdate(&model.PushRequest{Full: true})
 		},

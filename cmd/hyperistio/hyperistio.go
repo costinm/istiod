@@ -27,7 +27,7 @@ func main() {
 	flag.Parse()
 	stop := make(chan struct{})
 
-	s, err := istiostart.Init()
+	s, err := istiostart.Init(12000)
 	if err != nil {
 		log.Fatal("Failed to start ", err)
 	}

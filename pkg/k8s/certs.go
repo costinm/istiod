@@ -20,6 +20,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/fields"
 	"time"
 
 	"istio.io/istio/security/pkg/pki/util"
@@ -30,9 +31,19 @@ import (
 	kubelib "istio.io/istio/pkg/kube"
 	cert "k8s.io/api/certificates/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	certclient "k8s.io/client-go/kubernetes/typed/certificates/v1beta1"
 )
+
+// TODO:
+// https://kubernetes.io/docs/tasks/tls/managing-tls-in-a-cluster/
+// Note: Certificates created using the certificates.k8s.io API are signed by a dedicated CA.
+// It is possible to configure your cluster to use the cluster root CA for this purpose, but you should
+// never rely on this. Do not assume that these certificates will validate against the cluster root CA.
+//
+// The docs recommend using a ConfigMap to distribute the 'root' CA
+//
 
 const (
 	// The size of a private key for a leaf certificate.
@@ -67,7 +78,7 @@ func CreateClientset(kubeconfig, context string) (*kubernetes.Clientset, *rest.C
 // 3. Approve a CSR
 // 4. Read the signed certificate
 // 5. Clean up the artifacts (e.g., delete CSR)
-func GenKeyCertK8sCA(certClient certclient.CertificatesV1beta1Interface, hosts string) (certChain []byte, keyPEM []byte, err error) {
+func GenKeyCertK8sCA(certClient certclient.CertificatesV1beta1Interface, ns, hosts string) (certChain []byte, keyPEM []byte, err error) {
 	// 1. Generate a CSR
 	// Construct the dns id from service name and name space.
 	// Example: istio-pilot.istio-system.svc, istio-pilot.istio-system
@@ -116,7 +127,7 @@ func GenKeyCertK8sCA(certClient certclient.CertificatesV1beta1Interface, hosts s
 	log.Debugf("CSR (%v) is approved: %v", csrName, reqApproval)
 
 	// 4. Read the signed certificate
-	certChain, err = readSignedCertificate(certClient, csrName, certReadInterval, maxNumCertRead)
+	certChain, err = readSignedCertificate(certClient, csrName, ns, certReadInterval, maxNumCertRead)
 	if err != nil {
 		log.Debugf("failed to read signed cert. (%v): %v", csrName, err)
 		errCsr := cleanUpCertGen(certClient, csrName)
@@ -212,7 +223,9 @@ func submitCSR(certClient certclient.CertificatesV1beta1Interface, csrName strin
 // Clean up the CSR
 func cleanUpCertGen(certClient certclient.CertificatesV1beta1Interface, csrName string) error {
 	// Delete CSR
-	log.Debugf("delete CSR: %v", csrName)
+	if true {
+		return nil
+	}
 	err := certClient.CertificateSigningRequests().Delete(csrName, nil)
 	if err != nil {
 		log.Errorf("failed to delete CSR (%v): %v", csrName, err)
@@ -221,29 +234,55 @@ func cleanUpCertGen(certClient certclient.CertificatesV1beta1Interface, csrName 
 	return nil
 }
 
+func waitCert(certClient certclient.CertificatesV1beta1Interface, csrName, ns string) *cert.CertificateSigningRequest {
+	watch, err := certClient.CertificateSigningRequests().Watch(meta.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector("metadata.name", csrName).String(),
+	})
+	if err == nil {
+		// Use the watcher, else fail to red
+		to := time.After(10 * time.Second)
+		for {
+			select {
+			case r := <-watch.ResultChan():
+				reqSigned := r.Object.(*cert.CertificateSigningRequest)
+				if reqSigned.Status.Certificate != nil {
+					return reqSigned
+				}
+			case <-to:
+				log.Debugf("TIMEOUT")
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
 // Read the signed certificate
 // This does not include the K8S CA cert - needs to be added after.
 // TODO: use a Watcher to avoid busy read ( since it happens only at startup it's not a problem, but if we
 // use it for workload certs it is needed)
-func readSignedCertificate(certClient certclient.CertificatesV1beta1Interface, csrName string,
+func readSignedCertificate(certClient certclient.CertificatesV1beta1Interface, csrName, ns string,
 	readInterval time.Duration, maxNumRead int) ([]byte, error) {
-	var reqSigned *cert.CertificateSigningRequest
-	for i := 0; i < maxNumRead; i++ {
-		// It takes some time for certificate to be ready, so wait first.
-		time.Sleep(readInterval)
-		r, err := certClient.CertificateSigningRequests().Get(csrName, metav1.GetOptions{})
-		if err != nil {
-			log.Errorf("failed to get the CSR (%v): %v", csrName, err)
-			errCsr := cleanUpCertGen(certClient, csrName)
-			if errCsr != nil {
-				log.Errorf("failed to clean up CSR (%v): %v", csrName, err)
+
+	reqSigned := waitCert(certClient, csrName, ns)
+	if reqSigned == nil {
+		for i := 0; i < maxNumRead; i++ {
+			// It takes some time for certificate to be ready, so wait first.
+			time.Sleep(readInterval)
+			r, err := certClient.CertificateSigningRequests().Get(csrName, metav1.GetOptions{})
+			if err != nil {
+				log.Errorf("failed to get the CSR (%v): %v", csrName, err)
+				errCsr := cleanUpCertGen(certClient, csrName)
+				if errCsr != nil {
+					log.Errorf("failed to clean up CSR (%v): %v", csrName, err)
+				}
+				return nil, err
 			}
-			return nil, err
-		}
-		if r.Status.Certificate != nil {
-			// Certificate is ready
-			reqSigned = r
-			break
+			if r.Status.Certificate != nil {
+				// Certificate is ready
+				reqSigned = r
+				break
+			}
 		}
 	}
 	if reqSigned == nil {
@@ -271,58 +310,28 @@ func readSignedCertificate(certClient certclient.CertificatesV1beta1Interface, c
 		return nil, fmt.Errorf("failed to read the certificate for CSR (%v), nil cert", csrName)
 	}
 
-	log.Debugf("the length of the certificate is %v", len(reqSigned.Status.Certificate))
-	log.Debugf("the certificate for CSR (%v) is: %v", csrName, string(reqSigned.Status.Certificate))
-
 	certPEM := reqSigned.Status.Certificate
-	//caCert, err := wc.getCACert()
-	//if err != nil {
-	//	log.Errorf("error when getting CA cert (%v)", err)
-	//	errCsr := cleanUpCertGen(certClient, csrName)
-	//	if errCsr != nil {
-	//		log.Errorf("failed to clean up CSR (%v): %v", csrName, err)
-	//	}
-	//	return nil, nil, err
-	//}
-	// Verify the certificate chain before returning the certificate
-	//roots := x509.NewCertPool()
-	//if roots == nil {
-	//	errCsr := cleanUpCertGen(certClient, csrName)
-	//	if errCsr != nil {
-	//		log.Errorf("failed to clean up CSR (%v): %v", csrName, err)
-	//	}
-	//	return nil, nil, fmt.Errorf("failed to create cert pool")
-	//}
-	//if ok := roots.AppendCertsFromPEM(caCert); !ok {
-	//	errCsr := cleanUpCertGen(certClient, csrName)
-	//	if errCsr != nil {
-	//		log.Errorf("failed to clean up CSR (%v): %v", csrName, err)
-	//	}
-	//	return nil, nil, fmt.Errorf("failed to append CA certificate")
-	//}
-	//certParsed, err := util.ParsePemEncodedCertificate(certPEM)
-	//if err != nil {
-	//	log.Errorf("failed to parse the certificate: %v", err)
-	//	errCsr := cleanUpCertGen(certClient, csrName)
-	//	if errCsr != nil {
-	//		log.Errorf("failed to clean up CSR (%v): %v", csrName, err)
-	//	}
-	//	return nil, nil, fmt.Errorf("failed to parse the certificate: %v", err)
-	//}
-	//_, err = certParsed.Verify(x509.VerifyOptions{
-	//	Roots: roots,
-	//})
-	//if err != nil {
-	//	log.Errorf("failed to verify the certificate chain: %v", err)
-	//	errCsr := cleanUpCertGen(certClient, csrName)
-	//	if errCsr != nil {
-	//		log.Errorf("failed to clean up CSR (%v): %v", csrName, err)
-	//	}
-	//	return nil, nil, fmt.Errorf("failed to verify the certificate chain: %v", err)
-	//}
 	certChain := []byte{}
 	certChain = append(certChain, certPEM...)
 	//certChain = append(certChain, caCert...)
 
 	return certChain, nil
+}
+
+func CheckCert(certPEM, caCert []byte) error {
+	roots := x509.NewCertPool()
+	if ok := roots.AppendCertsFromPEM(caCert); !ok {
+		return fmt.Errorf("failed to append CA certificate")
+	}
+	certParsed, err := util.ParsePemEncodedCertificate(certPEM)
+	if err != nil {
+		return fmt.Errorf("failed to parse the certificate: %v", err)
+	}
+	_, err = certParsed.Verify(x509.VerifyOptions{
+		Roots: roots,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to verify the certificate chain: %v", err)
+	}
+	return nil
 }

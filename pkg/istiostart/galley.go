@@ -40,7 +40,6 @@ import (
 	"istio.io/istio/galley/pkg/config/processor/metadata"
 	"istio.io/istio/galley/pkg/config/processor/transforms"
 	"istio.io/istio/galley/pkg/config/schema"
-	"istio.io/istio/galley/pkg/config/source/kube"
 	"istio.io/istio/galley/pkg/config/source/kube/rt"
 	"istio.io/istio/galley/pkg/runtime/groups"
 	"istio.io/istio/galley/pkg/server/process"
@@ -61,14 +60,11 @@ import (
 // - acl removed - envoy and Istio RBAC should handle it
 // - listener removed - common grpc server for all components, using Pilot's listener
 
-
 type Processing2 struct {
 	args *settings.Args
 
 	mcpCache     *snapshot.Cache
 	configzTopic fw.Topic
-
-	k kube.Interfaces
 
 	serveWG       sync.WaitGroup
 	grpcServer    *grpc.Server
@@ -100,7 +96,7 @@ func (p *Processing2) Start() (err error) {
 	var mesh event.Source
 	var src event.Source
 
-	// This returns the default mesh config, without a way to override
+	//This returns the default mesh config, without a way to override
 	if mesh, err = meshcfg.NewFS(p.args.MeshConfigFile); err != nil {
 		return
 	}
@@ -255,10 +251,10 @@ func (p *Processing2) getServerGrpcOptions() []grpc.ServerOption {
 type GalleyCfgSourceFn func(resources schema.KubeResources) (src event.Source, err error)
 
 func (p *Processing2) createSource(resources schema.KubeResources) (src event.Source, err error) {
-		if src, err = fs2.New(p.args.ConfigPath, resources); err != nil {
-			return
-		}
+	if src, err = fs2.New(p.args.ConfigPath, resources); err != nil {
 		return
+	}
+	return
 }
 
 func (p *Processing2) isKindExcluded(kind string) bool {

@@ -5,6 +5,10 @@ import (
 	"github.com/costinm/istio-vm/pkg/istiostart"
 	"github.com/hashicorp/go-multierror"
 	meshconfig "istio.io/api/mesh/v1alpha1"
+	"istio.io/istio/galley/pkg/config/event"
+	"istio.io/istio/galley/pkg/config/schema"
+	"istio.io/istio/galley/pkg/config/source/kube"
+	"istio.io/istio/galley/pkg/config/source/kube/apiserver"
 	configaggregate "istio.io/istio/pilot/pkg/config/aggregate"
 	"istio.io/istio/pilot/pkg/config/clusterregistry"
 	"istio.io/istio/pilot/pkg/config/kube/crd/controller"
@@ -14,12 +18,12 @@ import (
 	"istio.io/istio/pilot/pkg/serviceregistry/aggregate"
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/config/schemas"
-	kubelib "istio.io/istio/pkg/kube"
 	"istio.io/pkg/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
 	controller2 "istio.io/istio/pilot/pkg/serviceregistry/kube/controller"
@@ -30,19 +34,22 @@ import (
 // init deps in this package.
 
 type K8SServer struct {
-	IstioServer *istiostart.Server
+	IstioServer       *istiostart.Server
+	ControllerOptions controller2.Options
 
 	kubeClient   kubernetes.Interface
+	kubeCfg      *rest.Config
 	kubeRegistry *controller2.Controller
 	multicluster *clusterregistry.Multicluster
+	args         istiostart.PilotArgs
 }
 
-func InitK8S(is *istiostart.Server, args istiostart.PilotArgs) (*K8SServer, error) {
-	s := &K8SServer{IstioServer: is}
-
-	// Apply the arguments to the configuration.
-	if err := s.initKubeClient(&args); err != nil {
-		return nil, fmt.Errorf("kube client: %v", err)
+func InitK8S(is *istiostart.Server, clientset *kubernetes.Clientset, config *rest.Config, args istiostart.PilotArgs) (*K8SServer, error) {
+	s := &K8SServer{
+		IstioServer: is,
+		kubeCfg:     config,
+		kubeClient:  clientset,
+		args:        args,
 	}
 
 	if err := s.initConfigController(&args); err != nil {
@@ -102,9 +109,9 @@ func (s *K8SServer) initClusterRegistries(args *istiostart.PilotArgs) (err error
 
 	mc, err := clusterregistry.NewMulticluster(s.kubeClient,
 		args.Config.ClusterRegistriesNamespace,
-		args.Config.ControllerOptions.WatchedNamespace,
-		args.Config.ControllerOptions.DomainSuffix,
-		args.Config.ControllerOptions.ResyncPeriod,
+		s.ControllerOptions.WatchedNamespace,
+		args.DomainSuffix,
+		s.ControllerOptions.ResyncPeriod,
 		s.IstioServer.ServiceController,
 		s.IstioServer.EnvoyXdsServer,
 		s.IstioServer.MeshNetworks)
@@ -138,7 +145,7 @@ func (s *K8SServer) initConfigController(args *istiostart.PilotArgs) error {
 		// Wrap the config controller with a cache.
 		configController, err := configaggregate.MakeCache([]model.ConfigStoreCache{
 			s.IstioServer.ConfigController,
-			ingress.NewController(s.kubeClient, s.IstioServer.Mesh, args.Config.ControllerOptions),
+			ingress.NewController(s.kubeClient, s.IstioServer.Mesh, s.ControllerOptions),
 		})
 		if err != nil {
 			return err
@@ -148,7 +155,7 @@ func (s *K8SServer) initConfigController(args *istiostart.PilotArgs) error {
 		s.IstioServer.ConfigController = configController
 
 		if ingressSyncer, errSyncer := ingress.NewStatusSyncer(s.IstioServer.Mesh, s.kubeClient,
-			args.Namespace, args.Config.ControllerOptions); errSyncer != nil {
+			args.Namespace, s.ControllerOptions); errSyncer != nil {
 			log.Warnf("Disabled ingress status syncer due to %v", errSyncer)
 		} else {
 			s.IstioServer.AddStartFunc(func(stop <-chan struct{}) error {
@@ -168,8 +175,8 @@ func (s *K8SServer) initConfigController(args *istiostart.PilotArgs) error {
 func (s *K8SServer) createK8sServiceControllers(serviceControllers *aggregate.Controller, args *istiostart.PilotArgs) (err error) {
 	clusterID := string(serviceregistry.KubernetesRegistry)
 	log.Infof("Primary Cluster name: %s", clusterID)
-	args.Config.ControllerOptions.ClusterID = clusterID
-	kubectl := controller2.NewController(s.kubeClient, args.Config.ControllerOptions)
+	s.ControllerOptions.ClusterID = clusterID
+	kubectl := controller2.NewController(s.kubeClient, s.ControllerOptions)
 	s.kubeRegistry = kubectl
 	serviceControllers.AddRegistry(
 		aggregate.Registry{
@@ -182,24 +189,13 @@ func (s *K8SServer) createK8sServiceControllers(serviceControllers *aggregate.Co
 	return
 }
 
-// initKubeClient creates the k8s client if running in an k8s environment.
-func (s *K8SServer) initKubeClient(args *istiostart.PilotArgs) error {
-	client, kuberr := kubelib.CreateClientset(s.getKubeCfgFile(args), "")
-	if kuberr != nil {
-		return multierror.Prefix(kuberr, "failed to connect to Kubernetes API.")
-	}
-	s.kubeClient = client
-
-	return nil
-}
-
 func (s *K8SServer) getKubeCfgFile(args *istiostart.PilotArgs) string {
 	return args.Config.KubeConfig
 }
 
 func (s *K8SServer) makeKubeConfigController(args *istiostart.PilotArgs) (model.ConfigStoreCache, error) {
 	kubeCfgFile := s.getKubeCfgFile(args)
-	configClient, err := controller.NewClient(kubeCfgFile, "", schemas.Istio, args.Config.ControllerOptions.DomainSuffix)
+	configClient, err := controller.NewClient(kubeCfgFile, "", schemas.Istio, s.ControllerOptions.DomainSuffix)
 	if err != nil {
 		return nil, multierror.Prefix(err, "failed to open a config client.")
 	}
@@ -210,7 +206,7 @@ func (s *K8SServer) makeKubeConfigController(args *istiostart.PilotArgs) (model.
 		}
 	}
 
-	return controller.NewController(configClient, args.Config.ControllerOptions), nil
+	return controller.NewController(configClient, s.ControllerOptions), nil
 }
 
 const (
@@ -247,4 +243,21 @@ func GetMeshConfig(kube kubernetes.Interface, namespace, name string) (*v1.Confi
 		return nil, nil, err
 	}
 	return cfg, meshConfig, nil
+}
+
+func (s *K8SServer) NewGalleyK8SSource(resources schema.KubeResources) (src event.Source, err error) {
+
+	//if !p.args.DisableResourceReadyCheck {
+	//	if err = checkResourceTypesPresence(k, resources); err != nil {
+	//		return
+	//	}
+	//}
+
+	o := apiserver.Options{
+		Client:       kube.NewInterfaces(s.kubeCfg),
+		ResyncPeriod: s.ControllerOptions.ResyncPeriod,
+		Resources:    resources,
+	}
+	src = apiserver.New(o)
+	return
 }

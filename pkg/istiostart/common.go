@@ -57,7 +57,7 @@ func (s *Server) InitCommon(args *PilotArgs) {
 // - http port 15007
 // - grpc on 15010
 //- config from $ISTIO_CONFIG or ./conf
-func Init() (*Server, error) {
+func Init(basePort int32) (*Server, error) {
 	baseDir := "."
 	//meshConfigFile := baseDir + "/conf/pilot/mesh.yaml"
 
@@ -67,18 +67,20 @@ func Init() (*Server, error) {
 	mcfg.AuthPolicy = meshv1.MeshConfig_NONE
 
 	mcfg.DisablePolicyChecks = true
-	mcfg.ProxyHttpPort = 12080
-	mcfg.ProxyListenPort = 12001
+	mcfg.ProxyHttpPort = basePort + 80
+	mcfg.ProxyListenPort = basePort + 1
 
 	// TODO: 15006 can't be configured currently
 	// TODO: 15090 (prometheus) can't be configured. It's in the bootstrap file, so easy to replace
 
 	mcfg.ProxyHttpPort = 12002
+
+	// Temp override for local testing. The loaded mesh config should have the canonical address of pilot
 	mcfg.DefaultConfig = &meshv1.ProxyConfig{
-		DiscoveryAddress:       "localhost:12010",
+		DiscoveryAddress:       fmt.Sprintf("localhost:%d", basePort+10),
 		ControlPlaneAuthPolicy: meshv1.AuthenticationPolicy_NONE,
 
-		ProxyAdminPort: 12000,
+		ProxyAdminPort: basePort,
 
 		ConfigPath: baseDir + "/run",
 		// BinaryPath:       "/usr/local/bin/envoy", - default
@@ -93,17 +95,17 @@ func Init() (*Server, error) {
 
 	// Create a test pilot discovery service configured to watch the tempDir.
 	args := PilotArgs{
-		Namespace: "testing",
+		Namespace:    "istio-system",
+		DomainSuffix: "cluster.local",
 		DiscoveryOptions: envoy.DiscoveryServiceOptions{
-			HTTPAddr:        ":12007",
-			GrpcAddr:        ":12010",
-			SecureGrpcAddr:  ":12011",
+			HTTPAddr:        fmt.Sprintf(":%d", basePort+7),
+			GrpcAddr:        fmt.Sprintf(":%d", basePort+10),
+			SecureGrpcAddr:  fmt.Sprintf(":%d", basePort+11),
 			EnableCaching:   true,
 			EnableProfiling: true,
 		},
 
 		Mesh: MeshArgs{
-
 			MixerAddress:    "localhost:9091",
 			RdsRefreshDelay: types.DurationProto(10 * time.Millisecond),
 		},
@@ -120,9 +122,11 @@ func Init() (*Server, error) {
 
 	// Load config from the in-process Galley.
 	// We can also configure Envoy to listen on 9901 and galley on different port, and LB
+
+	// TODO: run everything on same port
 	mcfg.ConfigSources = []*meshv1.ConfigSource{
 		&meshv1.ConfigSource{
-			Address: "localhost:12901",
+			Address: fmt.Sprintf("localhost:%d", basePort+901),
 		},
 	}
 
@@ -135,12 +139,12 @@ func Init() (*Server, error) {
 
 	gargs.ValidationArgs.EnableValidation = false
 	gargs.ValidationArgs.EnableReconcileWebhookConfiguration = false
-	gargs.APIAddress = "tcp://0.0.0.0:12901"
+	gargs.APIAddress = fmt.Sprintf("tcp://0.0.0.0:%d", basePort+901)
 	gargs.Insecure = true
 	gargs.EnableServer = true
 	gargs.DisableResourceReadyCheck = true
 	// Use Galley Ctrlz for all services.
-	gargs.IntrospectionOptions.Port = 12876
+	gargs.IntrospectionOptions.Port = uint16(basePort + 876)
 
 	// The file is loaded and watched by Galley using galley/pkg/meshconfig watcher/reader
 	// Current code in galley doesn't expose it - we'll use 2 Caches instead.
@@ -151,14 +155,12 @@ func Init() (*Server, error) {
 	// The files are suing YAMLToJSON, but interpret Kind, APIVersion
 
 	gargs.MeshConfigFile = baseDir + "/conf/pilot/mesh.yaml"
-	gargs.MonitoringPort = 12015
+	gargs.MonitoringPort = uint(basePort + 15)
 
 	server, err := NewServer(args)
 	if err != nil {
 		return nil, err
 	}
-
-
 
 	server.Galley = NewProcessing2(gargs)
 
@@ -275,13 +277,11 @@ func startEnvoy(baseDir string, mcfg *meshv1.MeshConfig) error {
 
 // Start the galley component, with its args.
 
-	// Galley by default initializes some probes - we'll use Pilot probes instead, since it also checks for galley
-	// TODO: have  the probes check all other components
+// Galley by default initializes some probes - we'll use Pilot probes instead, since it also checks for galley
+// TODO: have  the probes check all other components
 
-	// Validation is not included in hyperistio - standalone Galley or external address should be used, it's not
-	// part of the minimal set.
+// Validation is not included in hyperistio - standalone Galley or external address should be used, it's not
+// part of the minimal set.
 
-	// Monitoring, profiling are common across all components, skipping as part of Galley startup
-	// Ctrlz is custom for galley - setting it up here.
-
-
+// Monitoring, profiling are common across all components, skipping as part of Galley startup
+// Ctrlz is custom for galley - setting it up here.
