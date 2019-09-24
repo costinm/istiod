@@ -87,6 +87,7 @@ func initCerts(server *istiostart.Server, client *kubernetes.Clientset, cfg *res
 
 // Start the workload SDS server. Will run on the UDS path - Envoy sidecar will use a cluster
 // to expose the UDS path over TLS, using Apiserver-signed certs.
+// SDS depends on k8s.
 func StartSDSK8S(baseDir string, config *meshv1.MeshConfig) error {
 
 	// This won't work on VM - only on K8S.
