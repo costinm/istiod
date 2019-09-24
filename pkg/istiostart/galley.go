@@ -52,7 +52,7 @@ import (
 	"istio.io/istio/pkg/mcp/source"
 )
 
-// Processing2 component is the main config processing component that will listen to a config source and publish
+// GalleyServer component is the main config processing component that will listen to a config source and publish
 // resources through an MCP server.
 
 // This is a simplified startup for galley, specific for hyperistio/combined:
@@ -60,11 +60,10 @@ import (
 // - acl removed - envoy and Istio RBAC should handle it
 // - listener removed - common grpc server for all components, using Pilot's listener
 
-type Processing2 struct {
+type GalleyServer struct {
 	args *settings.Args
 
-	mcpCache     *snapshot.Cache
-	configzTopic fw.Topic
+	mcpCache *snapshot.Cache
 
 	serveWG       sync.WaitGroup
 	grpcServer    *grpc.Server
@@ -74,45 +73,50 @@ type Processing2 struct {
 	listenerMutex sync.Mutex
 	listener      net.Listener
 	stopCh        chan struct{}
+	meta          *schema.Metadata
+	Sources       []event.Source
+	Resources     schema.KubeResources
 }
 
 var scope = log.RegisterScope("server", "", 0)
-var _ process.Component = &Processing2{}
+var _ process.Component = &GalleyServer{}
 
 const versionMetadataKey = "config.source.version"
 
-// NewProcessing2 returns a new processing component.
-func NewProcessing2(a *settings.Args) *Processing2 {
+// NewGalleyServer returns a new processing component.
+func NewGalleyServer(a *settings.Args) *GalleyServer {
 	mcpCache := snapshot.New(groups.IndexFunction)
-	return &Processing2{
-		args:         a,
-		mcpCache:     mcpCache,
-		configzTopic: configz.CreateTopic(mcpCache),
+	m := metadata.MustGet()
+
+	p := &GalleyServer{
+		args:     a,
+		mcpCache: mcpCache,
+		meta:     m,
 	}
+
+	kubeResources := p.disableExcludedKubeResources(p.meta)
+	p.Resources = kubeResources
+	//This returns the default mesh config, without a way to override
+	mesh, err := meshcfg.NewFS(p.args.MeshConfigFile)
+	if err == nil {
+		p.Sources = append(p.Sources, mesh)
+	}
+
+	src, err := p.createSource(kubeResources)
+	if err == nil {
+		p.Sources = append(p.Sources, src)
+	}
+
+	return p
 }
 
 // Start implements process.Component
-func (p *Processing2) Start() (err error) {
-	var mesh event.Source
-	var src event.Source
-
-	//This returns the default mesh config, without a way to override
-	if mesh, err = meshcfg.NewFS(p.args.MeshConfigFile); err != nil {
-		return
-	}
-
-	m := metadata.MustGet()
-
-	kubeResources := p.disableExcludedKubeResources(m)
-
-	if src, err = p.createSource(kubeResources); err != nil {
-		return
-	}
+func (p *GalleyServer) Start() (err error) {
 
 	var distributor snapshotter.Distributor = snapshotter.NewMCPDistributor(p.mcpCache)
-	transformProviders := transforms.Providers(m)
+	transformProviders := transforms.Providers(p.meta)
 
-	if p.runtime, err = processor.Initialize(m, p.args.DomainSuffix, event.CombineSources(mesh, src), transformProviders, distributor); err != nil {
+	if p.runtime, err = processor.Initialize(p.meta, p.args.DomainSuffix, event.CombineSources(p.Sources...), transformProviders, distributor); err != nil {
 		return
 	}
 
@@ -129,7 +133,7 @@ func (p *Processing2) Start() (err error) {
 	options := &source.Options{
 		Watcher:            p.mcpCache,
 		Reporter:           p.reporter,
-		CollectionsOptions: source.CollectionOptionsFromSlice(m.AllCollectionsInSnapshots()),
+		CollectionsOptions: source.CollectionOptionsFromSlice(p.meta.AllCollectionsInSnapshots()),
 		ConnRateLimiter:    mcprate.NewRateLimiter(time.Second, 100), // TODO(Nino-K): https://github.com/istio/istio/issues/12074
 	}
 
@@ -189,7 +193,7 @@ func (p *Processing2) Start() (err error) {
 	return nil
 }
 
-func (p *Processing2) disableExcludedKubeResources(m *schema.Metadata) schema.KubeResources {
+func (p *GalleyServer) disableExcludedKubeResources(m *schema.Metadata) schema.KubeResources {
 
 	// Behave in the same way as existing logic:
 	// - Builtin types are excluded by default.
@@ -220,11 +224,11 @@ func (p *Processing2) disableExcludedKubeResources(m *schema.Metadata) schema.Ku
 }
 
 // ConfigZTopic returns the ConfigZTopic for the processor.
-func (p *Processing2) ConfigZTopic() fw.Topic {
-	return p.configzTopic
+func (p *GalleyServer) ConfigZTopic() fw.Topic {
+	return configz.CreateTopic(p.mcpCache)
 }
 
-func (p *Processing2) getServerGrpcOptions() []grpc.ServerOption {
+func (p *GalleyServer) getServerGrpcOptions() []grpc.ServerOption {
 	var grpcOptions []grpc.ServerOption
 	grpcOptions = append(grpcOptions,
 		grpc.MaxConcurrentStreams(uint32(p.args.MaxConcurrentStreams)),
@@ -250,14 +254,14 @@ func (p *Processing2) getServerGrpcOptions() []grpc.ServerOption {
 // Abstract the factory to create the config source
 type GalleyCfgSourceFn func(resources schema.KubeResources) (src event.Source, err error)
 
-func (p *Processing2) createSource(resources schema.KubeResources) (src event.Source, err error) {
+func (p *GalleyServer) createSource(resources schema.KubeResources) (src event.Source, err error) {
 	if src, err = fs2.New(p.args.ConfigPath, resources); err != nil {
 		return
 	}
 	return
 }
 
-func (p *Processing2) isKindExcluded(kind string) bool {
+func (p *GalleyServer) isKindExcluded(kind string) bool {
 	for _, excludedKind := range p.args.ExcludedResourceKinds {
 		if kind == excludedKind {
 			return true
@@ -268,7 +272,7 @@ func (p *Processing2) isKindExcluded(kind string) bool {
 }
 
 // Stop implements process.Component
-func (p *Processing2) Stop() {
+func (p *GalleyServer) Stop() {
 	if p.stopCh != nil {
 		close(p.stopCh)
 		p.stopCh = nil
@@ -300,14 +304,14 @@ func (p *Processing2) Stop() {
 	_ = log.Sync()
 }
 
-func (p *Processing2) getListener() net.Listener {
+func (p *GalleyServer) getListener() net.Listener {
 	p.listenerMutex.Lock()
 	defer p.listenerMutex.Unlock()
 	return p.listener
 }
 
 // Address returns the Address of the MCP service.
-func (p *Processing2) Address() net.Addr {
+func (p *GalleyServer) Address() net.Addr {
 	l := p.getListener()
 	if l == nil {
 		return nil

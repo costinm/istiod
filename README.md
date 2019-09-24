@@ -37,4 +37,7 @@ Ideally user should only run "./hyperistio" with no CLI/env, and have a working 
 recommended/best practice config. 
 
 
+# Galley integration
 
+Galley Processing2 is loaded at startup, and initializes the filesystem and mesh config Sources. If K8S is enabled,
+it'll also load the K8S config source, and add it to GalleyServer.Sources.

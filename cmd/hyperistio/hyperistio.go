@@ -27,12 +27,16 @@ func main() {
 	flag.Parse()
 	stop := make(chan struct{})
 
-	s, err := istiostart.Init(12000)
+	// In k8s, the config is mounted under /etc/istio/config/mesh
+	// For VM, we'll use ./conf/hyperistio/mesh.yaml
+	s, err := istiostart.InitConfig(12000, "./etc/istio/vmconfig")
 	if err != nil {
 		log.Fatal("Failed to start ", err)
 	}
 
-	s.Start(stop)
+	err = s.InitDiscovery()
+
+	s.Start(stop, nil)
 
 	s.WaitDrain(".")
 }

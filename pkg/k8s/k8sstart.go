@@ -9,7 +9,6 @@ import (
 	"istio.io/istio/galley/pkg/config/schema"
 	"istio.io/istio/galley/pkg/config/source/kube"
 	"istio.io/istio/galley/pkg/config/source/kube/apiserver"
-	configaggregate "istio.io/istio/pilot/pkg/config/aggregate"
 	"istio.io/istio/pilot/pkg/config/clusterregistry"
 	"istio.io/istio/pilot/pkg/config/kube/crd/controller"
 	"istio.io/istio/pilot/pkg/config/kube/ingress"
@@ -41,10 +40,10 @@ type K8SServer struct {
 	kubeCfg      *rest.Config
 	kubeRegistry *controller2.Controller
 	multicluster *clusterregistry.Multicluster
-	args         istiostart.PilotArgs
+	args         *istiostart.PilotArgs
 }
 
-func InitK8S(is *istiostart.Server, clientset *kubernetes.Clientset, config *rest.Config, args istiostart.PilotArgs) (*K8SServer, error) {
+func InitK8S(is *istiostart.Server, clientset *kubernetes.Clientset, config *rest.Config, args *istiostart.PilotArgs) (*K8SServer, error) {
 	s := &K8SServer{
 		IstioServer: is,
 		kubeCfg:     config,
@@ -52,33 +51,34 @@ func InitK8S(is *istiostart.Server, clientset *kubernetes.Clientset, config *res
 		args:        args,
 	}
 
-	if err := s.initConfigController(&args); err != nil {
+	// Istio's own K8S config controller - shouldn't be needed if MCP is used.
+	// TODO: ordering, this needs to go before discovery.
+	if err := s.initConfigController(args); err != nil {
+		return nil, fmt.Errorf("cluster registries: %v", err)
+	}
+	return s, nil
+}
+
+func (s *K8SServer) OnXDSStart(xds model.XDSUpdater) {
+	s.kubeRegistry.XDSUpdater = xds
+}
+
+func (s *K8SServer) InitK8SDiscovery(is *istiostart.Server, clientset *kubernetes.Clientset, config *rest.Config, args *istiostart.PilotArgs) (*K8SServer, error) {
+	if err := s.createK8sServiceControllers(s.IstioServer.ServiceController, args); err != nil {
 		return nil, fmt.Errorf("cluster registries: %v", err)
 	}
 
-	if err := s.createK8sServiceControllers(s.IstioServer.ServiceController, &args); err != nil {
+	if err := s.initClusterRegistries(args); err != nil {
 		return nil, fmt.Errorf("cluster registries: %v", err)
 	}
 
-	if err := s.initClusterRegistries(&args); err != nil {
-		return nil, fmt.Errorf("cluster registries: %v", err)
-	}
-
-	if s.kubeRegistry != nil {
-		environment := &model.Environment{
-			Mesh:             s.IstioServer.Mesh,
-			MeshNetworks:     s.IstioServer.MeshNetworks,
-			IstioConfigStore: s.IstioServer.IstioConfigStore,
-			ServiceDiscovery: s.IstioServer.ServiceController,
-			PushContext:      model.NewPushContext(),
-		}
-
-		// kubeRegistry may use the environment for push status reporting.
-		// TODO: maybe all registries should have this as an optional field ?
-		s.kubeRegistry.Env = environment
-		s.kubeRegistry.InitNetworkLookup(s.IstioServer.MeshNetworks)
-		s.kubeRegistry.XDSUpdater = s.IstioServer.EnvoyXdsServer
-	}
+	// kubeRegistry may use the environment for push status reporting.
+	// TODO: maybe all registries should have this as an optional field ?
+	s.kubeRegistry.Env = s.IstioServer.Environment
+	s.kubeRegistry.InitNetworkLookup(s.IstioServer.MeshNetworks)
+	// EnvoyXDSServer is not initialized yet - since initialization adds all 'service' handlers, which depends
+	// on this beeing done. Instead we use the callback.
+	//s.kubeRegistry.XDSUpdater = s.IstioServer.EnvoyXdsServer
 
 	return s, nil
 }
@@ -132,27 +132,17 @@ func (s *K8SServer) initConfigController(args *istiostart.PilotArgs) error {
 		return err
 	}
 
-	s.IstioServer.ConfigController = cfgController
+	s.IstioServer.ConfigStores = append(s.IstioServer.ConfigStores, cfgController)
 
 	// Defer starting the controller until after the service is created.
 	s.IstioServer.AddStartFunc(func(stop <-chan struct{}) error {
-		go s.IstioServer.ConfigController.Run(stop)
+		go cfgController.Run(stop)
 		return nil
 	})
 
 	// If running in ingress mode (requires k8s), wrap the config controller.
 	if s.IstioServer.Mesh.IngressControllerMode != meshconfig.MeshConfig_OFF {
-		// Wrap the config controller with a cache.
-		configController, err := configaggregate.MakeCache([]model.ConfigStoreCache{
-			s.IstioServer.ConfigController,
-			ingress.NewController(s.kubeClient, s.IstioServer.Mesh, s.ControllerOptions),
-		})
-		if err != nil {
-			return err
-		}
-
-		// Update the config controller
-		s.IstioServer.ConfigController = configController
+		s.IstioServer.ConfigStores = append(s.IstioServer.ConfigStores, ingress.NewController(s.kubeClient, s.IstioServer.Mesh, s.ControllerOptions))
 
 		if ingressSyncer, errSyncer := ingress.NewStatusSyncer(s.IstioServer.Mesh, s.kubeClient,
 			args.Namespace, s.ControllerOptions); errSyncer != nil {
@@ -164,9 +154,6 @@ func (s *K8SServer) initConfigController(args *istiostart.PilotArgs) error {
 			})
 		}
 	}
-
-	// Create the config store.
-	s.IstioServer.IstioConfigStore = model.MakeIstioStore(s.IstioServer.ConfigController)
 
 	return nil
 }
@@ -189,12 +176,8 @@ func (s *K8SServer) createK8sServiceControllers(serviceControllers *aggregate.Co
 	return
 }
 
-func (s *K8SServer) getKubeCfgFile(args *istiostart.PilotArgs) string {
-	return args.Config.KubeConfig
-}
-
 func (s *K8SServer) makeKubeConfigController(args *istiostart.PilotArgs) (model.ConfigStoreCache, error) {
-	kubeCfgFile := s.getKubeCfgFile(args)
+	kubeCfgFile := args.Config.KubeConfig
 	configClient, err := controller.NewClient(kubeCfgFile, "", schemas.Istio, s.ControllerOptions.DomainSuffix)
 	if err != nil {
 		return nil, multierror.Prefix(err, "failed to open a config client.")
@@ -245,6 +228,13 @@ func GetMeshConfig(kube kubernetes.Interface, namespace, name string) (*v1.Confi
 	return cfg, meshConfig, nil
 }
 
+type testHandler struct {
+}
+
+func (t testHandler) Handle(e event.Event) {
+	log.Debugf("Event %e", e)
+}
+
 func (s *K8SServer) NewGalleyK8SSource(resources schema.KubeResources) (src event.Source, err error) {
 
 	//if !p.args.DisableResourceReadyCheck {
@@ -259,5 +249,10 @@ func (s *K8SServer) NewGalleyK8SSource(resources schema.KubeResources) (src even
 		Resources:    resources,
 	}
 	src = apiserver.New(o)
+
+	src.Dispatch(testHandler{})
+	//src.Start()
+	//src.Stop()
+
 	return
 }

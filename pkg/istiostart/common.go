@@ -7,9 +7,6 @@ import (
 	"istio.io/istio/pilot/pkg/proxy/envoy"
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/keepalive"
-	"istio.io/istio/security/pkg/nodeagent/cache"
-	"istio.io/istio/security/pkg/nodeagent/sds"
-	"istio.io/istio/security/pkg/nodeagent/secretfetcher"
 	"istio.io/pkg/ctrlz"
 	"istio.io/pkg/filewatcher"
 	"log"
@@ -28,10 +25,6 @@ var (
 )
 
 func (s *Server) InitCommon(args *PilotArgs) {
-
-	if args.CtrlZOptions != nil {
-		_, _ = ctrlz.Run(args.CtrlZOptions, nil)
-	}
 
 	_, addr, err := startMonitor(args.DiscoveryOptions.MonitoringAddr, s.mux)
 	if err != nil {
@@ -57,23 +50,25 @@ func (s *Server) InitCommon(args *PilotArgs) {
 // - http port 15007
 // - grpc on 15010
 //- config from $ISTIO_CONFIG or ./conf
-func Init(basePort int32) (*Server, error) {
+func InitConfig(basePort int32, confDir string) (*Server, error) {
 	baseDir := "."
 	//meshConfigFile := baseDir + "/conf/pilot/mesh.yaml"
 
+	// Start with the default mesh config, in case fields are added.
 	mcfgObj := mesh.DefaultMeshConfig()
-
 	mcfg := &mcfgObj
+
+	// Override settings, to match in-process model.
 	mcfg.AuthPolicy = meshv1.MeshConfig_NONE
 
 	mcfg.DisablePolicyChecks = true
+
+	// Use the basePort, to allow multiple instances on same machine (VMs, tests)
 	mcfg.ProxyHttpPort = basePort + 80
 	mcfg.ProxyListenPort = basePort + 1
 
 	// TODO: 15006 can't be configured currently
 	// TODO: 15090 (prometheus) can't be configured. It's in the bootstrap file, so easy to replace
-
-	mcfg.ProxyHttpPort = 12002
 
 	// Temp override for local testing. The loaded mesh config should have the canonical address of pilot
 	mcfg.DefaultConfig = &meshv1.ProxyConfig{
@@ -94,17 +89,21 @@ func Init(basePort int32) (*Server, error) {
 	}
 
 	// Create a test pilot discovery service configured to watch the tempDir.
-	args := PilotArgs{
+	args := &PilotArgs{
 		Namespace:    "istio-system",
 		DomainSuffix: "cluster.local",
 		DiscoveryOptions: envoy.DiscoveryServiceOptions{
 			HTTPAddr:        fmt.Sprintf(":%d", basePort+7),
 			GrpcAddr:        fmt.Sprintf(":%d", basePort+10),
-			SecureGrpcAddr:  fmt.Sprintf(":%d", basePort+11),
+			SecureGrpcAddr:  "",
 			EnableCaching:   true,
 			EnableProfiling: true,
 		},
 
+		CtrlZOptions: &ctrlz.Options{
+			Address: "localhost",
+			Port:    uint16(basePort + 12),
+		},
 		Mesh: MeshArgs{
 			MixerAddress:    "localhost:9091",
 			RdsRefreshDelay: types.DurationProto(10 * time.Millisecond),
@@ -130,6 +129,7 @@ func Init(basePort int32) (*Server, error) {
 		},
 	}
 
+	// Galley args
 	gargs := settings.DefaultArgs()
 
 	// Default dir.
@@ -157,23 +157,28 @@ func Init(basePort int32) (*Server, error) {
 	gargs.MeshConfigFile = baseDir + "/conf/pilot/mesh.yaml"
 	gargs.MonitoringPort = uint(basePort + 15)
 
+	// Main server - pilot, registries
 	server, err := NewServer(args)
 	if err != nil {
 		return nil, err
 	}
 
-	server.Galley = NewProcessing2(gargs)
+	// Galley component
+	// TODO: runs under same gRPC port.
+	server.Galley = NewGalleyServer(gargs)
 
-	err = server.Init()
+	err = server.InitConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	// Start the SDS server for TLS certs
+	// Start the SDS server (node agent) for TLS certs
 	err = StartSDS(baseDir, args.MeshConfig)
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: start injection (only for K8S variant)
 
 	// TODO: start envoy only if TLS certs exist (or bootstrap token and SDS server address is configured)
 	//err = startEnvoy(baseDir, &mcfg)
@@ -195,38 +200,6 @@ func (s *Server) WaitDrain(baseDir string) {
 // Start the SDS service. Uses the main Istio address.
 //
 func StartSDS(baseDir string, config *meshv1.MeshConfig) error {
-
-	return nil
-}
-
-func StartSDSK8S(baseDir string, config *meshv1.MeshConfig) error {
-
-	// This won't work on VM - only on K8S.
-	var workloadSdsCacheOptions cache.Options
-	var serverOptions sds.Options
-
-	// Compat with Istio env
-	caProvider := os.Getenv("CA_PROVIDER")
-	if caProvider == "" {
-		caProvider = "Citadel"
-	}
-
-	wSecretFetcher, err := secretfetcher.NewSecretFetcher(false,
-		serverOptions.CAEndpoint, caProvider, true,
-		[]byte(""), "", "", "", "")
-	if err != nil {
-		log.Fatal("failed to create secretFetcher for workload proxy", err)
-	}
-	workloadSdsCacheOptions.TrustDomain = serverOptions.TrustDomain
-	workloadSdsCacheOptions.Plugins = sds.NewPlugins(serverOptions.PluginNames)
-	workloadSecretCache := cache.NewSecretCache(wSecretFetcher, sds.NotifyProxy, workloadSdsCacheOptions)
-
-	// GatewaySecretCache loads secrets from K8S
-	_, err = sds.NewServer(serverOptions, workloadSecretCache, nil)
-
-	if err != nil {
-		log.Fatal("Failed to start SDS server", err)
-	}
 
 	return nil
 }

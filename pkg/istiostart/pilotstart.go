@@ -16,16 +16,11 @@ package istiostart
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"istio.io/pkg/ctrlz/fw"
 	"net"
 	"net/http"
-	"os"
-	"path"
 	"reflect"
-	"strings"
 	"sync"
 	"time"
 
@@ -34,14 +29,13 @@ import (
 	middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	prom "github.com/prometheus/client_golang/prometheus"
+	authn_model "istio.io/istio/pilot/pkg/security/model"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 
 	mcpapi "istio.io/api/mcp/v1alpha1"
 	meshconfig "istio.io/api/mesh/v1alpha1"
-	istio_networking_v1alpha3 "istio.io/api/networking/v1alpha3"
 	"istio.io/pkg/ctrlz"
 	"istio.io/pkg/env"
 	"istio.io/pkg/filewatcher"
@@ -58,17 +52,12 @@ import (
 	"istio.io/istio/pilot/pkg/networking/util"
 	"istio.io/istio/pilot/pkg/proxy/envoy"
 	envoyv2 "istio.io/istio/pilot/pkg/proxy/envoy/v2"
-	authn_model "istio.io/istio/pilot/pkg/security/model"
-	"istio.io/istio/pilot/pkg/serviceregistry"
 	"istio.io/istio/pilot/pkg/serviceregistry/aggregate"
-	"istio.io/istio/pilot/pkg/serviceregistry/consul"
 	"istio.io/istio/pilot/pkg/serviceregistry/external"
 	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/config/schemas"
 	istiokeepalive "istio.io/istio/pkg/keepalive"
-	configz "istio.io/istio/pkg/mcp/configz/client"
-	"istio.io/istio/pkg/mcp/creds"
 	"istio.io/istio/pkg/mcp/monitoring"
 	"istio.io/istio/pkg/mcp/sink"
 )
@@ -187,28 +176,39 @@ type Server struct {
 	SecureGRPCListeningAddr net.Addr
 	MonitorListeningAddr    net.Addr
 
-	// TODO(nmittler): Consider alternatives to exposing these directly
 	EnvoyXdsServer    *envoyv2.DiscoveryServer
 	ServiceController *aggregate.Controller
 
-	Mesh             *meshconfig.MeshConfig
-	MeshNetworks     *meshconfig.MeshNetworks
+	Mesh         *meshconfig.MeshConfig
+	MeshNetworks *meshconfig.MeshNetworks
+
+	ConfigStores []model.ConfigStoreCache
+
+	// Underlying config stores. To simplify, this is a configaggregate instance, created just before
+	// start from the configStores
 	ConfigController model.ConfigStoreCache
+
+	// Interface abstracting all config operations, including the high-level objects
+	// and the low-level untyped model.ConfigStore
+	IstioConfigStore model.IstioConfigStore
 
 	startFuncs       []startFunc
 	httpServer       *http.Server
 	grpcServer       *grpc.Server
 	secureHTTPServer *http.Server
 	secureGRPCServer *grpc.Server
-	IstioConfigStore model.IstioConfigStore
-	mux              *http.ServeMux
-	fileWatcher      filewatcher.FileWatcher
-	Args             PilotArgs
 
-	CertKey   []byte
-	CertChain []byte
-	RootCA    []byte
-	Galley    *Processing2
+	mux         *http.ServeMux
+	fileWatcher filewatcher.FileWatcher
+	Args        *PilotArgs
+
+	CertKey      []byte
+	CertChain    []byte
+	RootCA       []byte
+	Galley       *GalleyServer
+	grpcListener net.Listener
+	httpListener net.Listener
+	Environment  *model.Environment
 }
 
 var podNamespaceVar = env.RegisterStringVar("POD_NAMESPACE", "", "")
@@ -217,7 +217,7 @@ var podNamespaceVar = env.RegisterStringVar("POD_NAMESPACE", "", "")
 // file.
 //
 //
-func NewServer(args PilotArgs) (*Server, error) {
+func NewServer(args *PilotArgs) (*Server, error) {
 
 	// If the namespace isn't set, try looking it up from the environment.
 	if args.Namespace == "" {
@@ -241,40 +241,100 @@ func NewServer(args PilotArgs) (*Server, error) {
 	return s, nil
 }
 
-func (s *Server) Init() error {
+// InitConfig will initialize the ConfigStores.
+func (s *Server) InitConfig() error {
 	prometheus.EnableHandlingTimeHistogram()
 	args := s.Args
 
-	//// Apply the arguments to the configuration.
-	//if err := s.initKubeClient(&args); err != nil {
-	//	return nil, fmt.Errorf("kube client: %v", err)
-	//}
-	if err := s.initMesh(&args); err != nil {
+	if err := s.initMesh(args); err != nil {
 		return fmt.Errorf("mesh: %v", err)
 	}
-	if err := s.initMeshNetworks(&args); err != nil {
+	if err := s.initMeshNetworks(args); err != nil {
 		return fmt.Errorf("mesh networks: %v", err)
 	}
-	if err := s.initConfigController(&args); err != nil {
+
+	// MCP controllers - currently using localhost by default or configured addresses.
+	// This is used for config.
+	if err := s.initConfigController(args); err != nil {
 		return fmt.Errorf("config controller: %v", err)
 	}
-	if err := s.initServiceControllers(&args); err != nil {
+	return nil
+}
+
+// InitDiscovery is called after InitConfig, will initialize the discovery services and
+// discovery server.
+func (s *Server) InitDiscovery() error {
+	args := s.Args
+
+	// Wrap the config controller with a cache.
+	configController, err := configaggregate.MakeCache(s.ConfigStores)
+	if err != nil {
+		return err
+	}
+
+	// Update the config controller
+	s.ConfigController = configController
+	// Create the config store.
+	s.IstioConfigStore = model.MakeIstioStore(s.ConfigController)
+
+	s.ServiceController = aggregate.NewController()
+	// Defer running of the service controllers until Start is called, init may add more.
+	s.AddStartFunc(func(stop <-chan struct{}) error {
+		go s.ServiceController.Run(stop)
+		return nil
+	})
+
+	s.Environment = &model.Environment{
+		Mesh:             s.Mesh,
+		MeshNetworks:     s.MeshNetworks,
+		IstioConfigStore: s.IstioConfigStore,
+		ServiceDiscovery: s.ServiceController,
+		PushContext:      model.NewPushContext(),
+	}
+
+	// ServiceEntry from config and aggregate discovery in s.ServiceController
+	// This will use the istioConfigStore and ConfigController.
+	if err := s.addConfig2ServiceEntry(args); err != nil {
 		return fmt.Errorf("service controllers: %v", err)
 	}
-	if err := s.initDiscoveryService(&args); err != nil {
-		return fmt.Errorf("discovery service: %v", err)
-	}
-	//if err := s.initMonitor(&args); err != nil {
-	//	return nil, fmt.Errorf("monitor: %v", err)
-	//}
 
+	return nil
+}
+
+// initMonitor initializes the configuration for the pilot monitoring server.
+func (s *Server) initMonitor(args *PilotArgs) error { //nolint: unparam
+	s.AddStartFunc(func(stop <-chan struct{}) error {
+		monitor, addr, err := startMonitor(args.DiscoveryOptions.MonitoringAddr, s.mux)
+		if err != nil {
+			return err
+		}
+		s.MonitorListeningAddr = addr
+
+		go func() {
+			<-stop
+			err := monitor.Close()
+			log.Debugf("Monitoring server terminated: %v", err)
+		}()
+		return nil
+	})
 	return nil
 }
 
 // Start starts all components of the Pilot discovery service on the port specified in DiscoveryServiceOptions.
 // If Port == 0, a port number is automatically chosen. Content serving is started by this method,
 // but is executed asynchronously. Serving can be canceled at any time by closing the provided stop channel.
-func (s *Server) Start(stop <-chan struct{}) error {
+func (s *Server) Start(stop <-chan struct{}, onXDSStart func(model.XDSUpdater)) error {
+
+	// grpc, http listeners and XDS service added to grpc
+	if err := s.initDiscoveryService(s.Args, onXDSStart); err != nil {
+		return fmt.Errorf("discovery service: %v", err)
+	}
+
+	// TODO: at the end, moved to common (same as ctrlz)
+	if err := s.initMonitor(s.Args); err != nil {
+		return err
+	}
+
 	err := s.Galley.Start()
 	if err != nil {
 		return err
@@ -287,6 +347,46 @@ func (s *Server) Start(stop <-chan struct{}) error {
 		}
 	}
 
+	if !s.waitForCacheSync(stop) {
+		return nil
+	}
+
+	// Start the XDS server (non blocking)
+	s.EnvoyXdsServer.Start(stop)
+
+	log.Infof("starting discovery service at http=%s grpc=%s", s.httpListener.Addr(), s.grpcListener.Addr())
+
+	go func() {
+		<-stop
+		authn_model.JwtKeyResolver.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		err := s.httpServer.Shutdown(ctx)
+		if err != nil {
+			log.Warna(err)
+		}
+		if s.Args.ForceStop {
+			s.grpcServer.Stop()
+		} else {
+			s.grpcServer.GracefulStop()
+		}
+	}()
+
+	go func() {
+		if err := s.httpServer.Serve(s.httpListener); err != nil {
+			log.Warna(err)
+		}
+	}()
+	go func() {
+		if err := s.grpcServer.Serve(s.grpcListener); err != nil {
+			log.Warna(err)
+		}
+	}()
+
+	if s.Args.CtrlZOptions != nil {
+		ctrlz.Run(s.Args.CtrlZOptions, []fw.Topic{s.Galley.ConfigZTopic()})
+	}
 	return nil
 }
 
@@ -416,66 +516,13 @@ func (s *Server) initMCPConfigController(args *PilotArgs) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	var clients []*sink.Client
 	var conns []*grpc.ClientConn
-	var configStores []model.ConfigStoreCache
 
 	reporter := monitoring.NewStatsContext("pilot")
 
 	for _, configSource := range s.Mesh.ConfigSources {
+		// Pilot connection to MCP is handled by the envoy sidecar if out of process, so we can use SDS
+		// and envoy features.
 		securityOption := grpc.WithInsecure()
-		if configSource.TlsSettings != nil &&
-			configSource.TlsSettings.Mode != istio_networking_v1alpha3.TLSSettings_DISABLE {
-			var credentialOption *creds.Options
-			switch configSource.TlsSettings.Mode {
-			case istio_networking_v1alpha3.TLSSettings_SIMPLE:
-			case istio_networking_v1alpha3.TLSSettings_MUTUAL:
-				credentialOption = &creds.Options{
-					CertificateFile:   configSource.TlsSettings.ClientCertificate,
-					KeyFile:           configSource.TlsSettings.PrivateKey,
-					CACertificateFile: configSource.TlsSettings.CaCertificates,
-				}
-			case istio_networking_v1alpha3.TLSSettings_ISTIO_MUTUAL:
-				credentialOption = &creds.Options{
-					CertificateFile:   path.Join(constants.AuthCertsPath, constants.CertChainFilename),
-					KeyFile:           path.Join(constants.AuthCertsPath, constants.KeyFilename),
-					CACertificateFile: path.Join(constants.AuthCertsPath, constants.RootCertFilename),
-				}
-			default:
-				log.Errorf("invalid tls setting mode %d", configSource.TlsSettings.Mode)
-				continue
-			}
-
-			if credentialOption == nil {
-				transportCreds := creds.CreateForClientSkipVerify()
-				securityOption = grpc.WithTransportCredentials(transportCreds)
-			} else {
-				requiredFiles := []string{credentialOption.CACertificateFile, credentialOption.KeyFile, credentialOption.CertificateFile}
-				log.Infof("Secure MCP configured. Waiting for required certificate files to become available: %v",
-					requiredFiles)
-				for len(requiredFiles) > 0 {
-					if _, err := os.Stat(requiredFiles[0]); os.IsNotExist(err) {
-						log.Infof("%v not found. Checking again in %v", requiredFiles[0], requiredMCPCertCheckFreq)
-						select {
-						case <-ctx.Done():
-							cancel()
-							return ctx.Err()
-						case <-time.After(requiredMCPCertCheckFreq):
-							// retry
-						}
-						continue
-					}
-					log.Infof("%v found", requiredFiles[0])
-					requiredFiles = requiredFiles[1:]
-				}
-
-				watcher, err := creds.WatchFiles(ctx.Done(), credentialOption)
-				if err != nil {
-					cancel()
-					return err
-				}
-				transportCreds := creds.CreateForClient(configSource.TlsSettings.Sni, watcher)
-				securityOption = grpc.WithTransportCredentials(transportCreds)
-			}
-		}
 
 		keepaliveOption := grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time:    args.KeepaliveOptions.Time,
@@ -505,11 +552,12 @@ func (s *Server) initMCPConfigController(args *PilotArgs) error {
 
 		cl := mcpapi.NewResourceSourceClient(conn)
 		mcpClient := sink.NewClient(cl, sinkOptions)
-		configz.Register(mcpClient)
+		// Configz already registered by galley
+		// configz.Register(mcpClient)
 		clients = append(clients, mcpClient)
 
 		conns = append(conns, conn)
-		configStores = append(configStores, mcpController)
+		s.ConfigStores = append(s.ConfigStores, mcpController)
 	}
 
 	s.AddStartFunc(func(stop <-chan struct{}) error {
@@ -543,17 +591,12 @@ func (s *Server) initMCPConfigController(args *PilotArgs) error {
 		return nil
 	})
 
-	// Wrap the config controller with a cache.
-	aggregateMcpController, err := configaggregate.MakeCache(configStores)
-	if err != nil {
-		return err
-	}
-	s.ConfigController = aggregateMcpController
 	return nil
 }
 
 // initConfigController creates the config controller in the pilotConfig.
 func (s *Server) initConfigController(args *PilotArgs) error {
+
 	if len(s.Mesh.ConfigSources) > 0 {
 		if err := s.initMCPConfigController(args); err != nil {
 			return err
@@ -572,9 +615,9 @@ func (s *Server) initConfigController(args *PilotArgs) error {
 	return nil
 }
 
-// initServiceControllers creates and initializes the service controllers
-func (s *Server) initServiceControllers(args *PilotArgs) error {
-	serviceControllers := aggregate.NewController()
+// addConfig2ServiceEntry creates and initializes the ServiceController used for translating
+// ServiceEntries from config store to discovery.
+func (s *Server) addConfig2ServiceEntry(args *PilotArgs) error {
 	serviceEntryStore := external.NewServiceDiscovery(s.ConfigController, s.IstioConfigStore)
 
 	// add service entry registry to aggregator by default
@@ -583,31 +626,16 @@ func (s *Server) initServiceControllers(args *PilotArgs) error {
 		Controller:       serviceEntryStore,
 		ServiceDiscovery: serviceEntryStore,
 	}
-	serviceControllers.AddRegistry(serviceEntryRegistry)
-
-	s.ServiceController = serviceControllers
-
-	// Defer running of the service controllers.
-	s.AddStartFunc(func(stop <-chan struct{}) error {
-		go s.ServiceController.Run(stop)
-		return nil
-	})
+	s.ServiceController.AddRegistry(serviceEntryRegistry)
 
 	return nil
 }
 
-func (s *Server) initDiscoveryService(args *PilotArgs) error {
-	environment := &model.Environment{
-		Mesh:             s.Mesh,
-		MeshNetworks:     s.MeshNetworks,
-		IstioConfigStore: s.IstioConfigStore,
-		ServiceDiscovery: s.ServiceController,
-		PushContext:      model.NewPushContext(),
-	}
+func (s *Server) initDiscoveryService(args *PilotArgs, onXDSStart func(model.XDSUpdater)) error {
 
 	// Set up discovery service
 	discovery, err := envoy.NewDiscoveryService(
-		environment,
+		s.Environment,
 		args.DiscoveryOptions,
 	)
 	if err != nil {
@@ -615,17 +643,17 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 	}
 	s.mux = discovery.RestContainer.ServeMux
 
-	s.EnvoyXdsServer = envoyv2.NewDiscoveryServer(environment,
+	s.EnvoyXdsServer = envoyv2.NewDiscoveryServer(s.Environment,
 		istio_networking.NewConfigGenerator(args.Plugins),
 		s.ServiceController, nil, s.ConfigController)
 
-	s.EnvoyXdsServer.InitDebug(s.mux, s.ServiceController)
+	if onXDSStart != nil {
+		onXDSStart(s.EnvoyXdsServer)
+	}
 
-	// Implement EnvoyXdsServer grace shutdown
-	s.AddStartFunc(func(stop <-chan struct{}) error {
-		s.EnvoyXdsServer.Start(stop)
-		return nil
-	})
+	// This is  the XDSUpdater
+
+	s.EnvoyXdsServer.InitDebug(s.mux, s.ServiceController)
 
 	// create grpc/http server
 	s.initGrpcServer(args.KeepaliveOptions)
@@ -640,118 +668,15 @@ func (s *Server) initDiscoveryService(args *PilotArgs) error {
 		return err
 	}
 	s.HTTPListeningAddr = listener.Addr()
+	s.httpListener = listener
 
 	// create grpc listener
 	grpcListener, err := net.Listen("tcp", args.DiscoveryOptions.GrpcAddr)
 	if err != nil {
 		return err
 	}
+	s.grpcListener = grpcListener
 	s.GRPCListeningAddr = grpcListener.Addr()
-
-	s.AddStartFunc(func(stop <-chan struct{}) error {
-		go func() {
-			if !s.waitForCacheSync(stop) {
-				return
-			}
-
-			log.Infof("starting discovery service at http=%s grpc=%s", listener.Addr(), grpcListener.Addr())
-			go func() {
-				if err := s.httpServer.Serve(listener); err != nil {
-					log.Warna(err)
-				}
-			}()
-			go func() {
-				if err := s.grpcServer.Serve(grpcListener); err != nil {
-					log.Warna(err)
-				}
-			}()
-
-			go func() {
-				<-stop
-				authn_model.JwtKeyResolver.Close()
-
-				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
-				err := s.httpServer.Shutdown(ctx)
-				if err != nil {
-					log.Warna(err)
-				}
-				if args.ForceStop {
-					s.grpcServer.Stop()
-				} else {
-					s.grpcServer.GracefulStop()
-				}
-			}()
-		}()
-
-		return nil
-	})
-
-	// run secure grpc server
-	if args.DiscoveryOptions.SecureGrpcAddr != "" {
-		// create secure grpc server
-		if err := s.initSecureGrpcServer(args.KeepaliveOptions); err != nil {
-			return fmt.Errorf("secure grpc server: %s", err)
-		}
-		// create secure grpc listener
-		secureGrpcListener, err := net.Listen("tcp", args.DiscoveryOptions.SecureGrpcAddr)
-		if err != nil {
-			return err
-		}
-		s.SecureGRPCListeningAddr = secureGrpcListener.Addr()
-
-		s.AddStartFunc(func(stop <-chan struct{}) error {
-			go func() {
-				if !s.waitForCacheSync(stop) {
-					return
-				}
-
-				log.Infof("starting discovery service at secure grpc=%s", secureGrpcListener.Addr())
-				go func() {
-					// This seems the only way to call setupHTTP2 - it may also be possible to set NextProto
-					// on a listener
-					err := s.secureHTTPServer.ServeTLS(secureGrpcListener, "", "")
-					msg := fmt.Sprintf("Stoppped listening on %s", secureGrpcListener.Addr().String())
-					select {
-					case <-stop:
-						log.Info(msg)
-					default:
-						panic(fmt.Sprintf("%s due to error: %v", msg, err))
-					}
-				}()
-				go func() {
-					<-stop
-					if args.ForceStop {
-						s.grpcServer.Stop()
-					} else {
-						s.grpcServer.GracefulStop()
-					}
-					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-					defer cancel()
-					_ = s.secureHTTPServer.Shutdown(ctx)
-					s.secureGRPCServer.Stop()
-				}()
-			}()
-			return nil
-		})
-	}
-
-	return nil
-}
-
-func (s *Server) initConsulRegistry(serviceControllers *aggregate.Controller, args *PilotArgs) error {
-	log.Infof("Consul url: %v", args.Service.Consul.ServerURL)
-	conctl, conerr := consul.NewController(
-		args.Service.Consul.ServerURL, args.Service.Consul.Interval)
-	if conerr != nil {
-		return fmt.Errorf("failed to create Consul controller: %v", conerr)
-	}
-	serviceControllers.AddRegistry(
-		aggregate.Registry{
-			Name:             serviceregistry.ConsulRegistry,
-			ServiceDiscovery: conctl,
-			Controller:       conctl,
-		})
 
 	return nil
 }
@@ -760,65 +685,6 @@ func (s *Server) initGrpcServer(options *istiokeepalive.Options) {
 	grpcOptions := s.grpcServerOptions(options)
 	s.grpcServer = grpc.NewServer(grpcOptions...)
 	s.EnvoyXdsServer.Register(s.grpcServer)
-}
-
-// initialize secureGRPCServer
-func (s *Server) initSecureGrpcServer(options *istiokeepalive.Options) error {
-	certDir := features.CertDir
-	if certDir == "" {
-		certDir = PilotCertDir
-	}
-
-	ca := path.Join(certDir, constants.RootCertFilename)
-	key := path.Join(certDir, constants.KeyFilename)
-	cert := path.Join(certDir, constants.CertChainFilename)
-
-	tlsCreds, err := credentials.NewServerTLSFromFile(cert, key)
-	// certs not ready yet.
-	if err != nil {
-		return err
-	}
-
-	// TODO: parse the file to determine expiration date. Restart listener before expiration
-	certificate, err := tls.LoadX509KeyPair(cert, key)
-	if err != nil {
-		return err
-	}
-
-	caCert, err := ioutil.ReadFile(ca)
-	if err != nil {
-		return err
-	}
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-
-	opts := s.grpcServerOptions(options)
-	opts = append(opts, grpc.Creds(tlsCreds))
-	s.secureGRPCServer = grpc.NewServer(opts...)
-	s.EnvoyXdsServer.Register(s.secureGRPCServer)
-	s.secureHTTPServer = &http.Server{
-		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{certificate},
-			VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-				// For now accept any certs - pilot is not authenticating the caller, TLS used for
-				// privacy
-				return nil
-			},
-			NextProtos: []string{"h2", "http/1.1"},
-			ClientAuth: tls.RequireAndVerifyClientCert,
-			ClientCAs:  caCertPool,
-		},
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.ProtoMajor == 2 && strings.HasPrefix(
-				r.Header.Get("Content-Type"), "application/grpc") {
-				s.secureGRPCServer.ServeHTTP(w, r)
-			} else {
-				s.mux.ServeHTTP(w, r)
-			}
-		}),
-	}
-
-	return nil
 }
 
 func (s *Server) grpcServerOptions(options *istiokeepalive.Options) []grpc.ServerOption {
