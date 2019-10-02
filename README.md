@@ -29,15 +29,24 @@ root mode, and $PWD/etc/certs in non-root mode.
 
 The combined binary does not use CLI - only config files:
 
-- ./etc/istio/mesh.yaml - mesh config, with support for reload. Includes additional component-specific yaml files.
-- ./etc/istio/conf/ - CRDs loaded by Galley (for file-based binary). TODO: will be combined with k8s
+For backward compatibility, we'll use the following directories:
+
+- ./etc/istio/proxy - writeable dir, contains generated envoy config and other files (concatenated root CAs, etc)
 - ./etc/certs/ - certificates using a custom CA ( citadel, etc )
+- ./var/lib/istio/envoy/envoy_bootstrap_tmpl.json - template for envoy config (until moved to istiod) 
+- ./etc/istio/config/mesh - mesh config, with support for reload. Includes additional component-specific yaml files.
+
+In addition:
+
+- ./etc/istio/data/ - CRDs loaded by Galley (for file-based binary). TODO: will be combined with k8s
+- /tmp is assumed to be writeable
 
 Since Istio and Apiserver codebases are used, some environment variables used in Istio will be respected, but 
 the intent is to have all runtime behavior described by mesh.yaml and independent of how the binary is started.
 
 Ideally user should only run `istiod` with no CLI/env, and have a working control plane with the 
 recommended/best practice config. 
+
 
 # Galley integration
 

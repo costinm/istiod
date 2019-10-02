@@ -11,6 +11,9 @@ CONF ?= ${BASE}/conf
 HUB ?= gcr.io/istio-release
 TAG ?= master-latest-daily
 
+# TODO: update when moving to istio
+IMAGE ?= costinm/istiod
+
 LOG_DIR ?= /tmp
 OUT ?= ${TOP}/out
 
@@ -26,79 +29,94 @@ DOCKER_START ?= run -d
 
 BINDIR=${TOP}/out/linux_amd64/release
 
-# Start pilot in a docker container, using a local set of files, no k8s used.
-# If configDir is specified, it will be used as a direct source of config, instead of CRDs. Will skip creation
-# of the kubeClient as long as 'registries' doesn't include k8s.
+build-docker:
+	time DOCKER_BUILDKIT=1 docker build . -t ${IMAGE}:latest
+	time DOCKER_BUILDKIT=1 docker build . --target distroless -t ${IMAGE}-distroless:latest
+
+push-docker:
+	docker push ${IMAGE}:latest
+	docker push ${IMAGE}-distroless:latest
+
+# Example of starting pilot standalone - replaced by istiod-vm, using galley file source
 #
-# "--registries" still needed, to disable k8s registry - even if MCP is not configured in mesh.yaml
-# ServiceEntries will be loaded from the config dir.
+## Start pilot in a docker container, using a local set of files, no k8s used.
+## If configDir is specified, it will be used as a direct source of config, instead of CRDs. Will skip creation
+## of the kubeClient as long as 'registries' doesn't include k8s.
+##
+## "--registries" still needed, to disable k8s registry - even if MCP is not configured in mesh.yaml
+## ServiceEntries will be loaded from the config dir.
+##
+## Plugins: authz, authn, mixer, health
+#pilot:
+#	docker rm -f pilot || true
+#	docker ${DOCKER_START} --name=pilot  \
+#		-p 127.0.0.1:15080:8080 \
+#		-p 0.0.0.0:15010:15010 \
+#		-p 127.0.0.1:15014:15014 \
+#		-p 127.0.0.1:15876:9876 \
+#        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
+#		-v ${PWD}/conf/istio:/var/lib/istio/istio \
+#		-e PILOT_ENABLE_PROTOCOL_SNIFFING=true \
+#	 ${HUB}/pilot:${TAG} \
+#    	 discovery --meshConfig /var/lib/istio/pilot/mesh.yaml \
+#    	--secureGrpcAddr="" \
+#    	--plugins="authz" \
+#        --configDir /var/lib/istio/istio --registries=MCP \
+#        --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
+
+
+# Example using pilot with MCP source. Replaced by istiod-vm
 #
-# Plugins: authz, authn, mixer, health
-pilot:
-	docker rm -f pilot || true
-	docker ${DOCKER_START} --name=pilot  \
-		-p 127.0.0.1:15080:8080 \
-		-p 0.0.0.0:15010:15010 \
-		-p 127.0.0.1:15014:15014 \
-		-p 127.0.0.1:15876:9876 \
-        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
-		-v ${PWD}/conf/istio:/var/lib/istio/istio \
-		-e PILOT_ENABLE_PROTOCOL_SNIFFING=true \
-	 ${HUB}/pilot:${TAG} \
-    	 discovery --meshConfig /var/lib/istio/pilot/mesh.yaml \
-    	--secureGrpcAddr="" \
-    	--plugins="authz" \
-        --configDir /var/lib/istio/istio --registries=MCP \
-        --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
+## A second Pilot instance, but using Galley config. Second pilot has a different config ( based on the local tests)
+#pilot-galley:
+#	yq m conf/pilot/mesh.yaml conf/pilot/mesh-galley.yaml > conf/pilot/gen-mesh-galley.yaml
+#	yq w -i conf/pilot/gen-mesh-galley.yaml configSources[0].address ${IP}:9901
+#	docker stop pilot-galley || true
+#	docker ${DOCKER_START} --name=pilot-galley  \
+#		-p 127.0.0.1:16080:8080 \
+#		-p 0.0.0.0:16010:15010 \
+#		-p 127.0.0.1:16014:15014 \
+#		-p 127.0.0.1:16876:9876 \
+#        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
+#		-v ${PWD}/conf/istio:/var/lib/istio/istio \
+#		-e PILOT_ENABLE_PROTOCOL_SNIFFING=true \
+#	 ${HUB}/pilot:${TAG} \
+#    	 discovery --meshConfig /var/lib/istio/pilot/gen-mesh-galley.yaml \
+#    	--secureGrpcAddr="" \
+#    	--plugins="authz" \
+#        --registries=MCP \
+#        --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
 
-
-# A second Pilot instance, but using Galley config. Second pilot has a different config ( based on the local tests)
-pilot-galley:
-	yq m conf/pilot/mesh.yaml conf/pilot/mesh-galley.yaml > conf/pilot/gen-mesh-galley.yaml
-	yq w -i conf/pilot/gen-mesh-galley.yaml configSources[0].address ${IP}:9901
-	docker stop pilot-galley || true
-	docker ${DOCKER_START} --name=pilot-galley  \
-		-p 127.0.0.1:16080:8080 \
-		-p 0.0.0.0:16010:15010 \
-		-p 127.0.0.1:16014:15014 \
-		-p 127.0.0.1:16876:9876 \
-        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
-		-v ${PWD}/conf/istio:/var/lib/istio/istio \
-		-e PILOT_ENABLE_PROTOCOL_SNIFFING=true \
-	 ${HUB}/pilot:${TAG} \
-    	 discovery --meshConfig /var/lib/istio/pilot/gen-mesh-galley.yaml \
-    	--secureGrpcAddr="" \
-    	--plugins="authz" \
-        --registries=MCP \
-        --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
-
-
-# Start galley, using a local directory as config source.
-# Passing kubeconfig instead of configPath will use K8S server, file must be included in the galley directory or mounted.
-galley:
-	docker stop galley || true
-	docker ${DOCKER_START} --name=galley  \
-		-p 0.0.0.0:9901:9901 \
-		-p 127.0.0.1:15015:15015 \
-		-p 127.0.0.1:15877:9877 \
-        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
-        -v ${PWD}/conf/galley:/var/lib/istio/galley \
-		-v ${PWD}/conf/istio/test:/var/lib/istio/istio \
-	 ${HUB}/galley:${TAG} \
-    	 server -c /var/lib/istio/galley/galley.yaml \
-    	    --meshConfigFile /var/lib/istio/pilot/mesh.yaml \
-			--configPath /var/lib/istio/istio
-
-# Same as pilot, but running on local machine. Easy to attach a debugger/step.
+# Example of starting galley from the microservice, using file source. Replaced by istiod-vm
 #
-run-local-pilot:
-	#kill -9 $(shell cat ${LOG_DIR}/pilot.pid) | true
-	PILOT_ENABLE_PROTOCOL_SNIFFING=true \
-	 ${GOPATH}/bin/pilot-discovery discovery \
-        --meshConfig conf/pilot/mesh.yaml \
-    	--plugins="authz" \
-        --configDir conf/istio --registries=MCP \
-        --networksConfig test/simple/meshNetworks.yaml # & echo $$! > ${LOG_DIR}/pilot.pid
+## Start galley, using a local directory as config source.
+## Passing kubeconfig instead of configPath will use K8S server, file must be included in the galley directory or mounted.
+#galley:
+#	docker stop galley || true
+#	docker ${DOCKER_START} --name=galley  \
+#		-p 0.0.0.0:9901:9901 \
+#		-p 127.0.0.1:15015:15015 \
+#		-p 127.0.0.1:15877:9877 \
+#        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
+#        -v ${PWD}/conf/galley:/var/lib/istio/galley \
+#		-v ${PWD}/conf/istio/test:/var/lib/istio/istio \
+#	 ${HUB}/galley:${TAG} \
+#    	 server -c /var/lib/istio/galley/galley.yaml \
+#    	    --meshConfigFile /var/lib/istio/pilot/mesh.yaml \
+#			--configPath /var/lib/istio/istio
+
+# Example of local pilot, using files for config. Replaced by istiod-vm
+#
+## Same as pilot, but running on local machine. Easy to attach a debugger/step.
+##
+#run-local-pilot:
+#	#kill -9 $(shell cat ${LOG_DIR}/pilot.pid) | true
+#	PILOT_ENABLE_PROTOCOL_SNIFFING=true \
+#	 ${GOPATH}/bin/pilot-discovery discovery \
+#        --meshConfig conf/pilot/mesh.yaml \
+#    	--plugins="authz" \
+#        --configDir conf/istio --registries=MCP \
+#        --networksConfig test/simple/meshNetworks.yaml # & echo $$! > ${LOG_DIR}/pilot.pid
 
 
 # Start a local gateway, running in docker. Uses upstream envoy

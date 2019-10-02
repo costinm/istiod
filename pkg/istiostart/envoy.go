@@ -24,7 +24,7 @@ func DrainEnvoy(base string, cfg *meshv1.ProxyConfig) {
 	stop := make(chan error)
 	//features.EnvoyBaseId.DefaultValue = "1"
 	process, err := agent.RunProxy(cfg, "nodeid", 2,
-		base+"/conf/sidecar/envoy_bootstrap_drain.json", stop,
+		base+"/etc/istio/proxy/envoy_bootstrap_drain.json", stop,
 		os.Stdout, os.Stderr, []string{
 			// "--disable-hot-restart",
 			// "-l", "trace",
