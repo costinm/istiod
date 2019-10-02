@@ -70,23 +70,6 @@ func InitConfig(basePort int32, confDir string) (*Server, error) {
 	// TODO: 15006 can't be configured currently
 	// TODO: 15090 (prometheus) can't be configured. It's in the bootstrap file, so easy to replace
 
-	// Temp override for local testing. The loaded mesh config should have the canonical address of pilot
-	mcfg.DefaultConfig = &meshv1.ProxyConfig{
-		DiscoveryAddress:       fmt.Sprintf("localhost:%d", basePort+10),
-		ControlPlaneAuthPolicy: meshv1.AuthenticationPolicy_NONE,
-
-		ProxyAdminPort: basePort,
-
-		ConfigPath: baseDir + "/run",
-		// BinaryPath:       "/usr/local/bin/envoy", - default
-		CustomConfigFile:       baseDir + "/conf/sidecar/envoy_bootstrap_v2.json",
-		ConnectTimeout:         types.DurationProto(5 * time.Second),  // crash if not set
-		DrainDuration:          types.DurationProto(30 * time.Second), // crash if 0
-		StatNameLength:         189,
-		ParentShutdownDuration: types.DurationProto(5 * time.Second),
-
-		ServiceCluster: "istio",
-	}
 
 	// Create a test pilot discovery service configured to watch the tempDir.
 	args := &PilotArgs{
@@ -162,6 +145,7 @@ func InitConfig(basePort int32, confDir string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	server.basePort = basePort
 
 	// Galley component
 	// TODO: runs under same gRPC port.
@@ -211,12 +195,20 @@ var trustDomain = "cluster.local"
 // TODO: better implementation for 'drainFile' config - used by agent.terminate()
 
 // startEnvoy starts the envoy sidecar for Istio control plane, for TLS and load balancing.
-// Not used otherwise.
-func startEnvoy(baseDir string, mcfg *meshv1.MeshConfig) error {
+func (s *Server) StartEnvoy(baseDir string, mcfg *meshv1.MeshConfig) error {
 	os.Mkdir(baseDir+"/run", 0700)
-	cfg := mcfg.DefaultConfig
+	cfg := &meshv1.ProxyConfig{}
+	// Copy defaults
+	pcval, _ := mcfg.DefaultConfig.Marshal()
+	cfg.Unmarshal(pcval)
+	cfg.DiscoveryAddress = fmt.Sprintf("localhost:%d", s.basePort+10)
+	cfg.ProxyAdminPort =  s.basePort
+	// Override shutdown, it's too slow
+	cfg.ParentShutdownDuration = types.DurationProto(5 * time.Second)
+	cfg.ConfigPath = baseDir + "/run"
+	cfg.CustomConfigFile =       baseDir + "/conf/sidecar/envoy_bootstrap_v2.json"
 
-	nodeId := "sidecar~127.0.0.2~istio-control.fortio~fortio.svc.cluster.local"
+	nodeId := "sidecar~127.0.0.2~istio-pilot.istio-system~istio-system.svc.cluster.local"
 	env := os.Environ()
 	env = append(env, "ISTIO_META_ISTIO_VERSION=1.4")
 
@@ -240,6 +232,9 @@ func startEnvoy(baseDir string, mcfg *meshv1.MeshConfig) error {
 			"--disable-hot-restart",
 			// "-l", "trace",
 		})
+	if err != nil {
+		log.Fatal("Failed to start envoy sidecar for istio", err)
+	}
 	go func() {
 		// Should not happen.
 		process.Wait()

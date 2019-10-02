@@ -1,3 +1,8 @@
+# Makefile has additional test and build targets. The primary mechansims to build are:
+# - 'docker build . -t costinm/istiod:latest'
+# - 'go get github.com/costinm/istiod/cmd/istiod'
+# - from IDE using normal run/debug command
+
 BASE=$(shell cd .; pwd)
 TOP=$(shell cd ${BASE}/../../..; pwd)
 GOPATH=${TOP}

@@ -209,6 +209,10 @@ type Server struct {
 	grpcListener net.Listener
 	httpListener net.Listener
 	Environment  *model.Environment
+
+	// basePort defaults to 15000, used to allow multiple control plane instances on same machine
+	// for testing.
+	basePort     int32
 }
 
 var podNamespaceVar = env.RegisterStringVar("POD_NAMESPACE", "", "")
