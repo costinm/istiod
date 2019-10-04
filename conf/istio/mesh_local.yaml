@@ -1,5 +1,0 @@
-
-
-defaultConfig:
-  # Override based on environment -
-  serviceCluster: fortio
