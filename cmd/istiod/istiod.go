@@ -39,7 +39,7 @@ func main() {
 		log.Fatal("Failed to connect to k8s", err)
 	}
 
-	s, err := istiostart.InitConfig(13000, "./etc/istio/config")
+	s, err := istiostart.InitConfig(13000, "/etc/istio/config")
 	if err != nil {
 		log.Fatal("Failed to start ", err)
 	}

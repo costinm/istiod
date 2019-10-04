@@ -55,7 +55,6 @@ import (
 	"istio.io/istio/pilot/pkg/serviceregistry/aggregate"
 	"istio.io/istio/pilot/pkg/serviceregistry/external"
 	"istio.io/istio/pkg/config/constants"
-	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/config/schemas"
 	istiokeepalive "istio.io/istio/pkg/keepalive"
 	"istio.io/istio/pkg/mcp/monitoring"
@@ -399,48 +398,36 @@ type startFunc func(stop <-chan struct{}) error
 
 // initMesh creates the mesh in the pilotConfig from the input arguments.
 func (s *Server) initMesh(args *PilotArgs) error {
-	// If a config file was specified, use it.
-	if args.MeshConfig != nil {
-		s.Mesh = args.MeshConfig
-		return nil
-	}
 	var meshConfig *meshconfig.MeshConfig
 	var err error
 
-	if args.Mesh.ConfigFile != "" {
+	// Mesh config is required - this is the primary source of config.
+	meshConfig, err = cmd.ReadMeshConfig(args.Mesh.ConfigFile)
+	if err != nil {
+		log.Fatalf("failed to read mesh configuration, exit: %v", err)
+	}
+
+	// Watch the config file for changes and reload if it got modified
+	s.addFileWatcher(args.Mesh.ConfigFile, func() {
+		// Reload the config file
 		meshConfig, err = cmd.ReadMeshConfig(args.Mesh.ConfigFile)
 		if err != nil {
 			log.Warnf("failed to read mesh configuration, using default: %v", err)
+			return
 		}
-
-		// Watch the config file for changes and reload if it got modified
-		s.addFileWatcher(args.Mesh.ConfigFile, func() {
-			// Reload the config file
-			meshConfig, err = cmd.ReadMeshConfig(args.Mesh.ConfigFile)
-			if err != nil {
-				log.Warnf("failed to read mesh configuration, using default: %v", err)
-				return
+		if !reflect.DeepEqual(meshConfig, s.Mesh) {
+			log.Infof("mesh configuration updated to: %s", spew.Sdump(meshConfig))
+			if !reflect.DeepEqual(meshConfig.ConfigSources, s.Mesh.ConfigSources) {
+				log.Infof("mesh configuration sources have changed")
+				//TODO Need to re-create or reload initConfigController()
 			}
-			if !reflect.DeepEqual(meshConfig, s.Mesh) {
-				log.Infof("mesh configuration updated to: %s", spew.Sdump(meshConfig))
-				if !reflect.DeepEqual(meshConfig.ConfigSources, s.Mesh.ConfigSources) {
-					log.Infof("mesh configuration sources have changed")
-					//TODO Need to re-create or reload initConfigController()
-				}
-				s.Mesh = meshConfig
-				if s.EnvoyXdsServer != nil {
-					s.EnvoyXdsServer.Env.Mesh = meshConfig
-					s.EnvoyXdsServer.ConfigUpdate(&model.PushRequest{Full: true})
-				}
+			s.Mesh = meshConfig
+			if s.EnvoyXdsServer != nil {
+				s.EnvoyXdsServer.Env.Mesh = meshConfig
+				s.EnvoyXdsServer.ConfigUpdate(&model.PushRequest{Full: true})
 			}
-		})
-	}
-
-	if meshConfig == nil {
-		// Config file either wasn't specified or failed to load - use a default mesh.
-		meshConfigStruct := mesh.DefaultMeshConfig()
-		meshConfig = &meshConfigStruct
-	}
+		}
+	})
 
 	log.Infof("mesh configuration %s", spew.Sdump(meshConfig))
 	log.Infof("version %s", version.Info.String())

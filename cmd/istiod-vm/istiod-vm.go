@@ -29,7 +29,7 @@ func main() {
 
 	// In k8s, the config is mounted under /etc/istio/config/mesh
 	// For VM, we'll use ./conf/hyperistio/mesh.yaml
-	s, err := istiostart.InitConfig(12000, "./etc/istio/vmconfig")
+	s, err := istiostart.InitConfig(12000, "/etc/istio/config")
 	if err != nil {
 		log.Fatal("Failed to start ", err)
 	}

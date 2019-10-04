@@ -5,7 +5,6 @@ import (
 	"github.com/gogo/protobuf/types"
 	"istio.io/istio/galley/pkg/server/settings"
 	"istio.io/istio/pilot/pkg/proxy/envoy"
-	"istio.io/istio/pkg/config/mesh"
 	"istio.io/istio/pkg/keepalive"
 	"istio.io/pkg/ctrlz"
 	"istio.io/pkg/filewatcher"
@@ -53,24 +52,11 @@ func (s *Server) InitCommon(args *PilotArgs) {
 //- config from $ISTIO_CONFIG or ./conf
 func InitConfig(basePort int32, confDir string) (*Server, error) {
 	baseDir := "."
-	//meshConfigFile := baseDir + "/conf/pilot/mesh.yaml"
-
-	// Start with the default mesh config, in case fields are added.
-	mcfgObj := mesh.DefaultMeshConfig()
-	mcfg := &mcfgObj
-
-	// Override settings, to match in-process model.
-	mcfg.AuthPolicy = meshv1.MeshConfig_NONE
-
-	mcfg.DisablePolicyChecks = true
-
-	// Use the basePort, to allow multiple instances on same machine (VMs, tests)
-	mcfg.ProxyHttpPort = basePort + 80
-	mcfg.ProxyListenPort = basePort + 1
 
 	// TODO: 15006 can't be configured currently
 	// TODO: 15090 (prometheus) can't be configured. It's in the bootstrap file, so easy to replace
 
+	meshCfgFile :=  baseDir + confDir + "/mesh"
 
 	// Create a test pilot discovery service configured to watch the tempDir.
 	args := &PilotArgs{
@@ -89,6 +75,7 @@ func InitConfig(basePort int32, confDir string) (*Server, error) {
 			Port:    uint16(basePort + 12),
 		},
 		Mesh: MeshArgs{
+			ConfigFile: meshCfgFile,
 			MixerAddress:    "localhost:9091",
 			RdsRefreshDelay: types.DurationProto(10 * time.Millisecond),
 		},
@@ -99,26 +86,18 @@ func InitConfig(basePort int32, confDir string) (*Server, error) {
 		MCPInitialWindowSize:     1024 * 1024 * 64,
 		MCPInitialConnWindowSize: 1024 * 1024 * 64,
 
-		MeshConfig:       mcfg,
 		KeepaliveOptions: keepalive.DefaultOption(),
 	}
 
 	// Load config from the in-process Galley.
 	// We can also configure Envoy to listen on 9901 and galley on different port, and LB
 
-	// TODO: run everything on same port
-	mcfg.ConfigSources = []*meshv1.ConfigSource{
-		&meshv1.ConfigSource{
-			Address: fmt.Sprintf("localhost:%d", basePort+901),
-		},
-	}
-
 	// Galley args
 	gargs := settings.DefaultArgs()
 
 	// Default dir.
 	// If not set, will attempt to use K8S.
-	gargs.ConfigPath = baseDir + "/conf/istio/simple"
+	gargs.ConfigPath = baseDir + "/etc/istio/crds"
 	// TODO: load a json file to override defaults (for all components)
 
 	gargs.ValidationArgs.EnableValidation = false
@@ -138,7 +117,7 @@ func InitConfig(basePort int32, confDir string) (*Server, error) {
 	// Actual files are loaded by galley/pkg/src/fs, which recursively loads .yaml and .yml files
 	// The files are suing YAMLToJSON, but interpret Kind, APIVersion
 
-	gargs.MeshConfigFile = baseDir + "/conf/pilot/mesh.yaml"
+	gargs.MeshConfigFile = meshCfgFile
 	gargs.MonitoringPort = uint(basePort + 15)
 
 	// Main server - pilot, registries

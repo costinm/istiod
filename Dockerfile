@@ -45,6 +45,8 @@ COPY --from=envoy /usr/local/bin/envoy /usr/local/bin/envoy
 
 WORKDIR /
 
+COPY ./var/lib/istio/envoy/* /var/lib/istio/envoy
+
 RUN mkdir -p /etc/certs && mkdir -p /etc/istio/proxy && mkdir -p /etc/istio/config && mkdir -p /var/lib/istio/envoy && \
     chown -R 1337 /etc/certs /etc/istio /var/lib/istio
 USER 1337:1337
