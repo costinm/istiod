@@ -47,8 +47,6 @@ WORKDIR /
 
 COPY ./var/lib/istio/envoy/* /var/lib/istio/envoy
 
-RUN mkdir -p /etc/certs && mkdir -p /etc/istio/proxy && mkdir -p /etc/istio/config && mkdir -p /var/lib/istio/envoy && \
-    chown -R 1337 /etc/certs /etc/istio /var/lib/istio
 USER 1337:1337
 ENTRYPOINT /usr/local/bin/istiod
 
@@ -66,6 +64,8 @@ WORKDIR /
 RUN mkdir -p /etc/certs && mkdir -p /etc/istio/proxy && mkdir -p /etc/istio/config && mkdir -p /var/lib/istio/envoy && \
     chown -R 1337 /etc/certs /etc/istio /var/lib/istio
 
+# Defaults
+COPY ./etc/istio/config/mesh /etc/istio/config/mesh
 COPY ./var/lib/istio/envoy/* /var/lib/istio/envoy
 USER 1337:1337
 ENTRYPOINT /usr/local/bin/istiod

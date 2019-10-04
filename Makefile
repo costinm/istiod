@@ -30,8 +30,8 @@ DOCKER_START ?= run -d
 BINDIR=${TOP}/out/linux_amd64/release
 
 build-docker:
-	time DOCKER_BUILDKIT=1 docker build . -t ${IMAGE}:latest
-	time DOCKER_BUILDKIT=1 docker build . --target distroless -t ${IMAGE}-distroless:latest
+	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE}:latest
+	DOCKER_BUILDKIT=1 docker build . --target distroless -t ${IMAGE}-distroless:latest
 
 push-docker:
 	docker push ${IMAGE}:latest
