@@ -4,6 +4,20 @@ env:
   GO111MODULE: on
 
 jobs:
+  build-docker:
+    name: Build-in-docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docker build
+        container:
+          image: golang:1.13-alpine
+          volumes:
+            - .:/src
+        run: |
+          cd /src
+          go mod download
+          go build -v ./cmd/istiod
+
   build:
     name: Build
     runs-on: ubuntu-latest
