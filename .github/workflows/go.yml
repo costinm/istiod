@@ -8,15 +8,19 @@ jobs:
     name: Build-in-docker
     runs-on: ubuntu-latest
     steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
       - name: Docker build
-        container:
-          image: golang:1.13-alpine
-          volumes:
-            - .:/src
+        uses: docker://golang:1.13-alpine
+        working-directory: /src
         run: |
           cd /src
           go mod download
           go build -v ./cmd/istiod
+    container:
+      image: golang:1.13-alpine
+      volumes:
+            - .:/src
 
   build:
     name: Build
