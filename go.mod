@@ -10,6 +10,7 @@ replace github.com/spf13/viper => github.com/istio/viper v1.3.3-0.20190515210538
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
+	github.com/NYTimes/gziphandler v1.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-ini/ini v1.33.0 // indirect
 	github.com/gogo/protobuf v1.3.0

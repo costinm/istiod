@@ -8,8 +8,10 @@ RUN apk add --no-cache git && pwd && ls && mkdir /ws
 WORKDIR /ws
 # With caching should avoid repeated downloads as long as the sum/mod don't change
 COPY go.mod go.sum  ./
-RUN GOPROXY=https://proxy.golang.org go module download 
+RUN GOPROXY=https://proxy.golang.org go mod download
 
+
+###############################################################################
 FROM build-base AS build
 
 COPY cmd ./cmd
@@ -21,26 +23,6 @@ RUN GOPROXY=https://proxy.golang.org CGO_ENABLED=0 GOOS=linux \
 RUN GOPROXY=https://proxy.golang.org CGO_ENABLED=0 GOOS=linux \
   GOPATH="" go build -a -ldflags '-extldflags "-static"' -o istiod ./cmd/istiod && ls
 
-###############################################################################
-#### Fortio - used for the tests
-FROM fortio/fortio:latest AS fortio
-
-###############################################################################
-### Container for testing for Istio VM deb files, in ubuntu container
-## Will include hyperistio (the minimal, non-k8s version), fortio for testing, other tools needed for debugging.
-## Will install envoy from the official release .deb ( but not using the systemd unit for start )
-FROM ubuntu:bionic AS sidecar-test
-
-RUN apt-get update &&\
-    apt-get install -y curl iptables iproute2 &&\
-    curl  https://storage.googleapis.com/istio-release/releases/1.3.0-rc.0/deb/istio-sidecar.deb -o /tmp/istio.deb &&\
-    dpkg -i /tmp/istio.deb
-COPY --from=build /ws/istiod-vm /usr/local/bin/istiod-vm
-COPY --from=fortio /usr/share/fortio /usr/share/fortio
-COPY --from=fortio /usr/bin/fortio /usr/bin/fortio
-EXPOSE 8079
-EXPOSE 8080
-EXPOSE 8081
 
 ###############################################################################
 FROM envoyproxy/envoy AS envoy
@@ -52,7 +34,7 @@ COPY --from=envoy /usr/local/bin/envoy /usr/local/bin/envoy
 
 WORKDIR /
 
-COPY ./var/lib/istio/envoy/* /var/lib/istio/envoy
+COPY ./var/lib/istio/envoy/* /var/lib/istio/envoy/
 
 USER 1337:1337
 ENTRYPOINT /usr/local/bin/istiod
@@ -73,6 +55,6 @@ RUN mkdir -p /etc/certs && mkdir -p /etc/istio/proxy && mkdir -p /etc/istio/conf
 
 # Defaults
 COPY ./etc/istio/config/mesh /etc/istio/config/mesh
-COPY ./var/lib/istio/envoy/* /var/lib/istio/envoy
+COPY ./var/lib/istio/envoy/* /var/lib/istio/envoy/
 USER 1337:1337
 ENTRYPOINT /usr/local/bin/istiod
