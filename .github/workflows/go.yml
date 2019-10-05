@@ -40,6 +40,5 @@ jobs:
           - .:/conf
           - k3s-server:/var/lib/rancher/k3s
         options:
-          privileged: true
-          command: server --https-listen-port 6443
+          - --privileged
 
