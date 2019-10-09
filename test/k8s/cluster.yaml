@@ -80,6 +80,12 @@ rules:
   - apiGroups: [""]
     resources: ["endpoints", "pods", "services", "namespaces", "nodes", "secrets"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["certificates.k8s.io"]
+    resources:
+      - "certificatesigningrequests"
+      - "certificatesigningrequests/approval"
+      - "certificatesigningrequests/status"
+    verbs: ["update", "create", "get", "delete"]
   # Citadel subset
   - apiGroups: [""]
     resources: ["configmaps"]
