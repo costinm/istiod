@@ -67,7 +67,8 @@ func main() {
 		kc.WaitForCacheSync(stop)
 	}
 
-	StartSDSK8S(baseDir, s.Mesh)
+	// Off for now - working on replacement/simplified version
+	// StartSDSK8S(baseDir, s.Mesh)
 
 	err = s.Start(stop, kc.OnXDSStart)
 	if err != nil {

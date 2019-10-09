@@ -28,6 +28,6 @@ RUN mkdir -p /etc/certs && \
     chown -R 1337 /etc/certs /etc/istio /var/lib/istio
 
 # Defaults
-COPY ./var/lib/istio/* /var/lib/istio/
+COPY ./var/lib/istio /var/lib/istio/
 USER 1337:1337
 ENTRYPOINT /usr/local/bin/istiod

@@ -100,6 +100,7 @@ spec:
       containers:
         - name: istiod
           image: gcr.io/costin-istio/istiod:latest
+          imagePullPolicy: Always
           ports:
           - containerPort: 8080
           - containerPort: 15010
@@ -135,7 +136,7 @@ spec:
             mountPath: /var/run/secrets/sds-token
             readOnly: true
           - name: istiod
-            mountPath: /var/lib/istio/config
+            mountPath: /var/lib/istio/local
             readOnly: true
       volumes:
       - name: istio-token
