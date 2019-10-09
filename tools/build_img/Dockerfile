@@ -14,5 +14,3 @@ RUN apk add --no-cache git
 # With caching should avoid repeated downloads as long as the sum/mod don't change
 COPY go.mod go.sum  ./
 RUN go mod download
-
-
