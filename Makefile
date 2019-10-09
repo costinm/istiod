@@ -307,3 +307,12 @@ k3s:
 k3s-shell:
 	docker exec -it k3s /bin/sh
 
+#-v $HOME/.config/gcloud:/root/.config/gcloud \
+#
+kaniko-build:
+	docker run \
+		-v ${HOME}/.docker/config.json:/kaniko/.docker/config.json:ro \
+		-v `pwd`:/workspace \
+		gcr.io/kaniko-project/executor:latest \
+		--dockerfile ./Dockerfile --destination ${IMAGE} --context dir:///workspace/ \
+		--cache=true

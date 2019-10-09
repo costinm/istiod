@@ -1,6 +1,4 @@
 # Moved the base image - including mod download - to separate Dockerfile.
-
-
 ###############################################################################
 FROM costinm/istiod-build:latest AS build
 
