@@ -53,7 +53,6 @@ import (
 	envoyv2 "istio.io/istio/pilot/pkg/proxy/envoy/v2"
 	"istio.io/istio/pilot/pkg/serviceregistry/aggregate"
 	"istio.io/istio/pilot/pkg/serviceregistry/external"
-	"istio.io/istio/pkg/config/constants"
 	"istio.io/istio/pkg/config/schemas"
 	istiokeepalive "istio.io/istio/pkg/keepalive"
 	"istio.io/istio/pkg/mcp/monitoring"
@@ -213,7 +212,7 @@ type Server struct {
 	basePort     int32
 }
 
-var podNamespaceVar = env.RegisterStringVar("POD_NAMESPACE", "", "")
+var podNamespaceVar = env.RegisterStringVar("POD_NAMESPACE", "istio-system", "Istio namespace")
 
 // NewServer creates a new Server instance, using defaults for combined Istio and loading optional mesh config
 // file.
@@ -229,11 +228,7 @@ func NewServer(args *PilotArgs) (*Server, error) {
 		args.KeepaliveOptions = istiokeepalive.DefaultOption()
 	}
 	if args.Config.ClusterRegistriesNamespace == "" {
-		if args.Namespace != "" {
-			args.Config.ClusterRegistriesNamespace = args.Namespace
-		} else {
-			args.Config.ClusterRegistriesNamespace = constants.IstioSystemNamespace
-		}
+		args.Config.ClusterRegistriesNamespace = args.Namespace
 	}
 
 	s := &Server{
@@ -248,9 +243,6 @@ func (s *Server) InitConfig() error {
 	prometheus.EnableHandlingTimeHistogram()
 	args := s.Args
 
-	if err := s.initMesh(args); err != nil {
-		return fmt.Errorf("mesh: %v", err)
-	}
 	if err := s.initMeshNetworks(args); err != nil {
 		return fmt.Errorf("mesh networks: %v", err)
 	}
@@ -395,21 +387,23 @@ func (s *Server) Start(stop <-chan struct{}, onXDSStart func(model.XDSUpdater)) 
 // startFunc defines a function that will be used to start one or more components of the Pilot discovery service.
 type startFunc func(stop <-chan struct{}) error
 
-// initMesh creates the mesh in the pilotConfig from the input arguments.
-func (s *Server) initMesh(args *PilotArgs) error {
+// WatchMeshConfig creates the mesh in the pilotConfig from the input arguments.
+// Will set s.Mesh, and keep it updated.
+// On change, ConfigUpdate will be called.
+func (s *Server) WatchMeshConfig(args string) error {
 	var meshConfig *meshconfig.MeshConfig
 	var err error
 
 	// Mesh config is required - this is the primary source of config.
-	meshConfig, err = cmd.ReadMeshConfig(args.Mesh.ConfigFile)
+	meshConfig, err = cmd.ReadMeshConfig(args)
 	if err != nil {
 		log.Fatalf("failed to read mesh configuration, exit: %v", err)
 	}
 
 	// Watch the config file for changes and reload if it got modified
-	s.addFileWatcher(args.Mesh.ConfigFile, func() {
+	s.addFileWatcher(args, func() {
 		// Reload the config file
-		meshConfig, err = cmd.ReadMeshConfig(args.Mesh.ConfigFile)
+		meshConfig, err = cmd.ReadMeshConfig(args)
 		if err != nil {
 			log.Warnf("failed to read mesh configuration, using default: %v", err)
 			return
@@ -430,7 +424,6 @@ func (s *Server) initMesh(args *PilotArgs) error {
 
 	log.Infof("mesh configuration %s", spew.Sdump(meshConfig))
 	log.Infof("version %s", version.Info.String())
-	log.Infof("flags %s", spew.Sdump(args))
 
 	s.Mesh = meshConfig
 	return nil

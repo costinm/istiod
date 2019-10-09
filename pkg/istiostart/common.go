@@ -2,18 +2,19 @@ package istiostart
 
 import (
 	"fmt"
-	"github.com/gogo/protobuf/types"
-	"istio.io/istio/galley/pkg/server/settings"
-	"istio.io/istio/pilot/pkg/proxy/envoy"
-	"istio.io/istio/pkg/keepalive"
-	"istio.io/pkg/ctrlz"
-	"istio.io/pkg/filewatcher"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/gogo/protobuf/types"
+	"istio.io/istio/galley/pkg/server/settings"
+	"istio.io/istio/pilot/pkg/proxy/envoy"
+	"istio.io/pkg/ctrlz"
+	"istio.io/pkg/filewatcher"
 
 	meshv1 "istio.io/api/mesh/v1alpha1"
 
@@ -50,7 +51,7 @@ func (s *Server) InitCommon(args *PilotArgs) {
 // - http port 15007
 // - grpc on 15010
 //- config from $ISTIO_CONFIG or ./conf
-func InitConfig(basePort int32, confDir string) (*Server, error) {
+func InitConfig(confDir string) (*Server, error) {
 	baseDir := "."
 
 	// TODO: 15006 can't be configured currently
@@ -60,23 +61,10 @@ func InitConfig(basePort int32, confDir string) (*Server, error) {
 
 	// Create a test pilot discovery service configured to watch the tempDir.
 	args := &PilotArgs{
-		Namespace:    "istio-system",
 		DomainSuffix: "cluster.local",
-		DiscoveryOptions: envoy.DiscoveryServiceOptions{
-			HTTPAddr:        fmt.Sprintf(":%d", basePort+7),
-			GrpcAddr:        fmt.Sprintf(":%d", basePort+10),
-			SecureGrpcAddr:  "",
-			EnableCaching:   true,
-			EnableProfiling: true,
-		},
 
-		CtrlZOptions: &ctrlz.Options{
-			Address: "localhost",
-			Port:    uint16(basePort + 12),
-		},
 		Mesh: MeshArgs{
 			ConfigFile: meshCfgFile,
-			MixerAddress:    "localhost:9091",
 			RdsRefreshDelay: types.DurationProto(10 * time.Millisecond),
 		},
 		Config: ConfigArgs{},
@@ -85,19 +73,49 @@ func InitConfig(basePort int32, confDir string) (*Server, error) {
 		MCPMaxMessageSize:        1024 * 1024 * 64,
 		MCPInitialWindowSize:     1024 * 1024 * 64,
 		MCPInitialConnWindowSize: 1024 * 1024 * 64,
-
-		KeepaliveOptions: keepalive.DefaultOption(),
 	}
 
-	// Load config from the in-process Galley.
-	// We can also configure Envoy to listen on 9901 and galley on different port, and LB
+	// Main server - pilot, registries
+	server, err := NewServer(args)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := server.WatchMeshConfig(meshCfgFile); err != nil {
+		return nil, fmt.Errorf("mesh: %v", err)
+	}
+
+	pilotAddress := server.Mesh.DefaultConfig.DiscoveryAddress
+	_, port, _ := net.SplitHostPort(pilotAddress)
+	basePortI, _ := strconv.Atoi(port)
+	basePortI = basePortI - basePortI % 100
+	basePort := int32(basePortI)
+	server.basePort = basePort
+
+
+	args.DiscoveryOptions =  envoy.DiscoveryServiceOptions{
+		HTTPAddr:        fmt.Sprintf(":%d", basePort+7),
+		GrpcAddr:        fmt.Sprintf(":%d", basePort+10),
+		SecureGrpcAddr:  "",
+		EnableCaching:   true,
+		EnableProfiling: true,
+	}
+	args.CtrlZOptions = &ctrlz.Options{
+		Address: "localhost",
+		Port:    uint16(basePort + 12),
+	}
+
+		err = server.InitConfig()
+	if err != nil {
+		return nil, err
+	}
 
 	// Galley args
 	gargs := settings.DefaultArgs()
 
 	// Default dir.
 	// If not set, will attempt to use K8S.
-	gargs.ConfigPath = baseDir + "/etc/istio/crds"
+	gargs.ConfigPath = baseDir + "/var/lib/istio/config"
 	// TODO: load a json file to override defaults (for all components)
 
 	gargs.ValidationArgs.EnableValidation = false
@@ -119,22 +137,9 @@ func InitConfig(basePort int32, confDir string) (*Server, error) {
 
 	gargs.MeshConfigFile = meshCfgFile
 	gargs.MonitoringPort = uint(basePort + 15)
-
-	// Main server - pilot, registries
-	server, err := NewServer(args)
-	if err != nil {
-		return nil, err
-	}
-	server.basePort = basePort
-
 	// Galley component
 	// TODO: runs under same gRPC port.
 	server.Galley = NewGalleyServer(gargs)
-
-	err = server.InitConfig()
-	if err != nil {
-		return nil, err
-	}
 
 	// Start the SDS server (node agent) for TLS certs
 	err = StartSDS(baseDir, args.MeshConfig)

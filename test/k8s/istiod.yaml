@@ -1,3 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istiod
+  namespace: istio-system
+  labels:
+    release: istiod
+data:
+
+  test: |
+    Example
+
+
+
 ---
 
 apiVersion: autoscaling/v2beta1
@@ -85,7 +99,7 @@ spec:
 #      priorityClassName: "{{ .Values.global.priorityClassName }}"
       containers:
         - name: istiod
-          image: costinm/istiod:latest
+          image: gcr.io/costin-istio/istiod:latest
           ports:
           - containerPort: 8080
           - containerPort: 15010
@@ -115,7 +129,13 @@ spec:
               memory: 2048Mi
           volumeMounts:
           - name: istio-certs
-            mountPath: /etc/certs
+            mountPath: /var/run/secrets/istio
+            readOnly: true
+          - name: istio-token
+            mountPath: /var/run/secrets/sds-token
+            readOnly: true
+          - name: istiod
+            mountPath: /var/lib/istio/config
             readOnly: true
       volumes:
       - name: istio-token
@@ -129,3 +149,6 @@ spec:
         secret:
           secretName: istio.istio-pilot-service-account
           optional: true
+      - name: istiod
+        configMap:
+          name: istiod
