@@ -114,6 +114,7 @@ func NewGalleyServer(a *settings.Args) *GalleyServer {
 // Start implements process.Component
 func (p *GalleyServer) Start() (err error) {
 
+	log.Info("Starting Galley")
 	var distributor snapshotter.Distributor = snapshotter.NewMCPDistributor(p.mcpCache)
 	transformProviders := transforms.Providers(p.meta)
 
@@ -197,6 +198,8 @@ func (p *GalleyServer) Start() (err error) {
 	}()
 
 	startWG.Wait()
+
+	log.Infof("Galley listening on %v", address)
 
 	return nil
 }
