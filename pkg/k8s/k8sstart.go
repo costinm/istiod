@@ -2,11 +2,12 @@ package k8s
 
 import (
 	"fmt"
+
 	"github.com/costinm/istio-vm/pkg/istiostart"
 	"github.com/hashicorp/go-multierror"
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	"istio.io/istio/galley/pkg/config/event"
-	"istio.io/istio/galley/pkg/config/schema"
+	"istio.io/istio/galley/pkg/config/meta/schema"
 	"istio.io/istio/galley/pkg/config/source/kube"
 	"istio.io/istio/galley/pkg/config/source/kube/apiserver"
 	"istio.io/istio/pilot/pkg/config/clusterregistry"

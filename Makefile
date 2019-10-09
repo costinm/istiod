@@ -14,6 +14,8 @@ TAG ?= master-latest-daily
 # TODO: update when moving to istio
 IMAGE ?= costinm/istiod
 
+CACHEDIR ?= ${TOP}/out/cache
+
 LOG_DIR ?= /tmp
 OUT ?= ${TOP}/out
 
@@ -307,12 +309,28 @@ k3s:
 k3s-shell:
 	docker exec -it k3s /bin/sh
 
+#
+# --build-arg - for ARG
+# --digest-file=/dev/termination-log -> will be picked by k8s
+# --insecure-registry for local running registries
+# --reproducible: strip timestamps
+# --single-snapshot
+# --tarPath - save image as tar, no upload
+# --verbosity=debug
+#
+# For gcr:
 #-v $HOME/.config/gcloud:/root/.config/gcloud \
 #
 kaniko-build:
+	mkdir -p ${CACHEDIR} # Used to cache base images
 	docker run \
 		-v ${HOME}/.docker/config.json:/kaniko/.docker/config.json:ro \
 		-v `pwd`:/workspace \
+		-v ${CACHEDIR}:/cache \
 		gcr.io/kaniko-project/executor:latest \
 		--dockerfile ./Dockerfile --destination ${IMAGE} --context dir:///workspace/ \
 		--cache=true
+
+
+build-image:
+	docker build -f tools/build_img/Dockerfile -t costinm/istiod-build:latest .

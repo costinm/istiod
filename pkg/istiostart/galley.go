@@ -15,13 +15,14 @@ package istiostart
 
 import (
 	"fmt"
-	"istio.io/istio/galley/pkg/config/meshcfg"
-	"istio.io/istio/galley/pkg/config/processor"
-	"istio.io/istio/galley/pkg/config/processor/groups"
 	"net"
 	"strings"
 	"sync"
 	"time"
+
+	"istio.io/istio/galley/pkg/config/meshcfg"
+	"istio.io/istio/galley/pkg/config/processor"
+	"istio.io/istio/galley/pkg/config/processor/groups"
 
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
@@ -36,11 +37,11 @@ import (
 	"istio.io/pkg/version"
 
 	"istio.io/istio/galley/pkg/config/event"
+	"istio.io/istio/galley/pkg/config/meta/metadata"
+	"istio.io/istio/galley/pkg/config/meta/schema"
 	"istio.io/istio/galley/pkg/config/processing"
 	"istio.io/istio/galley/pkg/config/processing/snapshotter"
-	"istio.io/istio/galley/pkg/config/processor/metadata"
 	"istio.io/istio/galley/pkg/config/processor/transforms"
-	"istio.io/istio/galley/pkg/config/schema"
 	"istio.io/istio/galley/pkg/config/source/kube/rt"
 	"istio.io/istio/galley/pkg/server/process"
 	"istio.io/istio/galley/pkg/server/settings"
@@ -116,7 +117,14 @@ func (p *GalleyServer) Start() (err error) {
 	var distributor snapshotter.Distributor = snapshotter.NewMCPDistributor(p.mcpCache)
 	transformProviders := transforms.Providers(p.meta)
 
-	if p.runtime, err = processor.Initialize(p.meta, p.args.DomainSuffix, event.CombineSources(p.Sources...), transformProviders, distributor); err != nil {
+	if p.runtime, err = processor.Initialize(processor.Settings{
+		Metadata:           p.meta,
+		DomainSuffix:       p.args.DomainSuffix,
+		Source:             event.CombineSources(p.Sources...),
+		TransformProviders: transformProviders,
+		Distributor:        distributor,
+		EnabledSnapshots:   nil,
+	}); err != nil {
 		return
 	}
 

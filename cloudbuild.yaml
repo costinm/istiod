@@ -5,8 +5,12 @@ steps:
   #- name: 'gcr.io/cloud-builders/docker'
   #  args: [ 'build', '-t', 'gcr.io/$PROJECT_ID/istiod:latest', '.' ]
 
+  # Istio pulls 1.5 GB of source dependencies - including openshift and azure.
 - name: 'gcr.io/kaniko-project/executor:latest'
   args:
   - --destination=gcr.io/$PROJECT_ID/istiod:latest
   - --cache=true
   - --cache-ttl=24h
+  timeout: 500s
+
+timeout: 500s

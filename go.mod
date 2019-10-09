@@ -8,30 +8,6 @@ replace k8s.io/klog => github.com/istio/klog v0.0.0-20190424230111-fb7481ea8bcf
 
 replace github.com/spf13/viper => github.com/istio/viper v1.3.3-0.20190515210538-2789fed3109c
 
-require (
-	contrib.go.opencensus.io/exporter/prometheus v0.1.0
-	github.com/NYTimes/gziphandler v1.0.1 // indirect
-	github.com/davecgh/go-spew v1.1.1
-	github.com/go-ini/ini v1.33.0 // indirect
-	github.com/gogo/protobuf v1.3.0
-	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
-	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
-	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/hashicorp/go-multierror v1.0.0
-	github.com/prometheus/client_golang v0.9.3
-	go.opencensus.io v0.21.0
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
-	google.golang.org/grpc v1.24.0
-	gopkg.in/ini.v1 v1.42.0 // indirect
-	istio.io/api v0.0.0-20190930180221-6b9215326786
-	istio.io/istio v0.0.0-20191002224728-c1df5928d28c
-	istio.io/pkg v0.0.0-20190905225920-6d0bbfe3b229
-
-	k8s.io/api v0.0.0
-	k8s.io/apimachinery v0.0.0
-	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
-)
-
 // Kubernetes makes it challenging to depend on their libraries. To get around this, we need to force
 // the sha to use. All of these are pinned to the tag "kubernetes-1.15"
 replace k8s.io/kubernetes => k8s.io/kubernetes v1.15.0
@@ -77,3 +53,22 @@ replace k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20190620085408
 replace k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.0.0-20190620085325-f29e2b4a4f84
 
 replace k8s.io/kubectl => k8s.io/kubectl v0.0.0-20190602132728-7075c07e78bf
+
+require (
+	contrib.go.opencensus.io/exporter/prometheus v0.1.0
+	github.com/davecgh/go-spew v1.1.1
+	github.com/gogo/protobuf v1.3.0
+	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
+	github.com/hashicorp/go-multierror v1.0.0
+	github.com/prometheus/client_golang v1.1.0
+	go.opencensus.io v0.22.1
+	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0
+	google.golang.org/grpc v1.24.0
+	istio.io/api v0.0.0-20191009000547-365fcec87fb0
+	istio.io/istio v0.0.0-20191008234043-eae89084f82c
+	istio.io/pkg v0.0.0-20191008025934-66d669f9a3fd
+	k8s.io/api v0.0.0
+	k8s.io/apimachinery v0.0.0
+	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
+)

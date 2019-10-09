@@ -17,20 +17,19 @@ package istiostart
 import (
 	"context"
 	"fmt"
-	"istio.io/pkg/ctrlz/fw"
 	"net"
 	"net/http"
 	"reflect"
 	"sync"
 	"time"
 
+	"istio.io/pkg/ctrlz/fw"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gogo/protobuf/types"
 	middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	prom "github.com/prometheus/client_golang/prometheus"
-	authn_model "istio.io/istio/pilot/pkg/security/model"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 
@@ -361,7 +360,7 @@ func (s *Server) Start(stop <-chan struct{}, onXDSStart func(model.XDSUpdater)) 
 
 	go func() {
 		<-stop
-		authn_model.JwtKeyResolver.Close()
+//		authn_model.JwtKeyResolver.Close()
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
