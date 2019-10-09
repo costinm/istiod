@@ -115,7 +115,7 @@ func InitConfig(confDir string) (*Server, error) {
 
 	// Default dir.
 	// If not set, will attempt to use K8S.
-	gargs.ConfigPath = baseDir + "/var/lib/istio/config"
+	gargs.ConfigPath = baseDir + "/var/lib/istio/local"
 	// TODO: load a json file to override defaults (for all components)
 
 	gargs.ValidationArgs.EnableValidation = false
@@ -141,12 +141,6 @@ func InitConfig(confDir string) (*Server, error) {
 	// TODO: runs under same gRPC port.
 	server.Galley = NewGalleyServer(gargs)
 
-	// Start the SDS server (node agent) for TLS certs
-	err = StartSDS(baseDir, args.MeshConfig)
-	if err != nil {
-		return nil, err
-	}
-
 	// TODO: start injection (only for K8S variant)
 
 	// TODO: start envoy only if TLS certs exist (or bootstrap token and SDS server address is configured)
@@ -166,12 +160,6 @@ func (s *Server) WaitDrain(baseDir string) {
 
 }
 
-// Start the SDS service. Uses the main Istio address.
-//
-func StartSDS(baseDir string, config *meshv1.MeshConfig) error {
-
-	return nil
-}
 
 var trustDomain = "cluster.local"
 

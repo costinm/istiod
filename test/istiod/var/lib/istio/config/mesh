@@ -44,7 +44,7 @@ defaultConfig:
 
   parentShutdownDuration: 1m0s
 
-  # Original default: istio-pilot:15010
+  # Original default: istio-pilot:13010
   discoveryAddress: localhost:13010
 
   connectTimeout: 5s

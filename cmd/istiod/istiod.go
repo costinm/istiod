@@ -9,6 +9,7 @@ import (
 	"istio.io/istio/security/pkg/nodeagent/secretfetcher"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"io/ioutil"
 	"log"
 	"os"
 	"time"
@@ -80,6 +81,12 @@ func main() {
 		log.Fatal("Failure on start istio-control sidecar", err)
 	}
 
+	// Injector should run along, even if not used.
+	err = k8s.StartInjector(stop)
+	if err != nil {
+		log.Fatal("Failure on start injector", err)
+	}
+
 	s.WaitDrain(".")
 }
 
@@ -94,6 +101,16 @@ func initCerts(server *istiostart.Server, client *kubernetes.Clientset, cfg *res
 	server.CertChain = certChain
 	server.CertKey = keyPEM
 
+	// Save the certificates to /var/run/secrets/istio-dns
+	os.MkdirAll("./var/run/secrets/istio-dns", 0700)
+	err = ioutil.WriteFile("./var/run/secrets/istio-dns/key.pem", keyPEM, 0700)
+	if err != nil {
+		log.Fatal("Failed to write certs", err)
+	}
+	err = ioutil.WriteFile("./var/run/secrets/istio-dns/cert-chain.pem", certChain, 0700)
+	if err != nil {
+		log.Fatal("Failed to write certs")
+	}
 }
 
 // Start the workload SDS server. Will run on the UDS path - Envoy sidecar will use a cluster
