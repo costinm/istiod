@@ -101,6 +101,7 @@ spec:
         - name: istiod
           image: gcr.io/costin-istio/istiod:latest
           imagePullPolicy: Always
+          #command: ["sleep", "50000" ]
           ports:
           - containerPort: 8080
           - containerPort: 15010
@@ -126,7 +127,7 @@ spec:
             value: istio-system
           resources:
             requests:
-              cpu: 500m
+              cpu: 800m
               memory: 2048Mi
           volumeMounts:
           - name: istio-certs

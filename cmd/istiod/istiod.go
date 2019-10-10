@@ -45,8 +45,8 @@ func main() {
 		log.Fatal("Failed to start ", err)
 	}
 
-	// InitConfig certificates
-	go initCerts(s, client, kcfg)
+	// InitConfig certificates - first thing.
+	initCerts(s, client, kcfg)
 
 	kc, err := k8s.InitK8S(s, client, kcfg, s.Args)
 	if err != nil {
@@ -84,7 +84,8 @@ func main() {
 	// Injector should run along, even if not used.
 	err = k8s.StartInjector(stop)
 	if err != nil {
-		log.Fatal("Failure on start injector", err)
+		//log.Fatal("Failure on start injector", err)
+		log.Println("Failure to start injector - ignore for now ", err)
 	}
 
 	s.WaitDrain(".")
