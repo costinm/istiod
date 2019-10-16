@@ -125,6 +125,8 @@ spec:
                 fieldPath: metadata.namespace
           - name: CONFIG_NAMESPACE
             value: istio-system
+          - name: PILOT_ENABLE_PROTOCOL_SNIFFING_FOR_OUTBOUND
+            value: "false"
           resources:
             requests:
               cpu: 800m
@@ -133,6 +135,8 @@ spec:
           - name: istio-certs
             mountPath: /var/run/secrets/istio
             readOnly: true
+          - name: dns-certs
+            mountPath: /var/run/secrets/istio-dns
           - name: istio-token
             mountPath: /var/run/secrets/sds-token
             readOnly: true
@@ -147,6 +151,8 @@ spec:
               audience: istiod
               expirationSeconds: 43200
               path: istio-token
+      - name: dns-certs
+        emptyDir: {}
       - name: istio-certs
         secret:
           secretName: istio.istio-pilot-service-account

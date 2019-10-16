@@ -103,7 +103,9 @@ func initCerts(server *istiostart.Server, client *kubernetes.Clientset, cfg *res
 	server.CertKey = keyPEM
 
 	// Save the certificates to /var/run/secrets/istio-dns
-	os.MkdirAll("./var/run/secrets/istio-dns", 0700)
+	if err := os.MkdirAll("./var/run/secrets/istio-dns", 0700); err != nil {
+		log.Fatal("Failed to create certs dir: ", err)
+	}
 	err = ioutil.WriteFile("./var/run/secrets/istio-dns/key.pem", keyPEM, 0700)
 	if err != nil {
 		log.Fatal("Failed to write certs", err)

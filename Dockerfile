@@ -1,6 +1,18 @@
 # Moved the base image - including mod download - to separate Dockerfile.
 ###############################################################################
-FROM costinm/istiod-build:latest AS build
+FROM golang:1.13-alpine AS build
+
+WORKDIR /ws
+ENV GO111MODULE=on
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GOPROXY=https://proxy.golang.org
+
+RUN apk add --no-cache git
+
+# With caching should avoid repeated downloads as long as the sum/mod don't change
+COPY go.mod go.sum  ./
+RUN go mod download
 
 COPY cmd ./cmd
 COPY pkg ./pkg
