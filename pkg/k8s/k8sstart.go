@@ -179,7 +179,8 @@ func (s *K8SServer) createK8sServiceControllers(serviceControllers *aggregate.Co
 
 func (s *K8SServer) makeKubeConfigController(args *istiostart.PilotArgs) (model.ConfigStoreCache, error) {
 	kubeCfgFile := args.Config.KubeConfig
-	configClient, err := controller.NewClient(kubeCfgFile, "", schemas.Istio, s.ControllerOptions.DomainSuffix)
+	// TODO support ledger
+	configClient, err := controller.NewClient(kubeCfgFile, "", schemas.Istio, s.ControllerOptions.DomainSuffix, &model.DisabledLedger{})
 	if err != nil {
 		return nil, multierror.Prefix(err, "failed to open a config client.")
 	}
