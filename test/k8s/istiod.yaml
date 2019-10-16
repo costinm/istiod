@@ -139,7 +139,15 @@ spec:
           - name: istiod
             mountPath: /var/lib/istio/local
             readOnly: true
+          - name: local-certs
+            mountPath: /var/run/secrets/istio-dns
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 1337
       volumes:
+      - emptyDir:
+          medium: Memory
+        name: local-certs
       - name: istio-token
         projected:
           sources:
