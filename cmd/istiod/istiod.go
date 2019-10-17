@@ -2,14 +2,14 @@ package main
 
 import (
 	"flag"
-	"github.com/costinm/istio-vm/pkg/istiostart"
-	"github.com/costinm/istio-vm/pkg/k8s"
+	"io/ioutil"
+	"istio.io/istio/pkg/istiod"
+	"istio.io/istio/pkg/istiod/k8s"
 	"istio.io/istio/security/pkg/nodeagent/cache"
 	"istio.io/istio/security/pkg/nodeagent/sds"
 	"istio.io/istio/security/pkg/nodeagent/secretfetcher"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"io/ioutil"
 	"log"
 	"os"
 	"time"
@@ -30,17 +30,12 @@ func main() {
 	flag.Parse()
 	stop := make(chan struct{})
 
-	// Where to load mesh config - assumes on K8S we run with workdir=="/", and while testing
-	// or on VMs it runs in a specific directory, keeping with the relative paths ( etc/certs, etc)
-	// This allows maximum compatibility and minimize disruption while still supporting non-root use.
-	baseDir := "."
-
 	client, kcfg, err := k8s.CreateClientset(os.Getenv("KUBECONFIG"), "")
 	if err != nil {
 		log.Fatal("Failed to connect to k8s", err)
 	}
 
-	s, err := istiostart.InitConfig("/var/lib/istio/config")
+	s, err := istiod.InitConfig("/var/lib/istio/config")
 	if err != nil {
 		log.Fatal("Failed to start ", err)
 	}
@@ -76,11 +71,6 @@ func main() {
 		log.Fatal("Failure on start", err)
 	}
 
-	err = s.StartEnvoy(baseDir, kc.IstioServer.Mesh)
-	if err != nil {
-		log.Fatal("Failure on start istio-control sidecar", err)
-	}
-
 	// Injector should run along, even if not used.
 	err = k8s.StartInjector(stop)
 	if err != nil {
@@ -91,7 +81,7 @@ func main() {
 	s.WaitDrain(".")
 }
 
-func initCerts(server *istiostart.Server, client *kubernetes.Clientset, cfg *rest.Config) {
+func initCerts(server *istiod.Server, client *kubernetes.Clientset, cfg *rest.Config) {
 	// TODO: fallback to citadel (or custom CA)
 
 	certChain, keyPEM, err := k8s.GenKeyCertK8sCA(client.CertificatesV1beta1(), "istio-system",
