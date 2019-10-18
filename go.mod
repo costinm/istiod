@@ -11,21 +11,22 @@ replace k8s.io/klog => github.com/istio/klog v0.0.0-20190424230111-fb7481ea8bcf
 replace github.com/spf13/viper => github.com/istio/viper v1.3.3-0.20190515210538-2789fed3109c
 
 require (
-	contrib.go.opencensus.io/exporter/prometheus v0.1.0
-	github.com/davecgh/go-spew v1.1.1
+	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 // indirect
 	github.com/gogo/protobuf v1.3.0
-	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0
-	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/hashicorp/go-multierror v1.0.0
-	github.com/prometheus/client_golang v1.1.0
-	go.opencensus.io v0.22.1
-	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0
-	google.golang.org/grpc v1.24.0
+	github.com/golang/protobuf v1.3.2
+	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0 // indirect
+	github.com/hashicorp/go-syslog v1.0.0 // indirect
+	github.com/hashicorp/logutils v1.0.0 // indirect
+	github.com/hashicorp/mdns v1.0.1 // indirect
+	github.com/hashicorp/serf v0.8.1
+	github.com/mitchellh/cli v1.0.0 // indirect
+	github.com/onsi/gomega v1.5.0
+	github.com/spf13/cobra v0.0.5
+	go.opencensus.io v0.22.1 // indirect
+	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0 // indirect
 	istio.io/api v0.0.0-20191015210738-bfa91e88abf1
 	istio.io/istio v0.0.0-20191008234043-eae89084f82c
 	istio.io/pkg v0.0.0-20191015053120-592d80277a1b
-	k8s.io/api v0.0.0
-	k8s.io/apimachinery v0.0.0
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
 )
 
