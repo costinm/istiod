@@ -33,11 +33,11 @@ BINDIR=${TOP}/out/linux_amd64/release
 
 build-docker:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE}:latest
-	DOCKER_BUILDKIT=1 docker build . --target distroless -t ${IMAGE}-distroless:latest
+	#DOCKER_BUILDKIT=1 docker build . --target distroless -t ${IMAGE}-distroless:latest
 
 push-docker:
 	docker push ${IMAGE}:latest
-	docker push ${IMAGE}-distroless:latest
+	#docker push ${IMAGE}-distroless:latest
 
 # Example of starting pilot standalone - replaced by istiod-vm, using galley file source
 #

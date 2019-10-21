@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/costinm/istio-vm/pkg/istiostart"
+	"istio.io/istio/pkg/istiod"
 	"log"
 )
 
@@ -24,12 +24,11 @@ import (
 //
 //
 func main() {
-	flag.Parse()
 	stop := make(chan struct{})
 
 	// In k8s, the config is mounted under /etc/istio/config/mesh
 	// For VM, we'll use ./conf/hyperistio/mesh.yaml
-	s, err := istiostart.InitConfig("/etc/istio/config")
+	s, err := istiod.InitConfig("/etc/istio/config")
 	if err != nil {
 		log.Fatal("Failed to start ", err)
 	}
