@@ -1,13 +1,29 @@
-# Moved the base image - including mod download - to separate Dockerfile.
 ###############################################################################
-FROM costinm/istiod-build:latest AS build
+#### Run the build on alpine - istiod doesn't need more.
+# Main docker images for istiod will be distroless and alpine.
+FROM golang:1.13-alpine AS build-base
+
+WORKDIR /ws
+ENV GO111MODULE=on
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GOPROXY=https://proxy.golang.org
+
+RUN apk add --no-cache git
+
+# With caching should avoid repeated downloads as long as the sum/mod don't change
+COPY go.mod go.sum  ./
+RUN go mod download
+
+###############################################################################
+FROM build-base AS build
 
 COPY cmd ./cmd
 COPY pkg ./pkg
 
 # Runs in /go directory
-RUN go build -a -ldflags '-extldflags "-static"' -o istiod-vm ./cmd/istiod-vm
 RUN go build -a -ldflags '-extldflags "-static"' -o istiod ./cmd/istiod
+RUN go build -a -ldflags '-extldflags "-static"' -o istiod-vm ./cmd/istio-agent
 
 ###############################################################################
 ### Container running the combined control plane, with an alpine base ( smaller than distroless but with shell )

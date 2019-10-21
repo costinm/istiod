@@ -1,1 +1,2 @@
-./etc/certs/*
+var/run/*
+var/lib/istio/proxy/*
