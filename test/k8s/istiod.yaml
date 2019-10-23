@@ -60,6 +60,9 @@ metadata:
     release: istiod
 spec:
   ports:
+    - port: 443
+      name: https # injector, validator
+      #targetPort: 8443
     - port: 15010
       name: grpc-xds # direct
     - port: 15011

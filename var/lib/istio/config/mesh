@@ -12,18 +12,20 @@ configSources:
   - address: localhost:15901
 
 
-connectTimeout:                    1s
-
 # Set enableTracing to false to disable request tracing.
 # Off by default. Should be enabled only if a tracer is installed, and ideally configured
 # for specific workloads.
 enableTracing:                     false
+
+###  Defaults
 
 # Set accessLogFile to empty string to disable access log.
 accessLogFile:                     "/dev/stdout"
 accessLogEncoding:                 TEXT
 accessLogFormat: ""
 enableEnvoyAccessLogService: false
+
+connectTimeout:                    1s
 
 defaultServiceExportTo:            ["*"]
 defaultVirtualServiceExportTo:     ["*"]
@@ -64,7 +66,7 @@ outboundTrafficPolicy:
 dnsRefreshRate:                    5s
 protocolDetectionTimeout:          100ms
 
-enableAutoMtls: true
+enableAutoMtls: false
 
 # Extra
 authPolicy: NONE
@@ -81,11 +83,11 @@ defaultConfig:
 
   drainDuration: 45s
 
-  parentShutdownDuration: 1m0s
+  parentShutdownDuration: 60s
 
   discoveryAddress: istio-pilot.istio-system:15010
 
-  connectTimeout: 10s
+  connectTimeout: 1s
 
   statsdUdpAddress: ""
 
