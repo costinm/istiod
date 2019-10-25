@@ -8,8 +8,8 @@
 #localityLbSettings:
 
 # By default use the built-in MCP server.
-configSources:
-  - address: localhost:15901
+#configSources:
+#  - address: localhost:15901
 
 
 # Set enableTracing to false to disable request tracing.
@@ -55,7 +55,10 @@ ingressService:                    "istio-ingressgateway"
 ingressControllerMode: DEFAULT
 ingressClass: "istio"
 
-sdsUdsPath:                        ""
+# Temp
+sdsUdsPath:                        "unix:/var/lib/istio/proxy/SDS"
+
+
 enableSdsTokenMount:               false
 
 trustDomain:                       "cluster.local"

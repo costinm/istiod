@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	istio_agent "github.com/costinm/istiod/pkg/istio-agent"
 	"io/ioutil"
 	"net"
 	"os"
@@ -30,9 +31,11 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/types"
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
 
 	meshconfig "istio.io/api/mesh/v1alpha1"
 	networking "istio.io/api/networking/v1alpha3"
+	"istio.io/pkg/collateral"
 	"istio.io/pkg/env"
 	"istio.io/pkg/log"
 	"istio.io/pkg/version"
@@ -101,12 +104,14 @@ var (
 
 	wg sync.WaitGroup
 
-	instanceIPVar             = env.RegisterStringVar("INSTANCE_IP", "", "")
-	podNameVar                = env.RegisterStringVar("POD_NAME", "", "")
-	podNamespaceVar           = env.RegisterStringVar("POD_NAMESPACE", "", "")
-	istioNamespaceVar         = env.RegisterStringVar("ISTIO_NAMESPACE", "", "")
-	kubeAppProberNameVar      = env.RegisterStringVar(status.KubeAppProberEnvName, "", "")
-	sdsEnabledVar             = env.RegisterBoolVar("SDS_ENABLED", false, "")
+	instanceIPVar        = env.RegisterStringVar("INSTANCE_IP", "", "")
+	podNameVar           = env.RegisterStringVar("POD_NAME", "", "")
+	podNamespaceVar      = env.RegisterStringVar("POD_NAMESPACE", "", "")
+	istioNamespaceVar    = env.RegisterStringVar("ISTIO_NAMESPACE", "", "")
+	kubeAppProberNameVar = env.RegisterStringVar(status.KubeAppProberEnvName, "", "")
+	sdsEnabledVar        = env.RegisterBoolVar("SDS_ENABLED", false, "")
+	autoMTLSEnabled      = env.RegisterBoolVar("ISTIO_AUTO_MTLS_ENABLED", false, "If true, auto mTLS is enabled, "+
+		"sidecar checks key/cert if SDS is not enabled.")
 	sdsUdsPathVar             = env.RegisterStringVar("SDS_UDS_PATH", "unix:/var/run/sds/uds_path", "SDS address")
 	stackdriverTracingEnabled = env.RegisterBoolVar("STACKDRIVER_TRACING_ENABLED", false, "If enabled, stackdriver will"+
 		" get configured as the tracer.")
@@ -342,14 +347,30 @@ var (
 			}
 
 			sdsUDSPath := sdsUdsPathVar.Get()
-			sdsEnabled, sdsTokenPath := detectSds(controlPlaneBootstrap, sdsUDSPath, trustworthyJWTPath)
+			sdsEnabled := true
+			sdsTokenPath := ""
+			sdsEnabled, sdsTokenPath = detectSds(controlPlaneBootstrap, sdsUDSPath, trustworthyJWTPath)
+
+			if !sdsEnabled {
+				// Not using the hostpath mounted - use in-process SDS.
+				// If trusted JWT not mounted - will watch the certs. If certs not present either - assume not TLS,
+				// and either fail (if controlPlaneAuth enabled) or continue without certs.
+				sdsTokenPath = "./var/lib/istio/proxy/SDS"
+				_, err := istio_agent.StartSDS()
+				if err != nil {
+					log.Fatala("Failed to start in-process SDS", err)
+				}
+				sdsEnabled = true
+			} else {
+			}
+
 			// dedupe cert paths so we don't set up 2 watchers for the same file:
 			tlsCertsToWatch = dedupeStrings(tlsCertsToWatch)
 
 			// Since Envoy needs the file-mounted certs for mTLS, we wait for them to become available
 			// before starting it. Skip waiting cert if sds is enabled, otherwise it takes long time for
 			// pod to start.
-			if (controlPlaneAuthEnabled || rsTLSEnabled) && !sdsEnabled {
+			if (controlPlaneAuthEnabled || rsTLSEnabled || autoMTLSEnabled.Get()) && !sdsEnabled {
 				log.Infof("Monitored certs: %#v", tlsCertsToWatch)
 				for _, cert := range tlsCertsToWatch {
 					waitForFile(cert, 2*time.Minute)
@@ -358,7 +379,7 @@ var (
 
 			// If control plane auth is not mTLS or global SDS flag is turned off, unset UDS path and token path
 			// for control plane SDS.
-			if !controlPlaneAuthEnabled || !sdsEnabled {
+			if !sdsEnabled {
 				sdsUDSPath = ""
 				sdsTokenPath = ""
 			}
@@ -637,8 +658,8 @@ func appendTLSCerts(rs *meshconfig.RemoteService) {
 func init() {
 	proxyCmd.PersistentFlags().StringVar((*string)(&registry), "serviceregistry",
 		string(serviceregistry.KubernetesRegistry),
-		fmt.Sprintf("Select the platform for service registry, options are {%s, %s, %s}",
-			serviceregistry.KubernetesRegistry, serviceregistry.ConsulRegistry, serviceregistry.MockRegistry))
+		fmt.Sprintf("Select the platform for service registry, options are {%s, %s, %s, %s}",
+			serviceregistry.KubernetesRegistry, serviceregistry.ConsulRegistry, serviceregistry.MCPRegistry, serviceregistry.MockRegistry))
 	proxyCmd.PersistentFlags().StringVar(&proxyIP, "ip", "",
 		"Proxy IP address. If not provided uses ${INSTANCE_IP} environment variable.")
 	proxyCmd.PersistentFlags().StringVar(&role.ID, "id", "",
@@ -724,6 +745,13 @@ func init() {
 	cmd.AddFlags(rootCmd)
 
 	rootCmd.AddCommand(proxyCmd)
+	rootCmd.AddCommand(version.CobraCommand())
+
+	rootCmd.AddCommand(collateral.CobraCommand(rootCmd, &doc.GenManHeader{
+		Title:   "Istio Pilot Agent",
+		Section: "pilot-agent CLI",
+		Manual:  "Istio Pilot Agent",
+	}))
 }
 
 func waitForFile(fname string, maxWait time.Duration) bool {

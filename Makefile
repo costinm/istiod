@@ -32,14 +32,14 @@ DOCKER_START ?= run -d
 
 BINDIR=${TOP}/out/linux_amd64/release
 
-${TOP}/istiod/istiod:
+istiod:
 	mkdir -p ${TOP}/istiod
-	CGO_ENABLED=1 go build -a -ldflags '-extldflags "-static"' -o ${TOP}/istiod ./cmd/istiod
+	CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o ${TOP}/istiod ./cmd/istiod
 	cp -a ./var ${TOP}/istiod/
 
 # Doesn't work with alpine
-build-local-docker: ${TOP}/istiod/istiod
-	DOCKER_BUILDKIT=1 docker build ${TOP}/istiod -f tools/local_docker/Dockerfile -t ${IMAGE}:latest
+build-local-docker: istiod
+	docker build ${TOP}/istiod -f tools/local_docker/Dockerfile -t ${IMAGE}:latest
 
 build-docker:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE}:latest

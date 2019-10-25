@@ -41,8 +41,8 @@ func main() {
 	// allows secure SDS connections to Istiod.
 	initCerts(istiods, client, kcfg)
 
-	// Init k8s related components, including Galley K8S controllers and
-	// Pilot discovery. Code kept in separate package.
+	// Init k8s related components: Pilot discovery, MC discovery. Code kept in separate package.
+	// Temp: also Pilot config watcher, until we optimize galley integration
 	k8sServer, err := k8s.InitK8S(istiods, client, kcfg, istiods.Args)
 	if err != nil {
 		log.Fatal("Failed to start k8s controllers ", err)
@@ -67,6 +67,18 @@ func main() {
 			log.Fatalf("Failure to start injector ", err)
 		}
 	}
+
+	// Options based on the current 'defaults' in istio.
+	// If adjustments are needed - env or mesh.config ( if of general interest ).
+
+	istiod.RunCA(istiods.GrpcServer, client, &istiod.CAOptions{
+		TrustDomain: istiods.Mesh.TrustDomain,
+		DualUse: true,
+		SelfSignedCA: true, // for existing CA - mount a secret in the expected location
+		IstioNamespace: "istio-system",
+		MaxWorkloadCertTTL: 90 * 24 * time.Hour,
+		WorkloadCertTTL: 90 * 24 * time.Hour,
+	})
 
 	istiods.Serve(stop)
 	istiods.WaitStop(stop)

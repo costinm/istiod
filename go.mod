@@ -2,9 +2,9 @@ module github.com/costinm/istiod
 
 go 1.13
 
-//replace istio.io/istio => /ws/istio-master/go/src/istio.io/istio
+replace istio.io/istio => /ws/istio-master/go/src/istio.io/istio
 
-replace istio.io/istio => github.com/costinm/istio v0.0.0-20191022214508-382391b5279c
+//replace istio.io/istio => github.com/costinm/istio v0.0.0-20191022214508-382391b5279c
 
 replace github.com/golang/glog => github.com/istio/glog v0.0.0-20190424172949-d7cfb6fa2ccd
 
@@ -25,7 +25,8 @@ require (
 	github.com/onsi/gomega v1.5.0
 	github.com/spf13/cobra v0.0.5
 	go.opencensus.io v0.22.1 // indirect
-	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0 // indirect
+	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0
+	google.golang.org/grpc v1.24.0
 	istio.io/api v0.0.0-20191015210738-bfa91e88abf1
 	istio.io/istio v0.0.0-20191023182242-074c09589a13
 	istio.io/pkg v0.0.0-20191015053120-592d80277a1b
