@@ -10,7 +10,7 @@ debug: INFO
 version: ""
 
 global:
-  hub: costinm
+  hub: gcr.io/costin-istio
   tag: latest
 
   imagePullPolicy: Always
