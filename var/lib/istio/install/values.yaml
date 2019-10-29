@@ -18,13 +18,15 @@ global:
   controlPlaneSecurityEnabled: false
 
   istioNamespace: istio-system
-  trustDomain: ""
+  trustDomain: "cluster.local"
 
   #network: default
   # podDNSSearchNamespaces:
 
   sds:
     enabled: false
+    token:
+      aud: istio-ca
     # customTokenDirectory
     #useTrustworthyJwt: true
 

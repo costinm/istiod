@@ -29,7 +29,7 @@ data:
       controlPlaneSecurityEnabled: false
 
       istioNamespace: istio-system
-      trustDomain: ""
+      trustDomain: "istio-ca"
 
       #network: default
       # podDNSSearchNamespaces:
@@ -38,6 +38,8 @@ data:
         enabled: false
         # customTokenDirectory
         #useTrustworthyJwt: true
+        token:
+          aud: istio-ca
 
 
       proxy:
@@ -70,4 +72,3 @@ data:
 
       proxy_init:
         image: proxyv2
-
