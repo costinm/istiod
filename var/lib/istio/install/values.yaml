@@ -18,7 +18,9 @@ global:
   controlPlaneSecurityEnabled: false
 
   istioNamespace: istio-system
-  trustDomain: "cluster.local"
+
+  # This is only used for injection, in the
+  trustDomain: ""
 
   #network: default
   # podDNSSearchNamespaces:

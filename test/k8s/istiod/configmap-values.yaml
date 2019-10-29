@@ -29,7 +29,7 @@ data:
       controlPlaneSecurityEnabled: false
 
       istioNamespace: istio-system
-      trustDomain: "istio-ca"
+      trustDomain: ""
 
       #network: default
       # podDNSSearchNamespaces:

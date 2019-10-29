@@ -350,7 +350,7 @@ data:
           - serviceAccountToken:
               path: istio-token
               expirationSeconds: 43200
-              audience: {{ .Values.global.trustDomain }}
+              audience: {{ .Values.global.sds.token.aud }}
       - name: istio-certs
         secret:
           optional: true

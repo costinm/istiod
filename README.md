@@ -3,62 +3,64 @@
 Implementation for [Isto-SDS](https://docs.google.com/document/d/1X4QNWSr0aoT2eK-f5a6ZgWgX8VXP-suQbfO-SjBozyw/edit#)
 and [Simplified Istio/istiod](https://docs.google.com/document/d/1v8BxI07u-mby5f5rCruwF7odSXgb9G8-C9W5hQtSIAg/edit#)
 
-The repository contains `istiod` - a component linking multiple Istio micro-services in a single binary, with
-settings optimized for production use and operations. 
+# Setup and gaps
 
-There are 2 variants - one intended to be run on K8S, loading configs and endpoints from one or more apiservers and 
-exposing them via MCP and XDS. It includes certificate generation and SDS, using K8S-signed certificates for bootstrap.
-The second variant - `istiod-vm` - is intended to be run on VMs and non-K8S environments, and does not link or make calls to apiservers, instead gets all config and endpoints from files or MCP sources. 
+istio/istio now has most of the code, but configs are not yet merged.
 
-Both components can be run as standalone binaries on a VM or in a docker container, as well as deployed in a K8S cluster.
-The K8S cluster running `istiod` can optionally be separate from the K8S clusters running workloads.
+1. Cluster-wide settings
 
-*istiod does not use CLI parameters*, and has defaults reflecting 'best practices' for production use, with minimal use
-of alpha features. All configurations are loaded from mesh.yaml and component-specific config files. The binary will also
-use files from filesystem and the common environment variables - like $HOME/.kube/config and $KUBECONFIG, /etc/certs, etc. 
+```bash
 
-istiod will not handle TLS - but will start an envoy sidecar, similar with current Istio. This allows using SDS 
-for certificates and additional load blancing and envoy features.
+kubectl apply -k github.com/costinm/istiod/kustomize/cluster
+
+```
+
+2. Install istiod (plain and easy)
+
+```bash
+kubectl apply -k github.com/costinm/istiod/kustomize/istiod
+```
+
+Alternative - and example for how to kustomize the install:
+
+```bash
+
+kubectl apply -k github.com/costinm/istiod/test/k8s/istiod
+
+```
+
+The files in test/k8s/istiod contain a custom version of the injection template and mesh config.
+We still use values.yaml - only for injection, until it is cleaned up.
+
+3. Autoinjection
+
+This step is not yet automated - you will need the file from ./kustomize/cluster-autoinject/mutatingwebhook.yaml
+or ./kustomize/autoinject/mutatingwebhook.yaml. First file enables cluster-wide autoinject, the second requires
+labels on the namespaces.
+
+The current manual step is to extract the K8S cert - for example from you .kube/config or $KUBECONFIG file.
+
+```yaml
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: LS0tLS...
+```  
+
+Copy the string under clusters.cluster[N].certificate-authority-data, and paste it under 
+webhooks.clientConfig.caBundle
 
 
-# WIP: Configuration and environment
+This step is currently moving to istioctl - no plan to use auto-enabling of the webhook (for now).
 
-The binary can run in 'root' mode, with $CWD set as "/", or as non-root, with the $CWD set to the HOME of the user
-running istio. For consistency, it will use the same filesystem layout in both - for example certs will be in /etc/certs in
-root mode, and $PWD/etc/certs in non-root mode. 
+# SDS 
 
-The combined binary does not use CLI - only config files:
+The pilot-agent and injection template used in this repo are SDS-only, using an SDS server started 
+in pilot-agent, using a local UDS socket ( /etc/istio/proxy/SDS ). 
 
-For backward compatibility, we'll use the following directories:
+Istiod includes a subset of Citadel - to generate a self-signed root CA and provide it to pilot-agent,
+using the K8S JWT token to identify the workloads. 
 
-- ./etc/istio/proxy - writeable dir, contains generated envoy config and other files (concatenated root CAs, etc)
-- ./etc/certs/ - certificates using a custom CA ( citadel, etc )
-- ./var/lib/istio/envoy/envoy_bootstrap_tmpl.json - template for envoy config (until moved to istiod) 
-- ./etc/istio/config/mesh - mesh config, with support for reload. Includes additional component-specific yaml files.
-
-In addition:
-
-- ./etc/istio/data/ - CRDs loaded by Galley (for file-based binary). TODO: will be combined with k8s
-- /tmp is assumed to be writeable
-
-Since Istio and Apiserver codebases are used, some environment variables used in Istio will be respected, but 
-the intent is to have all runtime behavior described by mesh.yaml and independent of how the binary is started.
-
-Ideally user should only run `istiod` with no CLI/env, and have a working control plane with the 
-recommended/best practice config. 
-
-
-# Galley integration
-
-Galley Processing2 is loaded at startup, and initializes the filesystem and mesh config Sources. In `istiod` binary the
-in-cluster K8S is attempted first, falling back to $KUBECONFIG and $HOME/.kube. 
-
-The 'istiod-vm' variant will not attempt to connect to k8s and will not link the client. It will still support K8S APIs
-that are used in Istio - EndpointSet, Ingress, etc. The ./etc/istio/conf will be loaded automatically, with remaining 
-config and endpoints using MCP, using either `istiod` or alternate implementations. 
-
-Pilot will initially load using localhost grpc, with the plan to move to 'direct' calls to Galley Source to avoid extra overhead and scale better. An additional registry and config provider for Pilot will be created, backed by Galley Source,
-with the plan to deprecate/remove the old Pilot K8S sources.
-
+The workloads connect to istiod using K8S-signed certificates.
 
 
