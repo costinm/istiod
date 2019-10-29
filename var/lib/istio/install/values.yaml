@@ -1,2 +1,62 @@
-# Placeholder for default values.yaml - still used in injector
+
+#sidecarInjectorWebhook:
+#  rewriteAppHTTPProbe: false
+
+istio_cni:
+  enabled: false
+
+debug: INFO
+
+version: ""
+
+global:
+  hub: costinm
+  tag: latest
+
+  imagePullPolicy: Always
+
+  controlPlaneSecurityEnabled: false
+
+  istioNamespace: istio-system
+  trustDomain: ""
+
+  #network: default
+  # podDNSSearchNamespaces:
+
+  sds:
+    enabled: false
+    # customTokenDirectory
+    #useTrustworthyJwt: true
+
+
+  proxy:
+    privileged: true
+    enableCoreDump: false
+    image: proxyv2
+    clusterDomain: "cluster.local"
+
+    excludeInboundPorts: ""
+    includeIPRanges: "*"
+    excludeIPRanges: ""
+    statusPort: 15020
+    logLevel: ""
+    readinessInitialDelaySeconds: 1
+    readinessPeriodSeconds: 2
+    readinessFailureThreshold: 10
+
+    # resources
+    componentLogLevel: "misc:error"
+
+
+    tracer: "none"
+
+    envoyStatsd:
+      enabled: false
+    envoyMetricsService:
+      enabled: false
+
+
+
+  proxy_init:
+    image: proxyv2
 

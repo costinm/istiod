@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	istio_agent "github.com/costinm/istiod/pkg/istio-agent"
 	"io/ioutil"
 	"net"
 	"os"
@@ -40,6 +39,7 @@ import (
 	"istio.io/pkg/log"
 	"istio.io/pkg/version"
 
+	istio_agent "istio.io/istio/pkg/istio-agent"
 	"istio.io/istio/pilot/cmd/pilot-agent/status"
 	"istio.io/istio/pilot/pkg/features"
 	"istio.io/istio/pilot/pkg/model"
@@ -377,12 +377,7 @@ var (
 				}
 			}
 
-			// If control plane auth is not mTLS or global SDS flag is turned off, unset UDS path and token path
-			// for control plane SDS.
-			if !sdsEnabled {
-				sdsUDSPath = ""
-				sdsTokenPath = ""
-			}
+			// If the token and path are present - use SDS.			
 
 			// TODO: change Mixer and Pilot to use standard template and deprecate this custom bootstrap parser
 			if controlPlaneBootstrap {
@@ -436,11 +431,6 @@ var (
 			ctx, cancel := context.WithCancel(context.Background())
 			// If a status port was provided, start handling status probes.
 			if statusPort > 0 {
-				parsedPorts, err := parseApplicationPorts()
-				if err != nil {
-					cancel()
-					return err
-				}
 				localHostAddr := "127.0.0.1"
 				if proxyIPv6 {
 					localHostAddr = "[::1]"
@@ -450,7 +440,6 @@ var (
 					LocalHostAddr:      localHostAddr,
 					AdminPort:          proxyAdminPort,
 					StatusPort:         statusPort,
-					ApplicationPorts:   parsedPorts,
 					KubeAppHTTPProbers: prober,
 					NodeType:           role.Type,
 				})
