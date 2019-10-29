@@ -34,7 +34,7 @@ BINDIR=${TOP}/out/linux_amd64/release
 
 istiod:
 	mkdir -p ${TOP}/istiod
-	CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o ${TOP}/istiod ./cmd/istiod
+	CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o ${TOP}/istiod istio.io/istio/cmd/istiod
 	cp -a ./var ${TOP}/istiod/
 
 # Doesn't work with alpine

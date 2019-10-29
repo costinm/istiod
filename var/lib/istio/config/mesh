@@ -88,7 +88,8 @@ defaultConfig:
 
   parentShutdownDuration: 60s
 
-  discoveryAddress: istio-pilot.istio-system:15010
+  controlPlaneAuthPolicy: NONE
+  discoveryAddress: istiod.istio-system.svc:15012
 
   connectTimeout: 1s
 
@@ -98,8 +99,6 @@ defaultConfig:
   envoyAccessLogService: {}
 
   proxyAdminPort: 15000
-
-  controlPlaneAuthPolicy: NONE
 
   interceptionMode: REDIRECT
 
