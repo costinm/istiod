@@ -5,7 +5,10 @@ and [Simplified Istio/istiod](https://docs.google.com/document/d/1v8BxI07u-mby5f
 
 # Setup and gaps
 
-istio/istio now has most of the code, but configs are not yet merged.
+istio/istio now has most of the code, but configs are not yet merged upstream.
+
+The install can be done in a fresh cluster, or in a cluster where istio is already setup - the install is not
+interfering with the normal istio install. 
 
 1. Cluster-wide settings
 
@@ -15,7 +18,10 @@ kubectl apply -k github.com/costinm/istiod/kustomize/cluster
 
 ```
 
+This is needed even if you already did this when installing istio, additional resources are added for istiod.
+
 2. Install istiod (plain and easy)
+
 
 ```bash
 kubectl apply -k github.com/costinm/istiod/kustomize/istiod
@@ -34,11 +40,12 @@ We still use values.yaml - only for injection, until it is cleaned up.
 
 3. Autoinjection
 
-This step is not yet automated - you will need the file from ./kustomize/cluster-autoinject/mutatingwebhook.yaml
-or ./kustomize/autoinject/mutatingwebhook.yaml. First file enables cluster-wide autoinject, the second requires
-labels on the namespaces.
+The files './kustomize/autoinject/mutatingwebhook.yaml' is enabling 'istiod' injection for namespaces
+with label 'istio-env:istiod'.
 
-The current manual step is to extract the K8S cert - for example from you .kube/config or $KUBECONFIG file.
+This step is not yet automated - you will need to download the file and patch it (until istioctl is updated):
+
+The first step is to extract the K8S cert - for example from you .kube/config or $KUBECONFIG file.
 
 ```yaml
 apiVersion: v1
@@ -50,8 +57,10 @@ clusters:
 Copy the string under clusters.cluster[N].certificate-authority-data, and paste it under 
 webhooks.clientConfig.caBundle
 
-
 This step is currently moving to istioctl - no plan to use auto-enabling of the webhook (for now).
+
+A second option, for cluster-wide injection in case istio is installed by itself, uses  
+'./kustomize/cluster-autoinject/mutatingwebhook.yaml'
 
 # SDS 
 
