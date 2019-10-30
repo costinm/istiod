@@ -84,8 +84,8 @@ spec:
       serviceAccountName: istiod
       containers:
         - name: istiod
-          #image: gcr.io/costin-istio/istiod:latest
-          image: gcr.io/istio-testing/istiod:latest
+          image: gcr.io/costin-istio/istiod:latest
+          #image: gcr.io/istio-testing/istiod:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
