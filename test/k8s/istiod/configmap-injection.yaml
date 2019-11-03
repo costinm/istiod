@@ -181,6 +181,8 @@ data:
         - --templateFile=/etc/istio/custom-bootstrap/envoy_bootstrap.json
       {{- end }}
         env:
+        - name: CA_ADDR
+          value: istiod.istio-system:15012
         - name: POD_NAME
           valueFrom:
             fieldRef:
