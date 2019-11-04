@@ -15,14 +15,14 @@ data:
     policy: enabled
 
     template: |
-      rewriteAppHTTPProbe: false
+      rewriteAppHTTPProbe: true
       initContainers:
       {{ if ne (annotation .ObjectMeta `sidecar.istio.io/interceptionMode` .ProxyConfig.InterceptionMode) `NONE` }}
       - name: istio-init
-      {{- if contains "/" .Values.global.proxy_init.image }}
-        image: "{{ .Values.global.proxy_init.image }}"
+      {{- if contains "/" (annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image) }}
+        image: "{{ annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image }}"
       {{- else }}
-        image: "{{ .Values.global.hub }}/{{ .Values.global.proxy_init.image }}:{{ .Values.global.tag }}"
+        image: "{{ .Values.global.hub }}/{{ .Values.global.proxy.image }}:{{ .Values.global.tag }}"
       {{- end }}
         command:
         - istio-iptables
@@ -65,6 +65,10 @@ data:
             - NET_ADMIN
         restartPolicy: Always
       {{- end }}
+<<<<<<< HEAD
+=======
+      {{  end -}}
+>>>>>>> d2cbe0d1528389ec28d37001b74fca20c835826d
       containers:
       - name: istio-proxy
       {{- if contains "/" (annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image) }}
@@ -156,6 +160,8 @@ data:
         - --log_as_json
       {{- end }}
         env:
+        - name: CA_ADDR
+          value: istiod.istio-system:15012
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -203,6 +209,11 @@ data:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+<<<<<<< HEAD
+=======
+        - name: ISTIO_META_INTERCEPTION_MODE
+          value: "{{ or (index .ObjectMeta.Annotations `sidecar.istio.io/interceptionMode`) .ProxyConfig.InterceptionMode.String }}"
+>>>>>>> d2cbe0d1528389ec28d37001b74fca20c835826d
         - name: ISTIO_META_INCLUDE_INBOUND_PORTS
           value: "{{ annotation .ObjectMeta `traffic.sidecar.istio.io/includeInboundPorts` (applicationPorts .Spec.Containers) }}"
         {{- if .Values.global.network }}
@@ -251,6 +262,10 @@ data:
           failureThreshold: {{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/failureThreshold` .Values.global.proxy.readinessFailureThreshold }}
         {{ end -}}
         securityContext:
+<<<<<<< HEAD
+=======
+          readOnlyRootFilesystem: true
+>>>>>>> d2cbe0d1528389ec28d37001b74fca20c835826d
           runAsUser: 1337
           runAsGroup: 1337
         resources:

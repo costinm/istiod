@@ -21,8 +21,8 @@ data:
     version: ""
 
     global:
-      #hub: gcr.io/costin-istio
-      hub: costinm
+      hub: gcr.io/costin-istio
+      #hub: gcr.io/istio-testing
       tag: latest
 
       imagePullPolicy: Always
@@ -44,7 +44,6 @@ data:
 
 
       proxy:
-        privileged: true
         enableCoreDump: false
         image: proxyv2
         clusterDomain: "cluster.local"
@@ -69,7 +68,3 @@ data:
         envoyMetricsService:
           enabled: false
 
-
-
-      proxy_init:
-        image: proxyv2
