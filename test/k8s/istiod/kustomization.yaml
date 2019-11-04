@@ -13,11 +13,11 @@ bases:
   #- github.com/istio/installer/kustomize/istiod
   - ../../../kustomize/istiod
 
-images:
+#images:
 #  - name: gcr.io/istio-testing/istiod
 #    newName: gcr.io/costin-istio/istiod
-  - name: gcr.io/costin-istio/istiod
-    newName: costinm/istiod
+#  - name: gcr.io/costin-istio/istiod
+#    newName: costinm/istiod
 
 patchesStrategicMerge:
   - patch-volumes.yaml

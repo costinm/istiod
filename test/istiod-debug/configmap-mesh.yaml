@@ -99,7 +99,7 @@ data:
       parentShutdownDuration: 60s
 
       controlPlaneAuthPolicy: NONE
-      discoveryAddress: istiod.istio-system.svc:15012
+      discoveryAddress: istiod-debug.istio-system.svc:15012
 
       connectTimeout: 1s
 
