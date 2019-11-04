@@ -56,7 +56,7 @@ ingressControllerMode: DEFAULT
 ingressClass: "istio"
 
 # Temp
-sdsUdsPath:                        "unix:/var/lib/istio/proxy/SDS"
+sdsUdsPath:                        "unix:/etc/istio/proxy/SDS"
 
 
 enableSdsTokenMount:               false

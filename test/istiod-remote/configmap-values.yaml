@@ -21,8 +21,7 @@ data:
     version: ""
 
     global:
-      #hub: gcr.io/costin-istio
-      hub: costinm
+      hub: gcr.io/costin-istio
       tag: latest
 
       imagePullPolicy: Always

@@ -1,12 +1,5 @@
 ---
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: fortio
-  labels:
-    istio-injection: enabled
----
-apiVersion: v1
 kind: Service
 metadata:
   name: fortio
@@ -31,11 +24,11 @@ spec:
   template:
     metadata:
       annotations:
-        sidecar.istio.io/logLevel: "TRACE"
-        sidecar.istio.io/enableCoreDump: "true"
-        sidecar.istio.io/privileged: "true"
-        sidecar.istio.io/debug: "true"
-        sidecar.istio.io/componentLogLevel: "config:trace,http2:trace,init:trace,grpc:trace,upstream:trace"
+        #sidecar.istio.io/logLevel: "TRACE"
+        #sidecar.istio.io/enableCoreDump: "true"
+        #sidecar.istio.io/privileged: "true"
+        #sidecar.istio.io/debug: "true"
+        #sidecar.istio.io/componentLogLevel: "config:trace,http2:trace,init:trace,grpc:trace,upstream:trace"
 
         policy.istio.io/check: disable
         # Override container ports

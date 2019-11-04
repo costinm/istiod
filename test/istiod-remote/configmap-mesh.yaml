@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: mesh
+  name: istiod-mesh
   namespace: istio-system
   labels:
     release: istiod
@@ -66,7 +66,7 @@ data:
     ingressClass: "istio"
 
     # Temp
-    sdsUdsPath:                        "unix:/etc/istio/proxy/SDS"
+    sdsUdsPath:                        "unix:/var/lib/istio/proxy/SDS"
 
 
     enableSdsTokenMount:               false

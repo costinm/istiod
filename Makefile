@@ -13,7 +13,7 @@ TAG ?= master-latest-daily
 
 # TODO: update when moving to istio
 #IMAGE ?= costinm/istiod
-IMAGE ?= gcr.io/costin-istio/istiod
+IMAGE ?= ${HUB}/istiod
 
 CACHEDIR ?= ${TOP}/out/cache
 

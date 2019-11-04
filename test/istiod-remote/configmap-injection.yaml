@@ -6,18 +6,15 @@ metadata:
   labels:
     release: istiod
 data:
-  # This is a simplified injection template - with debug and CNI removed, matching the common config.
-  # The goal is to move debug and other things to a separate patch.
-
-  # TODO: rewriteAppHTTPProbe to be based on TLS setting (and removed if we move to separate TLS port)
-
   injection-template.yaml: |
     policy: enabled
 
     template: |
-      rewriteAppHTTPProbe: false
+      rewriteAppHTTPProbe: {{ valueOrDefault .Values.sidecarInjectorWebhook.rewriteAppHTTPProbe false }}
+      {{- if or (not .Values.istio_cni.enabled) .Values.global.proxy.enableCoreDump }}
       initContainers:
       {{ if ne (annotation .ObjectMeta `sidecar.istio.io/interceptionMode` .ProxyConfig.InterceptionMode) `NONE` }}
+      {{- if not .Values.istio_cni.enabled }}
       - name: istio-init
       {{- if contains "/" .Values.global.proxy_init.image }}
         image: "{{ .Values.global.proxy_init.image }}"
@@ -63,7 +60,31 @@ data:
           capabilities:
             add:
             - NET_ADMIN
+          {{- if .Values.global.proxy.privileged }}
+          privileged: true
+          {{- end }}
         restartPolicy: Always
+      {{- end }}
+      {{  end -}}
+      {{- if eq .Values.global.proxy.enableCoreDump true }}
+      - name: enable-core-dump
+        args:
+        - -c
+        - sysctl -w kernel.core_pattern=/var/lib/istio/core.proxy && ulimit -c unlimited
+        command:
+          - /bin/sh
+      {{- if contains "/" .Values.global.proxy_init.image }}
+        image: "{{ .Values.global.proxy_init.image }}"
+      {{- else }}
+        image: "{{ .Values.global.hub }}/{{ .Values.global.proxy_init.image }}:{{ .Values.global.tag }}"
+      {{- end }}
+        imagePullPolicy: "{{ valueOrDefault .Values.global.imagePullPolicy `Always` }}"
+        resources: {}
+        securityContext:
+          runAsUser: 0
+          runAsNonRoot: false
+          privileged: true
+      {{ end }}
       {{- end }}
       containers:
       - name: istio-proxy
@@ -155,6 +176,10 @@ data:
       {{- if .Values.global.logAsJson }}
         - --log_as_json
       {{- end }}
+        - --controlPlaneBootstrap=false
+      {{- if (isset .ObjectMeta.Annotations `sidecar.istio.io/bootstrapOverride`) }}
+        - --templateFile=/etc/istio/custom-bootstrap/envoy_bootstrap.json
+      {{- end }}
         env:
         - name: POD_NAME
           valueFrom:
@@ -203,6 +228,10 @@ data:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: SDS_ENABLED
+          value: "true"
+        - name: ISTIO_META_INTERCEPTION_MODE
+          value: "{{ or (index .ObjectMeta.Annotations `sidecar.istio.io/interceptionMode`) .ProxyConfig.InterceptionMode.String }}"
         - name: ISTIO_META_INCLUDE_INBOUND_PORTS
           value: "{{ annotation .ObjectMeta `traffic.sidecar.istio.io/includeInboundPorts` (applicationPorts .Spec.Containers) }}"
         {{- if .Values.global.network }}
@@ -227,6 +256,10 @@ data:
         - name: ISTIO_META_OWNER
           value: kubernetes://api/{{ .TypeMeta.APIVersion }}/namespaces/{{ valueOrDefault .DeploymentMeta.Namespace `default` }}/{{ toLower .TypeMeta.Kind}}s/{{ .DeploymentMeta.Name }}
         {{- end}}
+        {{- if (isset .ObjectMeta.Annotations `sidecar.istio.io/bootstrapOverride`) }}
+        - name: ISTIO_BOOTSTRAP_OVERRIDE
+          value: "/etc/istio/custom-bootstrap/custom_bootstrap.json"
+        {{- end }}
         {{- if .Values.global.meshID }}
         - name: ISTIO_META_MESH_ID
           value: "{{ .Values.global.meshID }}"
@@ -251,7 +284,19 @@ data:
           failureThreshold: {{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/failureThreshold` .Values.global.proxy.readinessFailureThreshold }}
         {{ end -}}
         securityContext:
+          {{- if .Values.global.proxy.privileged }}
+          privileged: true
+          {{- end }}
+          {{- if ne .Values.global.proxy.enableCoreDump true }}
+          readOnlyRootFilesystem: true
+          {{- end }}
+          {{ if eq (annotation .ObjectMeta `sidecar.istio.io/interceptionMode` .ProxyConfig.InterceptionMode) `TPROXY` -}}
+          capabilities:
+            add:
+            - NET_ADMIN
+          {{ else -}}
           runAsUser: 1337
+          {{- end }}
           runAsGroup: 1337
         resources:
           {{ if or (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyCPU`) (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyMemory`) -}}
@@ -268,39 +313,37 @@ data:
       {{- end }}
         {{  end -}}
         volumeMounts:
-        {{- /* Memory mounted disks */ -}}
+        {{ if (isset .ObjectMeta.Annotations `sidecar.istio.io/bootstrapOverride`) }}
+        - mountPath: /etc/istio/custom-bootstrap
+          name: custom-bootstrap-volume
+        {{- end }}
         - mountPath: /etc/istio/proxy
           name: istio-envoy
-        - mountPath: /etc/certs/
-          name: istio-certs
-        - mountPath: /var/lib/istio/pod
-          name: podinfo
         - mountPath: /var/run/secrets/tokens
           name: istio-token
-
-{{- if isset .ObjectMeta.Annotations `sidecar.istio.io/userVolumeMount` }}
-  {{ range $index, $value := fromJSON (index .ObjectMeta.Annotations `sidecar.istio.io/userVolumeMount`) }}
+        - mountPath: /etc/certs/
+          name: istio-certs
+          readOnly: true
+        {{- if and (eq .Values.global.proxy.tracer "lightstep") .Values.global.tracer.lightstep.cacertPath }}
+        - mountPath: {{ directory .ProxyConfig.GetTracing.GetLightstep.GetCacertPath }}
+          name: lightstep-certs
+          readOnly: true
+        {{- end }}
+          {{- if isset .ObjectMeta.Annotations `sidecar.istio.io/userVolumeMount` }}
+          {{ range $index, $value := fromJSON (index .ObjectMeta.Annotations `sidecar.istio.io/userVolumeMount`) }}
         - name: "{{  $index }}"
           {{ toYaml $value | indent 4 }}
-  {{ end }}
-{{- end }}
-
+          {{ end }}
+          {{- end }}
       volumes:
+      {{- if (isset .ObjectMeta.Annotations `sidecar.istio.io/bootstrapOverride`) }}
+      - name: custom-bootstrap-volume
+        configMap:
+          name: {{ annotation .ObjectMeta `sidecar.istio.io/bootstrapOverride` "" }}
+      {{- end }}
       - emptyDir:
           medium: Memory
         name: istio-envoy
-      - name: podinfo
-        downwardAPI:
-          items:
-            - path: "labels"
-              fieldRef:
-                fieldPath: metadata.labels
-            - path: "annotations"
-              fieldRef:
-                fieldPath: metadata.annotations
-      - emptyDir:
-          medium: Memory
-        name: istio-certs
       - name: istio-token
         projected:
           sources:
@@ -308,13 +351,26 @@ data:
               path: istio-token
               expirationSeconds: 43200
               audience: {{ .Values.global.sds.token.aud }}
-{{- if isset .ObjectMeta.Annotations `sidecar.istio.io/userVolume` }}
-  {{range $index, $value := fromJSON (index .ObjectMeta.Annotations `sidecar.istio.io/userVolume`) }}
+      - name: istio-certs
+        secret:
+          optional: true
+          {{ if eq .Spec.ServiceAccountName "" }}
+          secretName: istio.default
+          {{ else -}}
+          secretName: {{  printf "istio.%s" .Spec.ServiceAccountName }}
+          {{  end -}}
+        {{- if isset .ObjectMeta.Annotations `sidecar.istio.io/userVolume` }}
+        {{range $index, $value := fromJSON (index .ObjectMeta.Annotations `sidecar.istio.io/userVolume`) }}
       - name: "{{ $index }}"
         {{ toYaml $value | indent 2 }}
-  {{ end }}
-{{ end }}
-
+        {{ end }}
+        {{ end }}
+      {{- if and (eq .Values.global.proxy.tracer "lightstep") .Values.global.tracer.lightstep.cacertPath }}
+      - name: lightstep-certs
+        secret:
+          optional: true
+          secretName: lightstep.cacert
+      {{- end }}
       {{- if .Values.global.podDNSSearchNamespaces }}
       dnsConfig:
         searches:
