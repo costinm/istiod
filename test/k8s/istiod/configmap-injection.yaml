@@ -65,10 +65,6 @@ data:
             - NET_ADMIN
         restartPolicy: Always
       {{- end }}
-<<<<<<< HEAD
-=======
-      {{  end -}}
->>>>>>> d2cbe0d1528389ec28d37001b74fca20c835826d
       containers:
       - name: istio-proxy
       {{- if contains "/" (annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image) }}
@@ -209,11 +205,8 @@ data:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-<<<<<<< HEAD
-=======
         - name: ISTIO_META_INTERCEPTION_MODE
           value: "{{ or (index .ObjectMeta.Annotations `sidecar.istio.io/interceptionMode`) .ProxyConfig.InterceptionMode.String }}"
->>>>>>> d2cbe0d1528389ec28d37001b74fca20c835826d
         - name: ISTIO_META_INCLUDE_INBOUND_PORTS
           value: "{{ annotation .ObjectMeta `traffic.sidecar.istio.io/includeInboundPorts` (applicationPorts .Spec.Containers) }}"
         {{- if .Values.global.network }}
@@ -262,10 +255,7 @@ data:
           failureThreshold: {{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/failureThreshold` .Values.global.proxy.readinessFailureThreshold }}
         {{ end -}}
         securityContext:
-<<<<<<< HEAD
-=======
           readOnlyRootFilesystem: true
->>>>>>> d2cbe0d1528389ec28d37001b74fca20c835826d
           runAsUser: 1337
           runAsGroup: 1337
         resources:
