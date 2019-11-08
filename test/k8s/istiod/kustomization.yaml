@@ -8,6 +8,7 @@ resources:
   - configmap-injection.yaml
   - configmap-mesh.yaml
   - configmap-values.yaml
+  - ingress.yaml
 
 bases:
   #- github.com/istio/installer/kustomize/istiod

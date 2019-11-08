@@ -8,7 +8,6 @@ metadata:
   namespace: istio-system
   labels:
     release: istiod
-
 ---
 # Dedicated cluster role - we could bind istiod SA to each cluster role defined in istio,
 # but instead we replicated the list since we'll remove some of the permissions, and replace
@@ -118,5 +117,27 @@ subjects:
   - kind: ServiceAccount
     name: istiod
     namespace: istio-system
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: istio-ingressgateway
+  namespace: istio-system
+  labels:
+    release: istiod
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: istio-ingressgateway
+  labels:
+    release: istiod
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "watch", "list"]
+---
 
 
