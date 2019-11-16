@@ -45,6 +45,7 @@ data:
     mixerCheckServer: ""
     mixerReportServer: ""
     disablePolicyChecks: true
+    disableMixerHttpReports: true
     policyCheckFailOpen:               false
     sidecarToTelemetrySessionAffinity: false
 

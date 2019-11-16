@@ -28,7 +28,7 @@ require (
 	go.opencensus.io v0.22.1 // indirect
 	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0
 	google.golang.org/grpc v1.24.0
-	istio.io/api v0.0.0-20191015210738-bfa91e88abf1
+	istio.io/api v0.0.0-20191113030652-62bf0afefa2f
 	istio.io/istio v0.0.0-20191023182242-074c09589a13
 	istio.io/pkg v0.0.0-20191029184635-5c2f5ef63692
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
