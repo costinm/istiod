@@ -46,7 +46,7 @@ spec:
       name: https-inject
       targetPort: 15017
     - port: 15010
-      name: grpc-xds # direct
+      name: http2-xds # direct
     - port: 15011
       name: https-xds-spifeecert # mTLS
     - port: 15012
