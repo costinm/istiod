@@ -78,13 +78,15 @@ spec:
     metadata:
       labels:
         app: istiod
+        istio: pilot
       annotations:
         sidecar.istio.io/inject: "false"
     spec:
       serviceAccountName: istiod
       containers:
-        - name: istiod
-          image: gcr.io/costin-istio/istiod:latest
+        - name: discovery
+          image: gcr.io/costin-istio/pilot:latest
+          #image: gcr.io/costin-istio/istiod:latest
           #image: gcr.io/istio-testing/istiod:latest
           imagePullPolicy: Always
           ports:
@@ -97,6 +99,11 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 30
             timeoutSeconds: 5
+          # Args used by pilot - istiod doesn't use args.
+          args:
+            - "discovery"
+            - --secureGrpcAddr
+            - ""
           env:
             - name: POD_NAME
               valueFrom:
@@ -110,6 +117,8 @@ spec:
                   fieldPath: metadata.namespace
             - name: CONFIG_NAMESPACE
               value: istio-system
+            - name: WEBHOOK
+              value: istiod
           resources:
             requests:
               cpu: 800m
@@ -145,7 +154,7 @@ spec:
           projected:
             sources:
               - serviceAccountToken:
-                  audience: costin-istio.svc.id.goog
+                  audience: istiod
                   expirationSeconds: 43200
                   path: istio-token
         - name: istio-certs
@@ -160,4 +169,17 @@ spec:
         - name: cacerts
           secret:
             secretName: cacerts
+            optional: true
+        # Optional - image should have
+        - name: inject
+          configMap:
+            name: inject
+            optional: true
+        - name: values
+          configMap:
+            name: values
+            optional: true
+        - name: mesh
+          configMap:
+            name: mesh
             optional: true
