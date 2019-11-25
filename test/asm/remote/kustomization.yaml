@@ -20,5 +20,5 @@ nameSuffix: -asm
 #  - name: gcr.io/istio-testing/istiod
 #    newName: gcr.io/costin-istio/istiod
 
-#patchesStrategicMerge:
-#  - patch.yaml
+patchesStrategicMerge:
+  - patch.yaml
