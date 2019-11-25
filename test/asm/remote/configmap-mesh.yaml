@@ -98,7 +98,7 @@ data:
       parentShutdownDuration: 60s
 
       controlPlaneAuthPolicy: NONE
-      #discoveryAddress: istiod-remote.istio-system.svc:15012
+      #discoveryAddress: istiod-asm.istio-system.svc:15012
       discoveryAddress: trafficdirector.googleapis.com:443
 
       connectTimeout: 1s

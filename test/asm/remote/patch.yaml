@@ -30,6 +30,9 @@ spec:
         - name: istiod-asm
           configMap:
             name: istiod-asm
+        - name: inject
+          configMap:
+            name: inject
       containers:
         - name: discovery
           volumeMounts:
