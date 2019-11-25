@@ -1,0 +1,58 @@
+# This needs to be automated by the patch - service name and env label are all based on the label.
+# Note that istiod name gets translated
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: istiod
+webhooks:
+  - name: sidecar-injector.istio.io
+    clientConfig:
+      service:
+        name: istiod-asm
+    namespaceSelector:
+      matchLabels:
+        istio-env: istiod-asm
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istiod
+spec:
+  # Required: we only use a single galley uploader.
+  replicas: 1
+  template:
+    spec:
+      volumes:
+        - name: google-cloud-key
+          secret:
+            secretName: google-cloud-key
+            optional: true
+        - name: istio-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  audience: costin-istio.svc.id.goog
+                  expirationSeconds: 43200
+                  path: istio-token
+      containers:
+        - name: discovery
+          env:
+            - name: PROJECT_ID
+              value: costin-istio
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/secrets/google/key.json
+            - name: ISTIOD_ADDR
+              value: istiod-asm.istio-system.svc:15012
+            - name: WEBHOOK
+              value: istiod-asm
+          volumeMounts:
+            - mountPath: /var/secrets/google
+              name: google-cloud-key
+---
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: istiod
+spec:
+  maxReplicas: 1
+  minReplicas: 1
