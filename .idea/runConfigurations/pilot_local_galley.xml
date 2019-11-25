@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="pilot-local-galley" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="istiod" />
+    <working_directory value="$PROJECT_DIR$" />
+    <go_parameters value="-i" />
+    <parameters value="discovery --meshConfig conf/pilot/mesh-galley.yaml --plugins=&quot;authz&quot; --registries=MCP --networksConfig test/simple/meshNetworks.yaml" />
+    <envs>
+      <env name="PILOT_ENABLE_PROTOCOL_SNIFFING" value="true" />
+    </envs>
+    <kind value="PACKAGE" />
+    <filePath value="$PROJECT_DIR$/|$PROJECT_DIR$/pilot/cmd/pilot-discovery/main.go" />
+    <package value="istio.io/istio/pilot/cmd/pilot-discovery" />
+    <directory value="istio.io/istiod/pilot/cmd/pilot-discovery" />
+    <method v="2" />
+  </configuration>
+</component>
