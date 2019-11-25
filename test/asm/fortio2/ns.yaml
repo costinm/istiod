@@ -3,4 +3,4 @@ kind: Namespace
 metadata:
   name: fortio2
   labels:
-    istio-env: istiod-remote
+    istio-env: istiod-asm

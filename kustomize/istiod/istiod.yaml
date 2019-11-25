@@ -104,6 +104,10 @@ spec:
             - "discovery"
             - --secureGrpcAddr
             - ""
+          envFrom:
+          - configMapRef:
+              name: istiod
+              optional: true
           env:
             - name: POD_NAME
               valueFrom:
@@ -142,6 +146,15 @@ spec:
             - name: cacerts
               mountPath: /etc/cacerts
               readOnly: true
+            - name: galley
+              mountPath: /var/lib/istio/galley
+              readOnly: true
+            - name: mesh
+              mountPath: /var/lib/istio/config
+              readOnly: true
+            - name: inject
+              mountPath: /var/lib/istio/inject
+              readOnly: true
       securityContext:
         # Temp, for debugging (need to install tools, etc)
         runAsUser: 0
@@ -154,7 +167,7 @@ spec:
           projected:
             sources:
               - serviceAccountToken:
-                  audience: istiod
+                  audience: istio-ca
                   expirationSeconds: 43200
                   path: istio-token
         - name: istio-certs
@@ -181,5 +194,9 @@ spec:
             optional: true
         - name: mesh
           configMap:
-            name: mesh
+            name: istiod-mesh
+            optional: true
+        - name: galley
+          configMap:
+            name: istiod-galley
             optional: true

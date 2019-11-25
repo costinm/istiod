@@ -8,13 +8,14 @@ resources:
   - configmap-injection.yaml
   - configmap-mesh.yaml
   - configmap-values.yaml
-  - mutatingwebhook.yaml
-  - istiod.yaml
 
 commonLabels:
   app: istiod-asm
 
 nameSuffix: -asm
+
+bases:
+  - ../../../kustomize/istiod
 
 #images:
 #  - name: gcr.io/istio-testing/istiod

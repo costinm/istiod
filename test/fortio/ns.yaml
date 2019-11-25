@@ -4,3 +4,4 @@ metadata:
   name: fortio
   labels:
     istio-injection: enabled
+    istio-env: istiod

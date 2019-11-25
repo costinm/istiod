@@ -66,8 +66,9 @@ spec:
     spec:
       serviceAccountName: istiod
       containers:
-        - name: istiod
-          image: gcr.io/costin-istio/istiod:latest
+        - name: discovery
+          image: gcr.io/costin-istio/pilot:latest
+          #image: gcr.io/costin-istio/istiod:latest
           #image: gcr.io/istio-testing/istiod:latest
           imagePullPolicy: Always
           ports:
@@ -80,6 +81,11 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 30
             timeoutSeconds: 5
+          # Args used by pilot - istiod doesn't use args.
+          args:
+            - "discovery"
+            - --secureGrpcAddr
+            - ""
           envFrom:
           - configMapRef:
               name: istiod-galley
@@ -96,6 +102,8 @@ spec:
                   fieldPath: metadata.namespace
             - name: CONFIG_NAMESPACE
               value: istio-system
+            - name: WEBHOOK
+              value: istiod
           resources:
             requests:
               cpu: 100m
