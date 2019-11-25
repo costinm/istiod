@@ -27,27 +27,25 @@ spec:
           secret:
             secretName: google-cloud-key
             optional: true
-        - name: istio-token
-          projected:
-            sources:
-              - serviceAccountToken:
-                  audience: costin-istio.svc.id.goog
-                  expirationSeconds: 43200
-                  path: istio-token
+        - name: istiod-asm
+          configMap:
+            name: istiod-asm
       containers:
         - name: discovery
-          env:
-            - name: PROJECT_ID
-              value: costin-istio
-            - name: GOOGLE_APPLICATION_CREDENTIALS
-              value: /var/secrets/google/key.json
-            - name: ISTIOD_ADDR
-              value: istiod-asm.istio-system.svc:15012
-            - name: WEBHOOK
-              value: istiod-asm
           volumeMounts:
             - mountPath: /var/secrets/google
               name: google-cloud-key
+            - mountPath: /var/lib/istio/galley
+              name: istiod-asm
+          envFrom:
+            - configMapRef:
+                name: istiod-asm
+                optional: true
+          env:
+            - name: WEBHOOK
+              value: istiod-asm
+
+
 ---
 apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler

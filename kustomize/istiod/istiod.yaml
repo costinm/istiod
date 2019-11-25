@@ -138,9 +138,6 @@ spec:
             - name: istio-token
               mountPath: /var/run/secrets/tokens
               readOnly: true
-            - name: istiod
-              mountPath: /var/lib/istio/local
-              readOnly: true
             - name: local-certs
               mountPath: /var/run/secrets/istio-dns
             - name: cacerts
@@ -154,6 +151,9 @@ spec:
               readOnly: true
             - name: inject
               mountPath: /var/lib/istio/inject
+              readOnly: true
+            - name: istiod
+              mountPath: /var/lib/istio/local
               readOnly: true
       securityContext:
         # Temp, for debugging (need to install tools, etc)
