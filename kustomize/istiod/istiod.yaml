@@ -147,7 +147,7 @@ spec:
               mountPath: /var/lib/istio/galley
               readOnly: true
             - name: mesh
-              mountPath: /var/lib/istio/config
+              mountPath: /etc/istio/config
               readOnly: true
             - name: inject
               mountPath: /var/lib/istio/inject
