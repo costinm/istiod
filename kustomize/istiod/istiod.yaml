@@ -123,6 +123,8 @@ spec:
               value: istio-system
             - name: WEBHOOK
               value: istiod
+            - name: PILOT_EXTERNAL_GALLEY
+              value: "false"
           resources:
             requests:
               cpu: 800m

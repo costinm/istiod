@@ -6,6 +6,7 @@
     <parameters value="discovery --meshConfig ./var/lib/istio/config/mesh --secureGrpcAddr &quot;&quot;" />
     <envs>
       <env name="KUBECONFIG" value="$USER_HOME$/.k8s/k8s.istiod-single.yaml" />
+      <env name="PILOT_EXTERNAL_GALLEY" value="false" />
     </envs>
     <kind value="PACKAGE" />
     <filePath value="$PROJECT_DIR$/|$PROJECT_DIR$/pilot/cmd/pilot-discovery/main.go" />
