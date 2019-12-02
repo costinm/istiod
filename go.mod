@@ -27,7 +27,7 @@ require (
 	github.com/spf13/cobra v0.0.5
 	go.opencensus.io v0.22.1 // indirect
 	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0
-	google.golang.org/grpc v1.24.0
+	google.golang.org/grpc v1.25.1
 	istio.io/api v0.0.0-20191120195622-f0abe0c81e59
 	istio.io/istio v0.0.0-20191023182242-074c09589a13
 	istio.io/pkg v0.0.0-20191113122952-4f521de9c8ca

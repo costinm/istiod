@@ -144,9 +144,7 @@ data:
         - --applicationPorts
         - "{{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/applicationPorts` (applicationPorts .Spec.Containers) }}"
       {{- end }}
-      {{- if .Values.global.trustDomain }}
-        - --trust-domain={{ .Values.global.trustDomain }}
-      {{- end }}
+        - --trust-domain={{ env "TRUSTDOMAIN" }}
       {{- if .Values.global.logAsJson }}
         - --log_as_json
       {{- end }}
@@ -169,11 +167,9 @@ data:
         - name: ISTIO_META_TRAFFICDIRECTOR_WORKLOAD_NAME
           value: csm-auth-{{ .DeploymentMeta.Namespace }}
         - name: ISTIO_META_MESH_ID
-          value: "{{ .Values.global.trustDomain }}"
+          value: "{{ env "TRUSTDOMAIN" }}"
         - name: TRUST_DOMAIN
-          value: "{{ .Values.global.trustDomain }}"
-        - name: GKE_CLUSTER_URL
-          value: https://container.googleapis.com/v1/projects/costin-istio/locations/us-central1-a/clusters/istiod-single
+          value: "{{ env "TRUSTDOMAIN" }}"
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -254,9 +250,9 @@ data:
         {{- if .Values.global.meshID }}
         - name: ISTIO_META_MESH_ID
           value: "{{ .Values.global.meshID }}"
-        {{- else if .Values.global.trustDomain }}
+        {{- else }}
         - name: ISTIO_META_MESH_ID
-          value: "{{ .Values.global.trustDomain }}"
+          value: "{{ env "TRUSTDOMAIN" }}"
         {{- end }}
         {{- if and (eq .Values.global.proxy.tracer "datadog") (isset .ObjectMeta.Annotations `apm.datadoghq.com/env`) }}
         {{- range $key, $value := fromJSON (index .ObjectMeta.Annotations `apm.datadoghq.com/env`) }}
@@ -341,7 +337,7 @@ data:
           - serviceAccountToken:
               path: istio-token
               expirationSeconds: 43200
-              audience: {{ .Values.global.sds.token.aud }}
+              audience: {{ env "TRUSTDOMAIN" }}
       - name: istio-certs
         secret:
           optional: true
@@ -388,18 +384,9 @@ data:
       controlPlaneSecurityEnabled: false
 
       istioNamespace: istio-system
-      trustDomain: "costin-istio.svc.id.goog"
 
       #network: default
       # podDNSSearchNamespaces:
-
-      sds:
-        enabled: false
-        # customTokenDirectory
-        #useTrustworthyJwt: true
-        token:
-          aud: costin-istio.svc.id.goog
-
 
       proxy:
         privileged: true

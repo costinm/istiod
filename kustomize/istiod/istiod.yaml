@@ -121,6 +121,8 @@ spec:
                   fieldPath: metadata.namespace
             - name: CONFIG_NAMESPACE
               value: istio-system
+            - name: ISTIOD_ADDR
+              value: istiod.istio-system.svc:15012
             - name: WEBHOOK
               value: istiod
             - name: PILOT_EXTERNAL_GALLEY
