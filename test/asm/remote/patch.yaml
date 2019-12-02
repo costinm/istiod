@@ -13,6 +13,15 @@ webhooks:
       matchLabels:
         istio-env: istiod-asm
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: istiod
+spec:
+  selector:
+    app: istiod-asm
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -20,7 +29,13 @@ metadata:
 spec:
   # Required: we only use a single galley uploader.
   replicas: 1
+  selector:
+    matchLabels:
+      app: istiod-asm
   template:
+    metadata:
+      labels:
+        app: istiod-asm
     spec:
       volumes:
         - name: google-cloud-key
@@ -47,7 +62,8 @@ spec:
           env:
             - name: WEBHOOK
               value: istiod-asm
-
+            - name: ISTIOD_ADDR
+              value: istiod-asm.istio-system.svc:15012
 
 ---
 apiVersion: autoscaling/v2beta1
