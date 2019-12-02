@@ -9,9 +9,6 @@ resources:
   - configmap-mesh.yaml
   - galley.yaml
 
-commonLabels:
-  app: istiod-asm
-
 nameSuffix: -asm
 
 bases:
