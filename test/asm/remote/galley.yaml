@@ -78,9 +78,8 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
           resources:
-            resources:
-              requests:
-                cpu: 100m
+            requests:
+              cpu: 100m
 
       volumes:
       - name: config
