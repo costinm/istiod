@@ -104,6 +104,8 @@ spec:
             - "discovery"
             - --secureGrpcAddr
             - ""
+            - --namespace
+            - "istio-system"
           envFrom:
           - configMapRef:
               name: istiod

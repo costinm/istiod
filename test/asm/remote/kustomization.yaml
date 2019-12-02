@@ -8,6 +8,11 @@ resources:
   - configmap-injection.yaml
   - configmap-mesh.yaml
   - galley.yaml
+  # Telemetry v2
+  - metadata_exchange_filter.yaml
+  - stackdriver_filter.yaml
+  - stackdriver_tcp_v1.yaml
+  - stats_filter.yaml
 
 nameSuffix: -asm
 

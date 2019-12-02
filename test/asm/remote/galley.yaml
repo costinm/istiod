@@ -27,13 +27,17 @@ spec:
       serviceAccountName: istiod
       containers:
         - name: galley
-          image: gcr.io/istio-testing/galley
+          image: gcr.io/costin-istio/galley:latest
           imagePullPolicy: "Always"
           ports:
           - containerPort: 9443
           - containerPort: 15014
           - containerPort: 15019
           - containerPort: 9901
+          envFrom:
+            - configMapRef:
+                name: istiod-asm
+                optional: true
           command:
           - /usr/local/bin/galley
           - server
@@ -51,6 +55,12 @@ spec:
           - /etc/config/validatingwebhookconfiguration.yaml
           - --monitoringPort=15014
           - --validation-port=9443
+          - --sinkAddress=meshconfig.googleapis.com:443
+          - --sinkAuthMode=GOOGLE
+          - --sinkMeta=project_id=$(PROJECT_ID)
+          - --excludedResourceKinds=Pod,Node,Endpoints
+          - --enableServiceDiscovery
+          #- --log_output_level=default:debug
           volumeMounts:
           - name: config
             mountPath: /etc/config
@@ -58,33 +68,38 @@ spec:
           - name: mesh-config
             mountPath: /etc/mesh-config
             readOnly: true
-          livenessProbe:
-            exec:
-              command:
-                - /usr/local/bin/galley
-                - probe
-                - --probe-path=/tmp/healthliveness
-                - --interval=10s
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          readinessProbe:
-            exec:
-              command:
-                - /usr/local/bin/galley
-                - probe
-                - --probe-path=/tmp/healthready
-                - --interval=10s
-            initialDelaySeconds: 5
-            periodSeconds: 5
+          - mountPath: /var/secrets/google
+            name: google-cloud-key
+#          livenessProbe:
+#            exec:
+#              command:
+#                - /usr/local/bin/galley
+#                - probe
+#                - --probe-path=/tmp/healthliveness
+#                - --interval=10s
+#            initialDelaySeconds: 5
+#            periodSeconds: 5
+#          readinessProbe:
+#            exec:
+#              command:
+#                - /usr/local/bin/galley
+#                - probe
+#                - --probe-path=/tmp/healthready
+#                - --interval=10s
+#            initialDelaySeconds: 5
+#            periodSeconds: 5
           resources:
             requests:
               cpu: 100m
 
       volumes:
+      - name: google-cloud-key
+        secret:
+          secretName: google-cloud-key
       - name: config
         # Should be created at cluster creation time, include info about the cluster and vendor-specific options.
         configMap:
-          name: istiod-push
+          name: istiod-asm
       - name: mesh-config
         configMap:
           name: istiod-mesh

@@ -4,5 +4,6 @@ kind: Kustomization
 resources:
   - ns.yaml
   - fortio.yaml
+  - fortiosds.yaml
 
 namespace: fortio2
