@@ -45,12 +45,10 @@ data:
         - "{{ index .ObjectMeta.Annotations `traffic.sidecar.istio.io/kubevirtInterfaces` }}"
         {{ end -}}
         imagePullPolicy: "Always"
-      {{- if .Values.global.proxy_init.resources }}
         resources:
-          {{ toYaml .Values.global.proxy_init.resources | indent 4 }}
-      {{- else }}
-        resources: {}
-      {{- end }}
+          requests:
+            cpu: 100m
+            memory: 100m
         securityContext:
           runAsUser: 0
           runAsNonRoot: false
@@ -60,10 +58,10 @@ data:
         restartPolicy: Always
       containers:
       - name: istio-proxy
-      {{- if contains "/" (annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image) }}
-        image: "{{ annotation .ObjectMeta `sidecar.istio.io/proxyImage` .Values.global.proxy.image }}"
+      {{- if contains "/" (annotation .ObjectMeta `sidecar.istio.io/proxyImage` ``) }}
+        image: "{{ annotation .ObjectMeta `sidecar.istio.io/proxyImage` `` }}"
       {{- else }}
-        image: "{{ .Values.global.hub }}/{{ .Values.global.proxy.image }}:{{ .Values.global.tag }}"
+        image: "gcr.io/istio-testing/proxyv2:latest"
       {{- end }}
         ports:
         - containerPort: 15090
@@ -73,7 +71,7 @@ data:
         - proxy
         - sidecar
         - --domain
-        - $(POD_NAMESPACE).svc.{{ .Values.global.proxy.clusterDomain }}
+        - $(POD_NAMESPACE).svc.cluster.local
         - --configPath
         - "/etc/istio/proxy"
         - --binaryPath
@@ -90,37 +88,10 @@ data:
         - "{{ formatDuration .ProxyConfig.ParentShutdownDuration }}"
         - --discoveryAddress
         - "trafficdirector.googleapis.com:443"
-      {{- if eq .Values.global.proxy.tracer "lightstep" }}
-        - --lightstepAddress
-        - "{{ .ProxyConfig.GetTracing.GetLightstep.GetAddress }}"
-        - --lightstepAccessToken
-        - "{{ .ProxyConfig.GetTracing.GetLightstep.GetAccessToken }}"
-        - --lightstepSecure={{ .ProxyConfig.GetTracing.GetLightstep.GetSecure }}
-        - --lightstepCacertPath
-        - "{{ .ProxyConfig.GetTracing.GetLightstep.GetCacertPath }}"
-      {{- else if eq .Values.global.proxy.tracer "zipkin" }}
-        - --zipkinAddress
-        - "{{ .ProxyConfig.GetTracing.GetZipkin.GetAddress }}"
-      {{- else if eq .Values.global.proxy.tracer "datadog" }}
-        - --datadogAgentAddress
-        - "{{ .ProxyConfig.GetTracing.GetDatadog.GetAddress }}"
-      {{- end }}
         - --proxyLogLevel={{ annotation .ObjectMeta `sidecar.istio.io/logLevel` .Values.global.proxy.logLevel}}
         - --proxyComponentLogLevel={{ annotation .ObjectMeta `sidecar.istio.io/componentLogLevel` .Values.global.proxy.componentLogLevel}}
         - --connectTimeout
         - "{{ formatDuration .ProxyConfig.ConnectTimeout }}"
-      {{- if .Values.global.proxy.envoyStatsd.enabled }}
-        - --statsdUdpAddress
-        - "{{ .ProxyConfig.StatsdUdpAddress }}"
-      {{- end }}
-      {{- if .Values.global.proxy.envoyMetricsService.enabled }}
-        - --envoyMetricsServiceAddress
-        - "{{ .ProxyConfig.GetEnvoyMetricsService.GetAddress }}"
-      {{- end }}
-      {{- if .Values.global.proxy.envoyAccessLogService.enabled }}
-        - --envoyAccessLogServiceAddress
-        - "{{ .ProxyConfig.GetEnvoyAccessLogService.GetAddress }}"
-      {{- end }}
         - --proxyAdminPort
         - "{{ .ProxyConfig.ProxyAdminPort }}"
         {{ if gt .ProxyConfig.Concurrency 0 -}}
