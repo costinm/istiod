@@ -179,6 +179,9 @@ data:
         - --templateFile=/etc/istio/custom-bootstrap/envoy_bootstrap.json
       {{- end }}
         env:
+        # Temp, pending PR to make it default or based on the istiodAddr env
+        - name: CA_ADDR
+          value: istiod.istio-system.svc:15012
         - name: POD_NAME
           valueFrom:
             fieldRef:

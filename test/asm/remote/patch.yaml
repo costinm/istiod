@@ -50,7 +50,6 @@ spec:
               value: istiod-asm
             - name: ISTIOD_ADDR
               value: istiod-asm.istio-system.svc:15012
-
 ---
 apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
