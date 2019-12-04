@@ -73,12 +73,12 @@ spec:
             memory: "1G"
 
 ---
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
-metadata:
-  name: fortio
-spec:
-  host:  fortio.fortio.svc.cluster.local
-  trafficPolicy:
-    tls:
-      mode: ISTIO_MUTUAL
+#apiVersion: networking.istio.io/v1alpha3
+#kind: DestinationRule
+#metadata:
+#  name: fortio
+#spec:
+#  host:  fortiosds.fortio2.svc.cluster.local
+#  trafficPolicy:
+#    tls:
+#      mode: ISTIO_MUTUAL

@@ -1,7 +1,7 @@
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: istiod-sidecar-injector
+  name: istiod
 webhooks:
   - name: sidecar-injector.istio.io
     clientConfig:

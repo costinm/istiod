@@ -55,9 +55,9 @@ spec:
           - /etc/config/validatingwebhookconfiguration.yaml
           - --monitoringPort=15014
           - --validation-port=9443
-          - --sinkAddress=meshconfig.googleapis.com:443
+          - --sinkAddress=staging-meshconfig.sandbox.googleapis.com:443
           - --sinkAuthMode=GOOGLE
-          - --sinkMeta=project_id=$(PROJECT_ID)
+          - --sinkMeta=project_id=$(PROJECT_ID),sds_path=unix:/etc/istio/proxy/SDS,trace=525371276727
           - --excludedResourceKinds=Pod,Node,Endpoints
           - --enableServiceDiscovery
           #- --log_output_level=default:debug

@@ -3,10 +3,11 @@
     <module name="istiod" />
     <working_directory value="$PROJECT_DIR$" />
     <go_parameters value="-i" />
-    <parameters value="discovery --meshConfig ./var/lib/istio/config/mesh --secureGrpcAddr &quot;&quot;" />
+    <parameters value="discovery --meshConfig ./var/lib/istio/config/mesh --secureGrpcAddr &quot;&quot; -n istio-system" />
     <envs>
-      <env name="KUBECONFIG" value="$USER_HOME$/.k8s/k8s.istiod-single.yaml" />
+      <env name="KUBECONFIG" value="$USER_HOME$/.k8s/istiod2.yaml" />
       <env name="PILOT_EXTERNAL_GALLEY" value="false" />
+      <env name="ISTIOD_SERVICE" value="istiod.istio-system.svc:15012" />
     </envs>
     <kind value="PACKAGE" />
     <filePath value="$PROJECT_DIR$/|$PROJECT_DIR$/pilot/cmd/pilot-discovery/main.go" />

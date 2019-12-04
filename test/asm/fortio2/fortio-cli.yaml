@@ -3,7 +3,7 @@ apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: cli-fortio
-  namespace: fortio
+  namespace: fortio2
 spec:
   replicas: 1
   template:
@@ -24,7 +24,7 @@ spec:
           - "30"
           - -qps
           - "10"
-          - http://fortioasm.asm-fortio:8080/echo?size=5000
+          - http://fortiosds.fortio2:8080/echo?size=5000
         resources:
           requests:
             cpu: 100m

@@ -29,7 +29,7 @@ spec:
     name: http2-echo
   selector:
     app: fortio
-
+---
 ---
 apiVersion: apps/v1beta1
 kind: Deployment

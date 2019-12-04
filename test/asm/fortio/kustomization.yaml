@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - ns.yaml
   - fortio.yaml
+  - fortio-cli.yaml
 
 nameSuffix: asm
 

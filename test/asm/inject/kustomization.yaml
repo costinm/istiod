@@ -4,8 +4,10 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-resources:
-  # Mutating webhook can be added here, but every time we update it'll reset the CA, and require
-  # restarting istiod
-  #- mutatingwebhook.yaml
-  - istiod.yaml
+nameSuffix: -asm
+
+bases:
+  - ../../../kustomize/autoinject
+
+patchesStrategicMerge:
+  - patch.yaml

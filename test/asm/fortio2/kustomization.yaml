@@ -3,7 +3,9 @@ kind: Kustomization
 
 resources:
   - ns.yaml
-  - fortio.yaml
+  # Dup service - not working yet
+  #- fortio.yaml
   - fortiosds.yaml
+  - fortio-cli.yaml
 
 namespace: fortio2

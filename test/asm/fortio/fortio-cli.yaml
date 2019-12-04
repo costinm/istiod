@@ -24,7 +24,7 @@ spec:
           - "30"
           - -qps
           - "10"
-          - http://fortioasm.asm-fortio:8080/echo?size=5000
+          - http://fortioasm.fortioasm:8080/echo?size=5000
         resources:
           requests:
             cpu: 100m
