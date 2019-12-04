@@ -5,7 +5,6 @@ resources:
   - ns.yaml
   - fortio.yaml
   - fortio-cli.yaml
-
-nameSuffix: asm
+  - ubuntupod.yaml
 
 namespace: fortioasm

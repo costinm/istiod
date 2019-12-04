@@ -3,7 +3,6 @@ apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: cli-fortio
-  namespace: fortio
 spec:
   replicas: 1
   template:

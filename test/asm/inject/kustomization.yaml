@@ -1,13 +1,6 @@
-# Allow install of istiod using kubectl -k
-# The deployment is not generated with helm template, and is self contained.
-# "cluster" resources must be applied first.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-nameSuffix: -asm
+resources:
+  - mutatingwebhook.yaml
 
-bases:
-  - ../../../kustomize/autoinject
-
-patchesStrategicMerge:
-  - patch.yaml

@@ -3,9 +3,9 @@ kind: Kustomization
 
 resources:
   - ns.yaml
-  # Dup service - not working yet
-  #- fortio.yaml
+  - strict.yaml
   - fortiosds.yaml
   - fortio-cli.yaml
+  - ubuntupod.yaml
 
-namespace: fortio2
+namespace: fortiosds

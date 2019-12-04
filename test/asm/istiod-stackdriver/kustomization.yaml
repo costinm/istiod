@@ -1,0 +1,10 @@
+# Telemetry v2 using stackdriver, for Istiod OSS
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - metadata_exchange_filter.yaml
+  - stackdriver_filter.yaml
+  - stackdriver_tcp_v1.yaml
+  - stats_filter.yaml
+
