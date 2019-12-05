@@ -1,0 +1,5 @@
+bases:
+  - ../../test/asm/neg
+  - ../../test/asm/remote
+  - ../../kustomize/istiod
+  - ../../test/asm/istiod-stackdriver

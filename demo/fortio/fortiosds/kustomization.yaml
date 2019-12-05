@@ -1,0 +1,4 @@
+namespace: fortiosds
+bases:
+  - ../../../test/asm/fortiosds
+
