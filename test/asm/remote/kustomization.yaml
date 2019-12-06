@@ -1,0 +1,24 @@
+# Allow install of istiod using kubectl -k
+# The deployment is not generated with helm template, and is self contained.
+# "cluster" resources must be applied first.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+#  - configmap-injection.yaml
+#  - configmap-mesh.yaml
+  - galley.yaml
+
+nameSuffix: -asm
+
+bases:
+  - ../../../kustomize/istiod
+
+#images:
+#  - name: gcr.io/istio-testing/istiod
+#    newName: gcr.io/costin-istio/istiod
+
+patchesStrategicMerge:
+  - patch.yaml
+  - configmap-mesh.yaml
+  - configmap-injection.yaml

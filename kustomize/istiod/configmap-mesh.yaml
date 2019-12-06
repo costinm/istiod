@@ -1,16 +1,13 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: mesh
+  name: istiod-mesh
   namespace: istio-system
   labels:
     release: istiod
 data:
 
   mesh: |
-    # Default config. Will be included in the image/deb.
-    # User config will replace it via a volume mount.
-
     # This file has all the defaults from the code, but adjusted to include more stable prod settings.
 
     # TODO: merge this with a user-mesh.yaml with overrides ?
@@ -45,7 +42,6 @@ data:
     mixerCheckServer: ""
     mixerReportServer: ""
     disablePolicyChecks: true
-    disableMixerHttpReports: true
     policyCheckFailOpen:               false
     sidecarToTelemetrySessionAffinity: false
 
