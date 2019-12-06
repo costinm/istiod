@@ -21,14 +21,12 @@ To set up your cluster, run the following:
 # CD to this directory if you haven't already
 cd demo/
 
-# Init the cluster
+# Init the cluster and istiod/asm
 kubectl apply -k cluster-init/
 
-# Init istiod/asm
-kubectl apply -k asm-init/
-
-# Init fortio
-sleep 5 && kubectl apply -k fortio/
+# Install fortio after istiod is up
+kubectl -n istio-system wait --timeout=600s --for=condition=ready pod -listio=pilot \
+&& kubectl apply -k fortio
 ```
 
 The delay ensures that the istiod instances set up in `asm-init` have time to

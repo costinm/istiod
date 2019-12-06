@@ -6,3 +6,8 @@ bases:
   # Create a sidecar injector mutatingwebhook for ASM components
   - ../../test/asm/inject
   
+  # Install ASM components
+  - ../../test/asm/neg
+  - ../../test/asm/remote
+  - ../../kustomize/istiod
+  - ../../test/asm/istiod-stackdriver
