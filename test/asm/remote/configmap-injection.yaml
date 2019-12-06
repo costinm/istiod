@@ -129,8 +129,8 @@ data:
           value: "15006"
         - name: ISTIO_META_TRAFFICDIRECTOR_ACCESS_LOG_PATH
           value: /dev/stdout
-        - name: ISTIO_META_TRAFFICDIRECTOR_ENABLE_ISTIO_STACKDRIVER_TELEMETRY
-          value: "true"
+        #- name: ISTIO_META_TRAFFICDIRECTOR_ENABLE_ISTIO_STACKDRIVER_TELEMETRY
+        #  value: "true"
         - name: ISTIO_META_TRAFFICDIRECTOR_INBOUND_BACKEND_PORTS
           value: "{{ annotation .ObjectMeta `traffic.sidecar.istio.io/includeInboundPorts` (applicationPorts .Spec.Containers) }}"
         - name: ISTIO_META_TRAFFICDIRECTOR_WORKLOAD_NAME
