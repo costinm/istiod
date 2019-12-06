@@ -7,6 +7,8 @@ spec:
   replicas: 1
   template:
     metadata:
+      annotations:
+        sidecar.istio.io/proxyCPU: "1000m"
       labels:
         app: cli-fortio
         version: v1

@@ -8,6 +8,8 @@ spec:
   replicas: 1
   template:
     metadata:
+      annotations:
+        sidecar.istio.io/proxyCPU: "2000m"
       labels:
         app: cli-fortio
         version: v1
@@ -23,7 +25,7 @@ spec:
           - -c
           - "30"
           - -qps
-          - "10"
+          - "1000"
           - http://fortio:8080/echo?size=5000
         resources:
           requests:

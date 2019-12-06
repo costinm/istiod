@@ -31,6 +31,7 @@ spec:
         policy.istio.io/check: disable
         # Override container ports
         #traffic.sidecar.istio.io/includeInboundPorts: "*"
+        sidecar.istio.io/proxyCPU: "2000m"
 
       labels:
         app: fortio
