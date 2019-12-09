@@ -9,7 +9,7 @@ metadata:
     release: fortio
 spec:
   rules:
-    - host: asmfortio-ingress.asm.webinf.info
+    - host: asmfortio-ingress.asm.istio.webinf.info
       http:
         paths:
             - path: /.*
