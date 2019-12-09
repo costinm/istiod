@@ -1,0 +1,21 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: cli-fortio
+spec:
+  template:
+    spec:
+      containers:
+      - name: echosrv
+        args:
+          - load
+          - -allow-initial-errors
+          - -t
+          - "0"
+          - -c
+          - "30"
+          - -qps
+          - "10"
+          - "http://STRESSTESTREPLACEME-fortio:8080/echo?size=5000"
+

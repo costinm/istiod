@@ -20,6 +20,7 @@ spec:
         imagePullPolicy: Always
         args:
           - load
+          - -allow-initial-errors
           - -t
           - "0"
           - -c

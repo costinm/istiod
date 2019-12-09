@@ -6,6 +6,5 @@ resources:
   - strict.yaml
   - fortiosds.yaml
   - fortio-cli.yaml
-  - ubuntupod.yaml
 
 namespace: fortiosds
