@@ -1,0 +1,11 @@
+# Install required components for standard components
+#
+# Not including cluster
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+bases:
+  - ../../kustomize/cluster
+  - ../../kustomize/autoinject
+  - ../knative-cluster/
