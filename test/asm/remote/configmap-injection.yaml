@@ -99,7 +99,7 @@ data:
         - "{{ .ProxyConfig.Concurrency }}"
         {{ end -}}
         - --dnsRefreshRate
-        - {{ valueOrDefault .Values.global.proxy.dnsRefreshRate "300s" }}
+        - {{ annotation .ObjectMeta `sidecar.istio.io/dnsRefreshRate` "300s" }}
       {{- if (ne (annotation .ObjectMeta "status.sidecar.istio.io/port" "15020") "0") }}
         - --statusPort
         - "{{ annotation .ObjectMeta `status.sidecar.istio.io/port` "15020" }}"
@@ -107,9 +107,6 @@ data:
         - "{{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/applicationPorts` (applicationPorts .Spec.Containers) }}"
       {{- end }}
         - --trust-domain={{ env "trustDomain" "" }}
-      {{- if .Values.global.logAsJson }}
-        - --log_as_json
-      {{- end }}
         - --log_output_level=debug
         env:
         - name: CA_ADDR
@@ -165,6 +162,10 @@ data:
             ]
         - name: ISTIO_META_CLUSTER_ID
           value: "{{ valueOrDefault .Values.global.multiCluster.clusterName `Kubernetes` }}"
+        {{- if .Values.global.network }}
+        - name: ISTIO_META_NETWORK
+          value: "{{ .Values.global.network }}"
+        {{- end }}
         - name: ISTIO_META_POD_NAME
           valueFrom:
             fieldRef:
@@ -177,10 +178,6 @@ data:
           value: "{{ or (index .ObjectMeta.Annotations `sidecar.istio.io/interceptionMode`) .ProxyConfig.InterceptionMode.String }}"
         - name: ISTIO_META_INCLUDE_INBOUND_PORTS
           value: "{{ annotation .ObjectMeta `traffic.sidecar.istio.io/includeInboundPorts` (applicationPorts .Spec.Containers) }}"
-        {{- if .Values.global.network }}
-        - name: ISTIO_META_NETWORK
-          value: "{{ .Values.global.network }}"
-        {{- end }}
         {{ if .ObjectMeta.Annotations }}
         - name: ISTIO_METAJSON_ANNOTATIONS
           value: |
@@ -203,14 +200,9 @@ data:
         - name: ISTIO_BOOTSTRAP_OVERRIDE
           value: "/etc/istio/custom-bootstrap/custom_bootstrap.json"
         {{- end }}
-        {{- if .Values.global.meshID }}
-        - name: ISTIO_META_MESH_ID
-          value: "{{ .Values.global.meshID }}"
-        {{- else }}
         - name: ISTIO_META_MESH_ID
           value: {{ env "trustDomain" "" }}
-        {{- end }}
-        imagePullPolicy: "{{ valueOrDefault .Values.global.imagePullPolicy `Always` }}"
+        imagePullPolicy: "Always"
         {{ if ne (annotation .ObjectMeta `status.sidecar.istio.io/port` "15020") `0` }}
         readinessProbe:
           httpGet:
@@ -233,10 +225,23 @@ data:
             {{ if (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyMemory`) -}}
             memory: "{{ index .ObjectMeta.Annotations `sidecar.istio.io/proxyMemory` }}"
             {{ end }}
-        {{ else -}}
-      {{- if .Values.global.proxy.resources }}
-          {{ toYaml .Values.global.proxy.resources | indent 4 }}
-      {{- end }}
+          {{ if or (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyCPULimit`) (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyMemoryLimit`) -}}
+          limits:
+            {{ if (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyCPULimit`) -}}
+            cpu: "{{ index .ObjectMeta.Annotations `sidecar.istio.io/proxyCPULimit` }}"
+            {{ end}}
+            {{ if (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyMemoryLimit`) -}}
+            memory: "{{ index .ObjectMeta.Annotations `sidecar.istio.io/proxyMemoryLimit` }}"
+            {{ end }}
+          {{ end }}
+          {{ else -}}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 2000m
+              memory: 1024Mi
         {{  end -}}
         volumeMounts:
         {{ if (isset .ObjectMeta.Annotations `sidecar.istio.io/bootstrapOverride`) }}
@@ -296,14 +301,12 @@ data:
 
   values: |
 
-    global:
-      hub: gcr.io/costin-istio
-      tag: latest
-      imagePullPolicy: Always
+    # Remaining values, in process of move to mesh.yaml or env
+    # global:
+    #   podDNSSearchNamespaces
 
-      proxy:
-        image: proxyv2
-        clusterDomain: "cluster.local"
-        excludeInboundPorts: ""
-        includeIPRanges: "*"
-        excludeIPRanges: ""
+    #   multiCluster:
+    #      clusterName:
+
+    #   network:
+
