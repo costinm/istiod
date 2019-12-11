@@ -49,6 +49,8 @@ kubectl apply -k github.com/costinm/istiod/kustomize/isto-ingress
 This installs istiod, knative, 2 namespaces running fortio servers and client - one with secure and one insecure.
 More tests and scenarios will be added. This is intended to be used in the 'stability/perf/scale' clusters. 
 
+Note: These steps must be run after Istiod is in a 'Running' state. Istiod patches the mutatingwebhook resource to add CA credentials. Without those credentials, Kubernetes will refuse to create pods that run through the webhook. If you installed the workloads too early, you may need to delete stuck replicasests in order for them to start trying to create pods again. 
+
 1. Cluster-wide settings - requires cluster-admin
 
 ```bash
