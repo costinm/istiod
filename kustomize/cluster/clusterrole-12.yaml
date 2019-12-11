@@ -1,12 +1,3 @@
-# Cluster roles, matching 1.2 install. Extracted from generated istio.yaml
-
-# Some roles are removed, not used in 1.3 installer - config for policy is user or operator driven
-#  name: istio-cleanup-secrets-istio-system
-#  name: istio-security-post-install-istio-system
-
-# The main risk on using the same ClusterRoles is user removing istio 1.2 and breaking 1.3.
-#
-
 ---
 
 apiVersion: rbac.authorization.k8s.io/v1

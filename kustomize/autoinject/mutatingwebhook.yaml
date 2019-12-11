@@ -3,19 +3,42 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: istiod
 webhooks:
+  # If the name is 'sidecar-injector.istio.io', it will be automatically patched with K8S certificate.
   - name: sidecar-injector.istio.io
     clientConfig:
       service:
+        # It is also possible to specify an external service, with public certificates.
+        # You should modify the name in such case.
         name: istiod
         namespace: istio-system
         path: "/inject"
       caBundle: ""
+
     rules:
       - operations: [ "CREATE" ]
         apiGroups: [""]
         apiVersions: ["v1"]
         resources: ["pods"]
     failurePolicy: Fail
+
+    # User can specify any selector supported by K8S to select the workloads
+    # to inject with this profile.
     namespaceSelector:
       matchLabels:
         istio-env: istiod
+      # Example all namespace (without label), unless env specified:
+#      matchExpressions:
+#        - key: istio-injection
+#          operator: NotIn
+#          values:
+#            - disabled
+#        - key: istio-env
+#          operator: DoesNotExist
+
+
+    # Example: select only workloads with mode=prod
+    #objectSelector:
+    #  matchLabels:
+    #    mode: prod
+
+

@@ -394,7 +394,7 @@ data:
     version: ""
 
     global:
-      hub: gcr.io/istio-testing
+      hub: gcr.io/costin-istio
       tag: latest
 
       imagePullPolicy: Always
