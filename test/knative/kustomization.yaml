@@ -1,0 +1,20 @@
+# Installs ingress and pilot in dedicated namespace
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - serving.yaml
+
+bases:
+  - ../../kustomize/istiod
+  - ../../kustomize/istio-ingress
+
+patchesStrategicMerge:
+  - allocation.yaml
+  - patch-istio.yaml
+
+namespace: knative-serving
+
+commonLabels:
+  release: istio-knative

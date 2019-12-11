@@ -1,0 +1,37 @@
+# Patch the default installation of istiod and ingress to use lower resources for test.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istio-ingressgateway
+spec:
+  template:
+    spec:
+      containers:
+        - name: istio-proxy
+          resources:
+            limits:
+              cpu: 10m
+              memory: 100Mi
+            requests:
+              cpu: 10m
+              memory: 100Mi
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istiod
+spec:
+  template:
+    spec:
+      containers:
+        - name: discovery
+          resources:
+            limits:
+              cpu: 10m
+              memory: 100Mi
+            requests:
+              cpu: 10m
+              memory: 100Mi

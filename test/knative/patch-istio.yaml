@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istiod
+spec:
+  template:
+    spec:
+      containers:
+        - name: discovery
+          args:
+            - "discovery"
+            # TODO: make them default if istiod mode is enabled (ISTIOD_ADDR set)
+            - --secureGrpcAddr
+            - ""
+            - --namespace
+            - "knative-serving"
+            # CRDs are created early, no need to hold RBAC permission
+            - --disable-install-crds=true
