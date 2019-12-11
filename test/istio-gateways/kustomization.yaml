@@ -1,0 +1,10 @@
+# Expose istio endpoints, with certificates
+# Requires certmananger to be installed.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - acme.yaml
+  - istiocerts.yaml
+
+namespace: istio-system
