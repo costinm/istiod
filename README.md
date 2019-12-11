@@ -12,16 +12,21 @@ This is the 'default' install, creating an istiod and ingress deployment in isti
 The install can be done in a fresh cluster, or in a cluster where istio is already setup - the install is not
 interfering with the normal istio install. 
 
-1. Cluster-wide settings
+1. Cluster-wide settings - require cluster admin, grant broad permissions. This step 
+needs to be repeated on each release, all instances of the control plane will use the same CRDs.
 
 ```bash
 
 kubectl apply -k github.com/costinm/istiod/kustomize/cluster
 
+# Customize the mutating webhook to select which workloads/namespaces will be selected.
+# Default is namespaces with istio-env=istiod label.
+
+kubectl apply -k github.com/costinm/istiod/kustomize/autoinject
+
 ```
 
 2. Install istiod 
-
 
 ```bash
 
@@ -54,8 +59,6 @@ kubectl apply -k github.com/costinm/istiod/test/all-cluster
 
 2. Everything else
 
-1. Cluster-wide settings - requires cluster-admin
-
 ```bash
 
 kubectl apply -k github.com/costinm/istiod/test/all
@@ -63,9 +66,10 @@ kubectl apply -k github.com/costinm/istiod/test/all
 ```
 
 
-# Gaps 
+# Missing features 
 
 - Galley validation not yet integrated
 
 - SDS code change to read from a file if secure JWT are not available WIP
+
 
