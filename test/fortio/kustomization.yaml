@@ -5,3 +5,4 @@ resources:
   - ns.yaml
   - fortio-cli.yaml
   - fortio.yaml
+  - knative-service.yaml

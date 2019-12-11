@@ -22,6 +22,9 @@ spec:
           - load
           - -t
           - "0"
+          - -abort-on
+          - "123"
+          - -allow-initial-errors
           - -c
           - "30"
           - -qps
