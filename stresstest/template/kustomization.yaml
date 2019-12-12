@@ -1,4 +1,3 @@
-namePrefix: STRESSTESTREPLACEME-
 bases:
   - ./fortio
   - ./fortiosds

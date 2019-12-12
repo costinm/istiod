@@ -1,4 +1,3 @@
 - op: replace
-  path: /metadata/name
+  path: /spec/host
   value: STRESSTESTREPLACEME-fortiosds
-  
