@@ -5,6 +5,7 @@ kind: Kustomization
 
 resources:
   - serving.yaml
+  - configmap-mesh.yaml
 
 bases:
   - ../../kustomize/istiod

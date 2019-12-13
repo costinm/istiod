@@ -17,3 +17,4 @@ bases:
   #
   #- ../istio-releases/1.0
   - ../istio-gateways
+  - ../asm/istiod-stackdriver

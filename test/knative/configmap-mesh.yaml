@@ -1,42 +1,21 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: istiod-mesh
-  namespace: istio-system
-  labels:
-    release: istiod
+  name: istiod-knative
 data:
 
   mesh: |
-    # Default config. Will be included in the image/deb.
-    # User config will replace it via a volume mount.
+    # Customized
+    rootNamespace:                     "knative-serving"
+    ingressControllerMode: "OFF"
 
-    # This file has all the defaults from the code, but adjusted to include more stable prod settings.
-
-    # TODO: merge this with a user-mesh.yaml with overrides ?
-
-    #localityLbSettings:
-
-    # By default use the built-in MCP server.
-    #configSources:
-    #  - address: localhost:15901
-
-
-    # Set enableTracing to false to disable request tracing.
-    # Off by default. Should be enabled only if a tracer is installed, and ideally configured
-    # for specific workloads.
+    # Defaults
     enableTracing:                     false
-
-    ###  Defaults
-
-    # Set accessLogFile to empty string to disable access log.
     accessLogFile:                     "/dev/stdout"
     accessLogEncoding:                 TEXT
     accessLogFormat: ""
     enableEnvoyAccessLogService: false
-
     connectTimeout:                    1s
-
     defaultServiceExportTo:            ["*"]
     defaultVirtualServiceExportTo:     ["*"]
     defaultDestinationRuleExportTo:    ["*"]
@@ -50,8 +29,6 @@ data:
 
     h2UpgradePolicy: UPGRADE
 
-    rootNamespace:                     "istio-system"
-
     # If set then set SO_KEEPALIVE on the socket to enable TCP Keepalives.
     tcpKeepalive:
       probes: 9
@@ -62,8 +39,7 @@ data:
 
     # This is the k8s ingress service name, update if you used a different name
     ingressService:                    "istio-ingressgateway"
-    ingressControllerMode: DEFAULT
-    ingressClass: "istio"
+    ingressClass: "knative"
 
     # Temp
     sdsUdsPath:                        "unix:/etc/istio/proxy/SDS"
@@ -98,8 +74,7 @@ data:
       parentShutdownDuration: 60s
 
       controlPlaneAuthPolicy: NONE
-      #discoveryAddress: istiod-asm.istio-system.svc:15012
-      discoveryAddress: trafficdirector.googleapis.com:443
+      discoveryAddress: istiod.knative-serving.svc:15012
 
       connectTimeout: 1s
 
@@ -112,13 +87,7 @@ data:
 
       interceptionMode: REDIRECT
 
-      #customConfigFile: "conf/sidecar/envoy_bootstrap_v2.json"
-
       concurrency: 0
 
       statNameLength: 189
 
-      #tracing:
-      #  zipkin:
-      #    # Address of the Zipkin collector
-      #    address: zipkin.istio-control:9411

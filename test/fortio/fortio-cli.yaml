@@ -15,7 +15,7 @@ spec:
         version: v1
     spec:
       containers:
-      - name: echosrv
+      - name: fortio
         image: costinm/fortio:latest
         imagePullPolicy: Always
         args:
@@ -33,7 +33,47 @@ spec:
         resources:
           requests:
             cpu: 100m
-            memory: "100M"
           limits:
             cpu: 800m
-            memory: "1G"
+      - name: knative
+        image: costinm/fortio:latest
+        imagePullPolicy: Always
+        args:
+          - load
+          - -t
+          - "0"
+          - -abort-on
+          - "123"
+          - -allow-initial-errors
+          - -c
+          - "10"
+          - -qps
+          - "10"
+          - http://helloworld-go.fortio.svc.cluster.local:8080/echo?size=5000
+        resources:
+          requests:
+            cpu: 200m
+          limits:
+            cpu: 800m
+      - name: knativeing
+        image: costinm/fortio:latest
+        imagePullPolicy: Always
+        args:
+          - load
+          - -t
+          - "0"
+          - -abort-on
+          - "123"
+          - -allow-initial-errors
+          - -c
+          - "10"
+          - -H
+          - "Host:helloworld-go.fortio.example.com"
+          - -qps
+          - "10"
+          - http://104.198.146.216/
+        resources:
+          requests:
+            cpu: 200m
+          limits:
+            cpu: 800m

@@ -1,12 +1,13 @@
-# Install required components for a TD cluster, and 2 probers
-#
-# For a OSS/ASM istiod - just istiod-stackdriver is used/
-#
+# Install required cluster settings
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 bases:
-  - ../neg
-  - ../remote
-  - ../fortioasm
-  - ../fortiosds
+    - ../neg
+    - ../remote
+    - ../istiod-stackdriver
+    - ../fortioasm
+    - ../fortiosds
+    # Install the open source tests as well
+    - ../../all
+

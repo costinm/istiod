@@ -5,6 +5,12 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccount: istiod-knative
+      volumes:
+        - name: mesh
+          configMap:
+            name: istiod-knative
+
       containers:
         - name: discovery
           args:
@@ -16,3 +22,32 @@ spec:
             - "knative-serving"
             # CRDs are created early, no need to hold RBAC permission
             - --disable-install-crds=true
+          env:
+            - name: CONFIG_NAMESPACE
+              value: knative-serving
+            - name: ISTIOD_ADDR
+              value: istiod.knative-serving.svc:15012
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istio-ingressgateway
+spec:
+  template:
+    spec:
+      containers:
+        - name: istio-proxy
+          args:
+            - proxy
+            - router
+            - --serviceCluster
+            - istio-ingressgateway
+            - --statusPort
+            - "15020"
+            - --discoveryAddress
+            - istiod.knative-serving.svc:15012
+            - --proxyAdminPort
+            - "15000"
+            - --proxyLogLevel=debug
+            - --log_output_level=default:debug

@@ -1,3 +1,20 @@
+#apiVersion: networking.k8s.io/v1beta1
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: fortio
+  namespace: fortios
+  annotations:
+    kubernetes.io/ingress.class: istio
+spec:
+  rules:
+    - host: fortios.asm.istio.webinf.info
+      http:
+        paths:
+          - path: /.*
+            backend:
+              serviceName: fortios
+              servicePort: 8080
 ---
 apiVersion: v1
 kind: Service

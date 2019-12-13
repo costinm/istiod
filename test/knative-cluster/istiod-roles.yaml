@@ -4,7 +4,8 @@ kind: ServiceAccount
 metadata:
   labels:
     serving.knative.dev/release: devel
-  name: istiod
+  #  https://github.com/kubernetes-sigs/kustomize/issues/1352
+  name: istiod-knative
   namespace: knative-serving
 ---
 # Minimal roles for istiod in knative.
@@ -24,7 +25,7 @@ roleRef:
   name: istiod-knative-tenant
 subjects:
   - kind: ServiceAccount
-    name: istiod
+    name: istiod-knative
     namespace: knative-serving
 ---
 # WIP: tenant permissions for running istiod in (less)trusted namespaces

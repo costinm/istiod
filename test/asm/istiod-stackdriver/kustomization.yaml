@@ -8,3 +8,4 @@ resources:
   - stackdriver_tcp_v1.yaml
   - stats_filter.yaml
 
+namespace: istio-system
