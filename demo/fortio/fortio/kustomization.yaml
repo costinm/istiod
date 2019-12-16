@@ -1,0 +1,4 @@
+namespace: fortio
+bases:
+  - ../../../test/fortio
+

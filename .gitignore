@@ -1,2 +1,3 @@
 var/run/*
 var/lib/istio/proxy/*
+tmp/

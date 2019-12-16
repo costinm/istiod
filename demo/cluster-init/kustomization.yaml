@@ -1,0 +1,13 @@
+bases:
+  # Cluster CRDs and other bases
+  - ../../kustomize/cluster
+  # Create a sidecar injector mutatingwebhook for non-ASM istiod
+  - ../../kustomize/autoinject
+  # Create a sidecar injector mutatingwebhook for ASM components
+  - ../../test/asm/inject
+  
+  # Install ASM components
+  - ../../test/asm/neg
+  - ../../test/asm/remote
+  - ../../kustomize/istiod
+  - ../../test/asm/istiod-stackdriver
