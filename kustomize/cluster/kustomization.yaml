@@ -10,6 +10,7 @@ kind: Kustomization
 
 resources:
   - crds-namespace.gen.yaml
+  - crd-mixer.yaml
   - istiod.yaml
 
 commonLabels:
