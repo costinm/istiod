@@ -1,10 +1,11 @@
 namespace: STRESSTESTREPLACEME-fortiosds
+nameSuffix: -STRESSTESTREPLACEME
 bases:
-  - ../../../../../test/asm/fortiosds/
+  - ../../../../../../test/asm/fortiosds/
 
 patchesStrategicMerge:
   - cli-fortio-patch.yaml
-
+  - fortiosds-patch.yaml
 patchesJson6902:
   - target:
       version: v1

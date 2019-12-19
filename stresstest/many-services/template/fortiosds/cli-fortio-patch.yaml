@@ -17,5 +17,4 @@ spec:
           - "30"
           - -qps
           - "10"
-          - "http://STRESSTESTREPLACEME-fortio:8080/echo?size=5000"
-
+          - "http://STRESSTESTREPLACEME-fortiosds:8080/echo?size=5000"

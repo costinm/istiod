@@ -1,0 +1,11 @@
+bases:
+  - ./fortiosds
+
+patchesJson6902:
+  - target:
+      version: v1
+      kind: Namespace
+      name: fortiosds
+    path: fortiosds-namespace-patch.yaml    
+
+

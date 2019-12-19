@@ -1,13 +1,7 @@
 bases:
-  - ./fortio
   - ./fortiosds
 
 patchesJson6902:
-  - target:
-      version: v1
-      kind: Namespace
-      name: fortio
-    path: fortio-namespace-patch.yaml
   - target:
       version: v1
       kind: Namespace
