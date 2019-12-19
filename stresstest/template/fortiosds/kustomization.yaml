@@ -1,6 +1,0 @@
-namespace: STRESSTESTREPLACEME-fortiosds
-bases:
-  - ../../../../test/asm/fortiosds/
-
-patchesStrategicMerge:
-    - cli-fortio-patch.yaml

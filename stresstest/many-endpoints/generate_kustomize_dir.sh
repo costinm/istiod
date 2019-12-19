@@ -14,15 +14,13 @@ function generate_template {
   fi
   cp -R "./template" "${gendir}"
   grep -i 'STRESSTESTREPLACEME' -r "${gendir}" -l | while read x; do
-    sed -e "s/STRESSTESTREPLACEME/stressfortio${1:-}/g" -i $x;
+    sed -e "s/STRESSTESTREPLACEME/st${1:-}/g" -i $x;
   done
+
+  kubectl kustomize "${gendir}" >> "${TMPDIR}/${1:-}.yaml"
+  rm -rf "${gendir}"
 }
 
-cat > "${TMPDIR}/kustomization.yaml" << EOF
-bases:
-EOF
-
-seq 1 "${NUM_NAMESPACES:-5}" | while read index; do
+seq -w 1 "${NUM_NAMESPACES:-5}" | while read index; do
   generate_template "${index}"
-  echo "  - \"./${index}\"" >> "${TMPDIR}/kustomization.yaml"
 done

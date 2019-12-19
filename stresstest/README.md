@@ -11,7 +11,7 @@ The generated directory will be found in `./tmp/`. Each run of the script will
 create a new directory with a different randomized suffix, to prevent
 collisions. The directory used for each run will be echoed to STDOUT.
 
-To apply the stress test to your cluster, run `kubectl apply -k
+To apply the stress test to your cluster, run `kubectl apply -f
 /path/to/directory`.
 
 Warning: If you are generating a large number of namespaces, this may take some
