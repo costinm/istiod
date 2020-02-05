@@ -62,7 +62,8 @@ data:
       {{- if contains "/" (annotation .ObjectMeta `sidecar.istio.io/proxyImage` ``) }}
         image: "{{ annotation .ObjectMeta `sidecar.istio.io/proxyImage` `` }}"
       {{- else }}
-        image: costinm/proxyv2:15-xds2
+        #image: costinm/proxyv2:15-xds2
+        image: costinm/proxyv2:15
         #image: gcr.io/istio-testing/proxyv2:latest
         #image: gcr.io/stewart-butler-test/proxyv2:stewartbutler
       {{- end }}
