@@ -1,0 +1,26 @@
+
+resources:
+#  - ./project/asm-sa.yaml
+#  - ./project/enable-services.yaml
+#  - ./cluster/cluster.yaml
+#  - ./cluster/nodepool.yaml
+  - ./asm-install/neg/rbac.yaml
+  - ./asm-install/neg/glbc.yaml
+  - ./asm-install/neg/default-http-backend.yaml
+  - ./asm-install/asm/istiod-asm.yaml
+  - ./asm-install/asm/configmap-mesh.yaml
+  - ./asm-install/asm/configmap-injection.yaml
+  - ./asm-install/asm/galley.yaml
+#  - ./asm-install/istiod-stackdriver/stackdriver_tcp_v1.yaml
+#  - ./asm-install/istiod-stackdriver/stats_filter.yaml
+#  - ./asm-install/istiod-stackdriver/stackdriver_filter.yaml
+#  - ./asm-install/istiod-stackdriver/metadata_exchange_filter.yaml
+#  - ./asm-install/cluster/crd-mixer.yaml
+  - ./asm-install/cluster/istiod.yaml
+  - ./asm-install/cluster/crd-all.gen.yaml
+  - ./asm-install/inject/mutatingwebhook.yaml
+#  - ./app/bookinfo-rules.yaml
+#  - ./app/bookinfo.yaml
+
+bases:
+  - fortioasm
