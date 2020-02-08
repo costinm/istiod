@@ -1,0 +1,8 @@
+
+resources:
+  - ns.yaml
+  - fortio.yaml
+  - fortio-cli.yaml
+
+commonLabels:
+  release: fortio-asm15
