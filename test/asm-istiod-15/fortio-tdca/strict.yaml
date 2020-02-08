@@ -17,7 +17,7 @@ metadata:
   name: fortiosds
   namespace: fortio-tdca
 spec:
-  host: fortiosds
+  host: fortio-tdca
   trafficPolicy:
     tls:
       mode: ISTIO_MUTUAL

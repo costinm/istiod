@@ -110,7 +110,7 @@ spec:
             - --disable-install-crds=true
           envFrom:
           - configMapRef:
-              name: istiod-td
+              name: istiod-asm
               optional: true
           env:
             - name: POD_NAME

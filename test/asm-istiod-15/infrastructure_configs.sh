@@ -139,6 +139,8 @@ data:
   AUDIENCE: ${PROJECT_ID}.svc.id.goog
   trustDomain: ${PROJECT_ID}.svc.id.goog
   gkeClusterUrl: https://container.googleapis.com/v1/projects/${PROJECT_ID}/locations/${ZONE}/clusters/${CLUSTER_NAME}
+  GKE_CLUSTER_URL: https://container.googleapis.com/v1/projects/${PROJECT_ID}/locations/${ZONE}/clusters/${CLUSTER_NAME}
+
 EOF
 )
 
