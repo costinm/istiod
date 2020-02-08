@@ -4,27 +4,24 @@
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
 metadata:
-  name: istiod-ingressgateway
+  name: cluster-local-gateway
   namespace: istio-system
   labels:
-    app: istio-ingressgateway
-    istio: ingressgateway
+    app: cluster-local-gateway
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app: istiod-ingressgateway
-      istio: ingressgateway
+      app: cluster-local-gateway
 ---
 
 apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
 metadata:
-  name: istiod-ingressgateway
+  name: cluster-local-gateway
   namespace: istio-system
   labels:
-    app: istiod-ingressgateway
-    release: istio-system-istio-ingress
+    app: cluster-local-gateway
 spec:
   # 1 for debugging.
   maxReplicas: 1
@@ -32,7 +29,7 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: istiod-ingressgateway
+    name: cluster-local-gateway
   metrics:
     - type: Resource
       resource:
@@ -44,16 +41,15 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: istiod-ingressgateway
+  name: cluster-local-gateway
   namespace: istio-system
   labels:
-    app: istiod-ingressgateway
-    istio: ingressgateway
+    app: cluster-local-gateway
 spec:
   selector:
     matchLabels:
-      app: istiod-ingressgateway
-      istio: ingressgateway
+      app: cluster-local-gateway
+      istio: cluster-local-gateway
   strategy:
     rollingUpdate:
       maxSurge: 100%
@@ -61,8 +57,8 @@ spec:
   template:
     metadata:
       labels:
-        app: istiod-ingressgateway
-        istio: ingressgateway
+        app: cluster-local-gateway
+        istio: cluster-local-gateway
       annotations:
         sidecar.istio.io/inject: "false"
     spec:
@@ -103,7 +99,7 @@ spec:
           - --connectTimeout
           - '10s' #connectTimeout
           - --serviceCluster
-          - istio-ingressgateway
+          - cluster-local-gateway
           - --zipkinAddress
           - zipkin.istio-system:9411
           - --proxyAdminPort
@@ -192,11 +188,11 @@ spec:
                 audience: istio-ca
       - name: ingressgateway-certs
         secret:
-          secretName: "istio-ingressgateway-certs"
+          secretName: "cluster-local-gateway-certs"
           optional: true
       - name: ingressgateway-ca-certs
         secret:
-          secretName: "istio-ingressgateway-ca-certs"
+          secretName: "cluster-local-gateway-ca-certs"
           optional: true
       affinity:      
         nodeAffinity:

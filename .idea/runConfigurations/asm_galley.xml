@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="istiod-galley" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="asm-galley" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="istiod" />
     <working_directory value="$PROJECT_DIR$" />
     <envs>
@@ -10,7 +10,7 @@
     </envs>
     <kind value="PACKAGE" />
     <filePath value="$PROJECT_DIR$/cmd/istiod/istiod.go" />
-    <package value="istio.io/istio/cmd/istiod" />
+    <package value="istio.io/istio/galley/cmd/galley/cmd" />
     <directory value="$PROJECT_DIR$/pilot/cmd/pilot-discovery" />
     <method v="2" />
   </configuration>

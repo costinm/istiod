@@ -402,7 +402,7 @@ data:
       # Istiod uses the port (15012) - ignored.
       controlPlaneSecurityEnabled: false
 
-      istioNamespace: istio-system
+      istionamespace: istio-system
 
       trustDomain: ""
 

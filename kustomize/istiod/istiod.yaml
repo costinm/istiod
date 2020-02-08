@@ -85,9 +85,7 @@ spec:
       serviceAccountName: istiod
       containers:
         - name: discovery
-          image: gcr.io/costin-istio/pilot:latest
-          #image: gcr.io/costin-istio/istiod:latest
-          #image: gcr.io/istio-testing/istiod:latest
+          image: gcr.io/istio-testing/pilot:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -132,6 +130,8 @@ spec:
               value: istiod
             - name: PILOT_EXTERNAL_GALLEY
               value: "false"
+            - name: GOTRACEBACK
+              value: "all"
           resources:
             requests:
               cpu: 800m

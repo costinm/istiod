@@ -1,0 +1,21 @@
+apiVersion: skaffold/v2alpha1
+kind: Config
+metadata:
+  name:	istiod
+build:
+  artifacts:
+  - image: gcr.io/costin-istio/istiod
+    context: .
+    #sync:	# 	beta local files synced to pods instead of triggering an image build when modified.
+    # manual:	# 	manual sync rules indicating the source and destination.
+      #- src: "css/**/*.css"	# 	a glob pattern to match local paths against. Directories should be delimited by / on all platforms.
+      # dest: "app/"	# 	destination path in the container where the files should be synced to.
+      #strip: "css/"	# 	specifies the path prefix to remove from the source path when transplanting the files into the destination folder.
+     #infer: []
+    custom:
+      buildCommand: make skaffold.istiod
+
+deploy:
+    kustomize:
+      path: install/istiod/kustomize/istiod
+
