@@ -16,7 +16,7 @@ data:
       {{- if contains "/" (annotation .ObjectMeta `sidecar.istio.io/proxyImage` ``) }}
         image: "{{ annotation .ObjectMeta `sidecar.istio.io/proxyImage` `` }}"
       {{- else }}
-        image: gcr.io/costin-istio/proxyv2:latest
+        image: gcr.io/istio-testing/proxyv2:latest
       {{- end }}
         command:
         - istio-iptables
@@ -61,7 +61,7 @@ data:
       {{- if contains "/" (annotation .ObjectMeta `sidecar.istio.io/proxyImage` ``) }}
         image: "{{ annotation .ObjectMeta `sidecar.istio.io/proxyImage` `` }}"
       {{- else }}
-        image: "gcr.io/costin-istio/proxyv2:latest"
+        image: "gcr.io/istio-testing/proxyv2:latest"
       {{- end }}
         ports:
         - containerPort: 15090
@@ -87,7 +87,7 @@ data:
         - --parentShutdownDuration
         - "{{ formatDuration .ProxyConfig.ParentShutdownDuration }}"
         - --discoveryAddress
-        - "trafficdirector.googleapis.com:443"
+        - "{{ annotation .ObjectMeta `sidecar.istio.io/discoveryAddress` .ProxyConfig.DiscoveryAddress }}"
         - --proxyLogLevel={{ annotation .ObjectMeta `sidecar.istio.io/logLevel` ""}}
         - --proxyComponentLogLevel={{ annotation .ObjectMeta `sidecar.istio.io/componentLogLevel` "misc:error" }}
         - --connectTimeout

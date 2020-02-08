@@ -27,7 +27,7 @@ spec:
       serviceAccountName: istiod
       containers:
         - name: galley
-          image: gcr.io/costin-istio/galley:latest
+          image: gcr.io/istio-testing/galley:latest
           imagePullPolicy: "Always"
           ports:
           - containerPort: 9443

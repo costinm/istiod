@@ -18,3 +18,11 @@ bases:
   #- ../istio-releases/1.0
   - ../istio-gateways
   - ../asm/istiod-stackdriver
+
+images:
+  - newTag: latest
+#  - name: gcr.io/istio-testing/istio-pilot
+#     newName: gcr.io/costin-istio/istio-pilot
+#  - name: gcr.io/istio-testing/proxyv2
+#    newName: gcr.io/costin-istio/proxyv2
+

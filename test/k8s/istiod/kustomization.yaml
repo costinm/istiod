@@ -15,8 +15,8 @@ bases:
 
 #images:
 #  - name: gcr.io/istio-testing/istiod
-#    newName: gcr.io/costin-istio/istiod
-#  - name: gcr.io/costin-istio/istiod
+#    newName: gcr.io/istio-testing/istiod
+#  - name: gcr.io/istio-testing/istiod
 #    newName: costinm/istiod
 
 patchesStrategicMerge:

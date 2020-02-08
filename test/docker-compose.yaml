@@ -1,3 +1,6 @@
+# WIP: compose file to start local docker containers for VM testing, using a k3s server.
+# Will create a kubeconfig.yaml file that can be used for debugging.
+
 version: '3'
 services:
   k8s:
@@ -14,15 +17,7 @@ services:
       - .:/conf
       - k3s-server:/var/lib/rancher/k3s
 
-  istiod-k8s-install:
-    image:  rancher/k3s:latest
-    entrypoint: /bin/sh
-    command: kubectl apply -f /conf/k8s/cluster.yaml && kubectl apply -f /conf/k8s/istiod.yaml
-    environment:
-      - KUBECONFIG=/conf/kubeconfig.yaml
-    volumes:
-      - .:/conf
-
+  # TODO: script to wait for k8s to be ready, apply CRDs and start istiod at the end.
   # Istiod container, as a standalone binary running in a docker container outside K8S
   istiod:
     ports:
@@ -34,6 +29,8 @@ services:
       - .:/conf
     links:
     - k8s
+    depends_on:
+      - k8s
 
   fortio:
     ports:
@@ -44,6 +41,7 @@ services:
     links:
     - istiod
 
+   # TODO: add the sidecar for fortio
 
 
 volumes:

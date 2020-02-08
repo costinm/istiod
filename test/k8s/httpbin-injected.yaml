@@ -49,7 +49,7 @@ spec:
         - containerPort: 80
 
       # Handcrafted minimal sidecar. Just to check sidecar is working, no init or app.
-      - image: gcr.io/costin-istio/proxyv2:latest
+      - image: gcr.io/istio-testing/proxyv2:latest
         imagePullPolicy: Always
         name: istio-proxy
         args:
