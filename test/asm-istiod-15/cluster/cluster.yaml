@@ -31,4 +31,4 @@ spec:
   masterAuth:
     username: admin
   network: default
-  minMasterVersion: "1.14.7-gke.23"
+  minMasterVersion: "1.14.10-gke.17"
