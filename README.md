@@ -3,73 +3,75 @@
 Implementation for [Isto-SDS](https://docs.google.com/document/d/1X4QNWSr0aoT2eK-f5a6ZgWgX8VXP-suQbfO-SjBozyw/edit#)
 and [Simplified Istio/istiod](https://docs.google.com/document/d/1v8BxI07u-mby5f5rCruwF7odSXgb9G8-C9W5hQtSIAg/edit#)
 
-# Setup and gaps
+# Setup 
 
-istio/istio now has most of the code, but configs are not yet merged upstream.
+## Basic install for istiod
+
+This is the 'default' install, creating an istiod and ingress deployment in istio-system.
 
 The install can be done in a fresh cluster, or in a cluster where istio is already setup - the install is not
 interfering with the normal istio install. 
 
-1. Cluster-wide settings
+1. Cluster-wide settings - require cluster admin, grant broad permissions. This step 
+needs to be repeated on each release, all instances of the control plane will use the same CRDs.
 
 ```bash
 
 kubectl apply -k github.com/costinm/istiod/kustomize/cluster
 
+# Customize the mutating webhook to select which workloads/namespaces will be selected.
+# Default is namespaces with istio-env=istiod label.
+
+kubectl apply -k github.com/costinm/istiod/kustomize/autoinject
+
 ```
 
-This is needed even if you already did this when installing istio, additional resources are added for istiod.
-
-2. Install istiod (plain and easy)
-
+2. Install istiod 
 
 ```bash
+
 kubectl apply -k github.com/costinm/istiod/kustomize/istiod
+
 ```
 
-Alternative - and example for how to kustomize the install:
+3. Install an ingress gateway 
+
 
 ```bash
 
-kubectl apply -k github.com/costinm/istiod/test/k8s/istiod
+kubectl apply -k github.com/costinm/istiod/kustomize/isto-ingress
 
 ```
 
-The files in test/k8s/istiod contain a custom version of the injection template and mesh config.
-We still use values.yaml - only for injection, until it is cleaned up.
 
-3. Autoinjection
+## Testing environment 
 
-The files './kustomize/autoinject/mutatingwebhook.yaml' is enabling 'istiod' injection for namespaces
-with label 'istio-env:istiod'.
+This installs istiod, knative, 2 namespaces running fortio servers and client - one with secure and one insecure.
+More tests and scenarios will be added. This is intended to be used in the 'stability/perf/scale' clusters. 
 
-This step is not yet automated - you will need to download the file and patch it (until istioctl is updated):
+Note: These steps must be run after Istiod is in a 'Running' state. Istiod patches the mutatingwebhook resource to add CA credentials. Without those credentials, Kubernetes will refuse to create pods that run through the webhook. If you installed the workloads too early, you may need to delete stuck replicasests in order for them to start trying to create pods again. 
 
-The first step is to extract the K8S cert - for example from you .kube/config or $KUBECONFIG file.
+1. Cluster-wide settings - requires cluster-admin
 
-```yaml
-apiVersion: v1
-clusters:
-- cluster:
-    certificate-authority-data: LS0tLS...
-```  
+```bash
 
-Copy the string under clusters.cluster[N].certificate-authority-data, and paste it under 
-webhooks.clientConfig.caBundle
+kubectl apply -k github.com/costinm/istiod/test/all-cluster
 
-This step is currently moving to istioctl - no plan to use auto-enabling of the webhook (for now).
+```
 
-A second option, for cluster-wide injection in case istio is installed by itself, uses  
-'./kustomize/cluster-autoinject/mutatingwebhook.yaml'
+2. Everything else
 
-# SDS 
+```bash
 
-The pilot-agent and injection template used in this repo are SDS-only, using an SDS server started 
-in pilot-agent, using a local UDS socket ( /etc/istio/proxy/SDS ). 
+kubectl apply -k github.com/costinm/istiod/test/all
 
-Istiod includes a subset of Citadel - to generate a self-signed root CA and provide it to pilot-agent,
-using the K8S JWT token to identify the workloads. 
+```
 
-The workloads connect to istiod using K8S-signed certificates.
+
+# Missing features 
+
+- Galley validation not yet integrated
+
+- SDS code change to read from a file if secure JWT are not available WIP
 
 

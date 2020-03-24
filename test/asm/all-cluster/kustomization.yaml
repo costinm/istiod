@@ -1,0 +1,11 @@
+# Install required components for a TD cluster, and 2 probers
+#
+# For a OSS/ASM istiod - just istiod-stackdriver is used/
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+bases:
+  - ../../all-cluster
+  # Cluster wide setting for injecting this profile
+  - ../inject

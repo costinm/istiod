@@ -1,0 +1,4 @@
+namespace: fortioasm
+bases:
+  - ../../../test/asm/fortioasm
+

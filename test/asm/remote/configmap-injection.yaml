@@ -87,9 +87,9 @@ data:
         - --parentShutdownDuration
         - "{{ formatDuration .ProxyConfig.ParentShutdownDuration }}"
         - --discoveryAddress
-        - "trafficdirector.googleapis.com:443"
-        - --proxyLogLevel={{ annotation .ObjectMeta `sidecar.istio.io/logLevel` .Values.global.proxy.logLevel}}
-        - --proxyComponentLogLevel={{ annotation .ObjectMeta `sidecar.istio.io/componentLogLevel` .Values.global.proxy.componentLogLevel}}
+        - "{{ annotation .ObjectMeta `sidecar.istio.io/discoveryAddress` .ProxyConfig.DiscoveryAddress }}"
+        - --proxyLogLevel={{ annotation .ObjectMeta `sidecar.istio.io/logLevel` ""}}
+        - --proxyComponentLogLevel={{ annotation .ObjectMeta `sidecar.istio.io/componentLogLevel` "misc:error" }}
         - --connectTimeout
         - "{{ formatDuration .ProxyConfig.ConnectTimeout }}"
         - --proxyAdminPort
@@ -98,25 +98,15 @@ data:
         - --concurrency
         - "{{ .ProxyConfig.Concurrency }}"
         {{ end -}}
-        {{- if .Values.global.controlPlaneSecurityEnabled }}
-        - --controlPlaneAuthPolicy
-        - MUTUAL_TLS
-        {{- else }}
-        - --controlPlaneAuthPolicy
-        - NONE
-        {{- end }}
         - --dnsRefreshRate
-        - {{ valueOrDefault .Values.global.proxy.dnsRefreshRate "300s" }}
-      {{- if (ne (annotation .ObjectMeta "status.sidecar.istio.io/port" .Values.global.proxy.statusPort) "0") }}
+        - {{ annotation .ObjectMeta `sidecar.istio.io/dnsRefreshRate` "300s" }}
+      {{- if (ne (annotation .ObjectMeta "status.sidecar.istio.io/port" "15020") "0") }}
         - --statusPort
-        - "{{ annotation .ObjectMeta `status.sidecar.istio.io/port` .Values.global.proxy.statusPort }}"
+        - "{{ annotation .ObjectMeta `status.sidecar.istio.io/port` "15020" }}"
         - --applicationPorts
         - "{{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/applicationPorts` (applicationPorts .Spec.Containers) }}"
       {{- end }}
-        - --trust-domain={{ value "trustDomain" "" }}
-      {{- if .Values.global.logAsJson }}
-        - --log_as_json
-      {{- end }}
+        - --trust-domain={{ env "trustDomain" "" }}
         - --log_output_level=debug
         env:
         - name: CA_ADDR
@@ -129,18 +119,18 @@ data:
           value: "15006"
         - name: ISTIO_META_TRAFFICDIRECTOR_ACCESS_LOG_PATH
           value: /dev/stdout
-        - name: ISTIO_META_TRAFFICDIRECTOR_ENABLE_ISTIO_STACKDRIVER_TELEMETRY
-          value: "true"
+        #- name: ISTIO_META_TRAFFICDIRECTOR_ENABLE_ISTIO_STACKDRIVER_TELEMETRY
+        #  value: "true"
         - name: ISTIO_META_TRAFFICDIRECTOR_INBOUND_BACKEND_PORTS
           value: "{{ annotation .ObjectMeta `traffic.sidecar.istio.io/includeInboundPorts` (applicationPorts .Spec.Containers) }}"
         - name: ISTIO_META_TRAFFICDIRECTOR_WORKLOAD_NAME
           value: csm-auth-{{ .DeploymentMeta.Namespace }}
         - name: ISTIO_META_MESH_ID
-          value: {{ value "trustDomain" "" }}
+          value: {{ env "trustDomain" "" }}
         - name: TRUST_DOMAIN
-          value: {{ value "trustDomain" "" }}
+          value: {{ env "trustDomain" "" }}
         - name: GKE_CLUSTER_URL
-          value: {{ value "gkeClusterUrl" "" }}
+          value: {{ env "gkeClusterUrl" "" }}
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -161,14 +151,6 @@ data:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
-      {{- if eq .Values.global.proxy.tracer "datadog" }}
-      {{- if isset .ObjectMeta.Annotations `apm.datadoghq.com/env` }}
-      {{- range $key, $value := fromJSON (index .ObjectMeta.Annotations `apm.datadoghq.com/env`) }}
-        - name: {{ $key }}
-          value: "{{ $value }}"
-      {{- end }}
-      {{- end }}
-      {{- end }}
         - name: ISTIO_META_POD_PORTS
           value: |-
             [
@@ -180,6 +162,10 @@ data:
             ]
         - name: ISTIO_META_CLUSTER_ID
           value: "{{ valueOrDefault .Values.global.multiCluster.clusterName `Kubernetes` }}"
+        {{- if .Values.global.network }}
+        - name: ISTIO_META_NETWORK
+          value: "{{ .Values.global.network }}"
+        {{- end }}
         - name: ISTIO_META_POD_NAME
           valueFrom:
             fieldRef:
@@ -192,10 +178,6 @@ data:
           value: "{{ or (index .ObjectMeta.Annotations `sidecar.istio.io/interceptionMode`) .ProxyConfig.InterceptionMode.String }}"
         - name: ISTIO_META_INCLUDE_INBOUND_PORTS
           value: "{{ annotation .ObjectMeta `traffic.sidecar.istio.io/includeInboundPorts` (applicationPorts .Spec.Containers) }}"
-        {{- if .Values.global.network }}
-        - name: ISTIO_META_NETWORK
-          value: "{{ .Values.global.network }}"
-        {{- end }}
         {{ if .ObjectMeta.Annotations }}
         - name: ISTIO_METAJSON_ANNOTATIONS
           value: |
@@ -218,43 +200,21 @@ data:
         - name: ISTIO_BOOTSTRAP_OVERRIDE
           value: "/etc/istio/custom-bootstrap/custom_bootstrap.json"
         {{- end }}
-        {{- if .Values.global.meshID }}
         - name: ISTIO_META_MESH_ID
-          value: "{{ .Values.global.meshID }}"
-        {{- else }}
-        - name: ISTIO_META_MESH_ID
-          value: {{ value "trustDomain" "" }}
-        {{- end }}
-        {{- if and (eq .Values.global.proxy.tracer "datadog") (isset .ObjectMeta.Annotations `apm.datadoghq.com/env`) }}
-        {{- range $key, $value := fromJSON (index .ObjectMeta.Annotations `apm.datadoghq.com/env`) }}
-          - name: {{ $key }}
-            value: "{{ $value }}"
-        {{- end }}
-        {{- end }}
-        imagePullPolicy: "{{ valueOrDefault .Values.global.imagePullPolicy `Always` }}"
-        {{ if ne (annotation .ObjectMeta `status.sidecar.istio.io/port` .Values.global.proxy.statusPort) `0` }}
+          value: {{ env "trustDomain" "" }}
+        imagePullPolicy: "Always"
+        {{ if ne (annotation .ObjectMeta `status.sidecar.istio.io/port` "15020") `0` }}
         readinessProbe:
           httpGet:
             path: /healthz/ready
-            port: {{ annotation .ObjectMeta `status.sidecar.istio.io/port` .Values.global.proxy.statusPort }}
-          initialDelaySeconds: {{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/initialDelaySeconds` .Values.global.proxy.readinessInitialDelaySeconds }}
-          periodSeconds: {{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/periodSeconds` .Values.global.proxy.readinessPeriodSeconds }}
-          failureThreshold: {{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/failureThreshold` .Values.global.proxy.readinessFailureThreshold }}
+            port: {{ annotation .ObjectMeta `status.sidecar.istio.io/port` "15020" }}
+          initialDelaySeconds: {{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/initialDelaySeconds` "1" }}
+          periodSeconds: {{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/periodSeconds` "2" }}
+          failureThreshold: {{ annotation .ObjectMeta `readiness.status.sidecar.istio.io/failureThreshold` "10" }}
         {{ end -}}
         securityContext:
-          {{- if .Values.global.proxy.privileged }}
-          privileged: true
-          {{- end }}
-          {{- if ne .Values.global.proxy.enableCoreDump true }}
           readOnlyRootFilesystem: true
-          {{- end }}
-          {{ if eq (annotation .ObjectMeta `sidecar.istio.io/interceptionMode` .ProxyConfig.InterceptionMode) `TPROXY` -}}
-          capabilities:
-            add:
-            - NET_ADMIN
-          {{ else -}}
           runAsUser: 1337
-          {{- end }}
           runAsGroup: 1337
         resources:
           {{ if or (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyCPU`) (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyMemory`) -}}
@@ -265,10 +225,23 @@ data:
             {{ if (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyMemory`) -}}
             memory: "{{ index .ObjectMeta.Annotations `sidecar.istio.io/proxyMemory` }}"
             {{ end }}
-        {{ else -}}
-      {{- if .Values.global.proxy.resources }}
-          {{ toYaml .Values.global.proxy.resources | indent 4 }}
-      {{- end }}
+          {{ if or (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyCPULimit`) (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyMemoryLimit`) -}}
+          limits:
+            {{ if (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyCPULimit`) -}}
+            cpu: "{{ index .ObjectMeta.Annotations `sidecar.istio.io/proxyCPULimit` }}"
+            {{ end}}
+            {{ if (isset .ObjectMeta.Annotations `sidecar.istio.io/proxyMemoryLimit`) -}}
+            memory: "{{ index .ObjectMeta.Annotations `sidecar.istio.io/proxyMemoryLimit` }}"
+            {{ end }}
+          {{ end }}
+          {{ else -}}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 2000m
+              memory: 1024Mi
         {{  end -}}
         volumeMounts:
         {{ if (isset .ObjectMeta.Annotations `sidecar.istio.io/bootstrapOverride`) }}
@@ -282,11 +255,6 @@ data:
         - mountPath: /etc/certs/
           name: istio-certs
           readOnly: true
-        {{- if and (eq .Values.global.proxy.tracer "lightstep") .Values.global.tracer.lightstep.cacertPath }}
-        - mountPath: {{ directory .ProxyConfig.GetTracing.GetLightstep.GetCacertPath }}
-          name: lightstep-certs
-          readOnly: true
-        {{- end }}
           {{- if isset .ObjectMeta.Annotations `sidecar.istio.io/userVolumeMount` }}
           {{ range $index, $value := fromJSON (index .ObjectMeta.Annotations `sidecar.istio.io/userVolumeMount`) }}
         - name: "{{  $index }}"
@@ -308,7 +276,7 @@ data:
           - serviceAccountToken:
               path: istio-token
               expirationSeconds: 43200
-              audience: {{ value "trustDomain" "" }}
+              audience: {{ env "trustDomain" "" }}
       - name: istio-certs
         secret:
           optional: true
@@ -323,12 +291,6 @@ data:
         {{ toYaml $value | indent 2 }}
         {{ end }}
         {{ end }}
-      {{- if and (eq .Values.global.proxy.tracer "lightstep") .Values.global.tracer.lightstep.cacertPath }}
-      - name: lightstep-certs
-        secret:
-          optional: true
-          secretName: lightstep.cacert
-      {{- end }}
       {{- if .Values.global.podDNSSearchNamespaces }}
       dnsConfig:
         searches:
@@ -339,53 +301,12 @@ data:
 
   values: |
 
-    istio_cni:
-      enabled: false
+    # Remaining values, in process of move to mesh.yaml or env
+    # global:
+    #   podDNSSearchNamespaces
 
-    debug: INFO
+    #   multiCluster:
+    #      clusterName:
 
-    version: ""
+    #   network:
 
-    global:
-      hub: gcr.io/costin-istio
-      tag: latest
-
-      imagePullPolicy: Always
-
-      controlPlaneSecurityEnabled: false
-
-      istioNamespace: istio-system
-
-      #network: default
-      # podDNSSearchNamespaces:
-
-      proxy:
-        privileged: true
-        enableCoreDump: false
-        image: proxyv2
-        clusterDomain: "cluster.local"
-
-        excludeInboundPorts: ""
-        includeIPRanges: "*"
-        excludeIPRanges: ""
-        statusPort: 15020
-        logLevel: ""
-        readinessInitialDelaySeconds: 1
-        readinessPeriodSeconds: 2
-        readinessFailureThreshold: 10
-
-        # resources
-        componentLogLevel: "misc:error"
-
-
-        tracer: "none"
-
-        envoyStatsd:
-          enabled: false
-        envoyMetricsService:
-          enabled: false
-
-
-
-      proxy_init:
-        image: proxyv2

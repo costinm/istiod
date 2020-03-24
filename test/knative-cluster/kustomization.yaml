@@ -1,0 +1,13 @@
+# Installs ingress and pilot in dedicated namespace
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - crds.yaml
+  - namespace.yaml
+  - roles.yaml
+  - istiod-roles.yaml
+
+commonLabels:
+  release: istio-knative

@@ -1,0 +1,10 @@
+
+resources:
+  - cluster/namespace.yaml
+  - cluster/crd-all.gen.yaml
+  - cluster/istio-1.5.yaml
+  - cluster/roles.yaml
+  - cluster/mutatingwebhook.yaml
+  - cluster/td-mutatingwebhook.yaml
+  - cluster/td-rbac.yaml
+

@@ -2,6 +2,11 @@
 # Will be added with the normal istio install, to avoid extra steps.
 ---
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: istiod
@@ -139,5 +144,6 @@ rules:
     resources: ["secrets"]
     verbs: ["get", "watch", "list"]
 ---
+
 
 
