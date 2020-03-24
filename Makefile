@@ -18,7 +18,7 @@ IMAGE ?= ${HUB}/istiod
 CACHEDIR ?= ${TOP}/out/cache
 
 LOG_DIR ?= /tmp
-OUT ?= ${TOP}/out
+OUT ?= ${TOP}/src/istio.io/istio/out
 
 # Namespace to use for the test app
 NS=fortio
