@@ -1,0 +1,974 @@
+#!/usr/bin/env bash
+# Setup and document common environment variables used for building and testing Istio
+# User-specific settings can be added to .istiorc in the project workspace or $HOME/.istiorc
+# This may include dockerhub settings or other customizations.
+#
+#
+
+# gcloud config set container/use_application_default_credentials false
+
+# Allow setting some common per user env.
+if [ -f $HOME/.istio.rc ]; then
+    source $HOME/.istio.rc
+fi
+
+# Recent changes in istio make - sources in /work, no longer using normal hierarchy
+#
+# TARGET_OUT is defined in istio/out/.env
+# set by common/scripts/setup_env.sh
+
+export GO_TOP=$TOP
+# Used in the shell scripts.
+export ISTIO_SRC=$TOP
+# Not used - default is ~/go, used for pkg
+#export GOPATH=$TOP
+export ISTIO_GO=$TOP/src/istio.io/istio
+export OUT_DIR=$ISTIO_GO/out
+export OUT=${OUT_DIR}
+export ISTIO_OUT=${OUT}/linux_amd64/release
+export TARGET_OUT=${OUT}/linux_amd64/release
+
+export KUBECONFIG=${KUBECONFIG:-${HOME}/.kube/config}
+export PATH=$TOP/bin:$ISTIO_OUT:$PATH
+
+export GO111MODULE=on
+
+export LOG_DIR=${OUT_DIR}
+alias kwatch="kubectl get events --all-namespaces -w"
+alias kall="kubectl get all --all-namespaces -o wide"
+alias kpo="kubectl get po --all-namespaces -o wide"
+
+
+# List the IPs at docker level, from a node.
+# In minikube this is the pod range, like 172.17.0.x
+# Also minikube seems to use 192.168.99.1 for the host, .100 for the VM
+alias dockerips="docker ps -q | xargs -n 1 docker inspect --format '{{ .NetworkSettings.IPAddress }} {{ .Name }}' | sed 's/ \// /'"
+
+# Source the file with: ". istioenv"
+
+if [ "$TOP" == "" ]; then
+  BASE=.
+else
+  BASE=$TOP/src/istio.io/installer
+fi
+
+# Aliases for common kubectl
+alias kis='kubectl -n istio-system'
+alias kic='kubectl -n istio-control'
+alias kii='kubectl -n istio-ingress'
+
+
+# Helper - kubernetes log wrapper
+#
+# Params:
+# - namespace
+# - label ( typically app=NAME or release=NAME)
+# - container - defaults to istio-proxy
+#
+function klog() {
+    local ns=${1}
+    local label=${2}
+    local container=${3}
+    shift; shift; shift
+
+    kubectl --namespace=$ns log $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') $container $*
+}
+
+# Kubernetes exec wrapper
+# - namespace
+# - label (app=fortio)
+# - container (istio-proxy)
+function kexec() {
+    local ns=$1
+    local label=$2
+    local container=$3
+    shift; shift; shift
+
+    kubectl --namespace=$ns exec -it $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') -c $container -- $*
+}
+
+# Forward port - Namespace, label, PortLocal, PortRemote
+# Example:
+#  kfwd istio-system istio=pilot istio-ingress 4444 8080
+function kfwd() {
+    local NS=$1
+    local L=$2
+    local PL=$3
+    local PR=$4
+
+    local N=$NS-$L
+    if [[ -f ${LOG_DIR:-/tmp}/fwd-$N.pid ]] ; then
+        kill -9 $(cat ${LOG_DIR:-/tmp}/fwd-$N.pid)
+    fi
+    kubectl --namespace=$NS port-forward $(kubectl --namespace=$NS get -l $L pod -o=jsonpath='{.items[0].metadata.name}') $PL:$PR &
+    echo $! > ${LOG_DIR:-/tmp}/fwd-$N.pid
+}
+
+function logs-gateway() {
+    istioctl proxy-status -i istio-system
+    klog istio-system app=ingressgateway istio-proxy $*
+}
+
+function exec-gateway() {
+    kexec istio-system app=ingressgateway istio-proxy  $*
+}
+function logs-ingress() {
+    istioctl proxy-status -i istio-system
+    klog istio-system app=ingressgateway istio-proxy $*
+}
+function exec-ingress() {
+    kexec istio-system app=ingressgateway istio-proxy  $*
+}
+
+function logs-inject() {
+    klog istio-system istio=sidecar-injector sidecar-injector-webhook $*
+}
+
+function logs-pilot() {
+    klog istio-system istio=pilot discovery  $*
+}
+
+function logs-fortio() {
+    klog fortio11 app=fortiotls istio-proxy $*
+}
+
+function exec-fortio11-cli-proxy() {
+    # curl -v  -k  --key /etc/certs/key.pem --cert /etc/certs/cert-chain.pem https://fortiotls:8080
+    kexec fortio11 app=cli-fortio-tls istio-proxy $*
+}
+
+function iop_test_apps() {
+    iop none none ${BASE}/test/none $*
+    kubectl create ns httpbin
+    kubectl -n httpbin apply -f ${BASE}/test/k8s/httpbin.yaml
+}
+
+# Prepare GKE for Lego DNS. You must have a domain, $DNS_PROJECT
+# and a zone DNS_ZONE created.
+function getCertLegoInit() {
+ # GCP_PROJECT=costin-istio
+
+ gcloud iam service-accounts create dnsmaster
+
+ gcloud projects add-iam-policy-binding $GCP_PROJECT  \
+   --member "serviceAccount:dnsmaster@${GCP_PROJECT}.iam.gserviceaccount.com" \
+   --role roles/dns.admin
+
+ gcloud iam service-accounts keys create $HOME/.ssh/dnsmaster.json \
+    --iam-account dnsmaster@${GCP_PROJECT}.iam.gserviceaccount.com
+
+}
+
+# Get a wildcard ACME cert. MUST BE CALLED BEFORE SETTING THE CNAME
+function getCertLego() {
+ # GCP_PROJECT=costin-istio
+ # DOMAIN=istio.webinf.info
+ # NAMESPACE - where to create the secret
+
+ #gcloud dns record-sets list --zone ${DNS_ZONE}
+
+ GCE_SERVICE_ACCOUNT_FILE=~/.ssh/dnsmaster.json \
+ lego -a --email="dnsmaster@${GCP_PROJECT}.iam.gserviceaccount.com"  \
+ --domains="*.${DOMAIN}"     \
+ --dns="gcloud"     \
+ --path="${HOME}/.lego"  run
+
+ kubectl create -n ${NAMESPACE:-istio-ingress} secret tls istio-ingressgateway-certs --key ${HOME}/.lego/certificates/_.${DOMAIN}.key \
+    --cert ${HOME}/.lego/certificates/_.${DOMAIN}.crt
+
+}
+
+# Setup DNS entries - currently using gcloud
+# Requires GCP_PROJECT, DOMAIN and DNS_ZONE to be set
+# For example, DNS_DOMAIN can be istio.example.com and DNS_ZONE istiozone.
+# You need to either buy a domain from google or set the DNS to point to gcp.
+# Similar scripts can setup DNS using a different provider
+function testCreateDNS() {
+    # TODO: cleanup, pretty convoluted
+    # GCP_PROJECT=costin-istio DOMAIN=istio.webinf.info IP=35.222.25.73 testCreateDNS control
+    # will create ingresscontrol and *.control CNAME.
+    local ns=$1
+
+    local sub=${2:-$ns}
+
+    IP=$(kubectl get -n $ns service ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    echo "Gateway IP: $IP"
+
+
+    gcloud dns --project=$GCP_DNS_PROJECT record-sets transaction start --zone=$DNS_ZONE
+
+    gcloud dns --project=$GCP_DNS_PROJECT record-sets transaction add \
+        $IP --name=ingress-${ns}.${DOMAIN}. \
+        --ttl=300 --type=A --zone=$DNS_ZONE
+
+    gcloud dns --project=$GCP_DNS_PROJECT record-sets transaction add \
+        ingress-${ns}.${DOMAIN}. --name="*.${sub}.${DOMAIN}." \
+        --ttl=300 --type=CNAME --zone=$DNS_ZONE
+
+    gcloud dns --project=$GCP_DNS_PROJECT record-sets transaction execute --zone=$DNS_ZONE
+}
+
+
+
+function istio-restart() {
+    local L=${1:-app=pilot}
+    local NS=${2:-istio-system}
+
+    kubectl --namespace=$NS delete po -l $L
+}
+
+
+# For testing the config. Will start a pilot (using the build directory), with config from k8s.
+function localPilot() {
+    PID=${LOG_DIR:-/tmp}/pilot.pid
+
+    if [[ -f  $PID ]] ; then
+        kill -9 $(cat ${PID})
+    fi
+    ${TARGET_OUT}/pilot-discovery discovery \
+        --kubeconfig $KUBECONFIG \
+        --meshConfig test/simple/mesh.yaml \
+        --networksConfig test/simple/meshNetworks.yaml &
+
+    echo $! > ${PID}
+}
+
+function localStop() {
+   PID=${LOG_DIR:-/tmp}/pilot.pid
+
+    if [[ -f  $PID ]] ; then
+        kill -9 $(cat ${PID})
+        rm ${PID}
+    fi
+}
+
+# For testing the config of sidecar
+function localSidecar() {
+    BINDIR=${TOP}/out/linux_amd64/release
+    ${BINDIR}/pilot-agent proxy sidecar \
+        --domain simple-micro.svc.cluster.local \
+        --configPath ${TOP}/out \
+        --binaryPath ${BINDIR}/envoy \
+        --templateFile ${TOP}/src/istio.io/istio/tools/packaging/common/envoy_bootstrap_v2.json \
+        --serviceCluster echosrv.simple-micro \
+        --drainDuration 45s --parentShutdownDuration 1m0s \
+        --discoveryAddress localhost:15010 \
+        --proxyLogLevel=debug \
+        --proxyComponentLogLevel=misc:info \
+        --connectTimeout 10s \
+        --proxyAdminPort 15000 \
+        --concurrency 2 \
+        --controlPlaneAuthPolicy NONE \
+        --statusPort 15020 \
+        --applicationPorts 8080,8079,8088 \
+        --controlPlaneBootstrap=false
+
+}
+
+# Fetch the certs from a namespace, save to /etc/cert
+# Same process used for mesh expansion, can also be used for dev machines.
+function getCerts() {
+    local NS=${1:-default}
+    local SA=${2:-default}
+
+    kubectl get secret istio.$SA -n $NS -o "jsonpath={.data['key\.pem']}" | base64 -d > /etc/certs/key.pem
+    kubectl get secret istio.$SA -n $NS -o "jsonpath={.data['cert-chain\.pem']}" | base64 -d > /etc/certs/cert-chain.pem
+    kubectl get secret istio.$SA -n $NS -o "jsonpath={.data['root-cert\.pem']}" | base64 -d > /etc/certs/root-cert.pem
+}
+
+# For debugging, get the istio CA. Can be used with openssl or other tools to generate certs.
+function getCA() {
+    kubectl get secret istio-ca-secret -n istio-system -o "jsonpath={.data['ca-cert\.pem']}" | base64 -d > /etc/certs/ca-cert.pem
+    kubectl get secret istio-ca-secret -n istio-system -o "jsonpath={.data['ca-key\.pem']}" | base64 -d > /etc/certs/ca-key.pem
+}
+
+function istio_status() {
+    echo "=== 1.1"
+    istioctl -i istio-system proxy-status
+    echo "=== master"
+    istioctl -i istio-master proxy-status
+    echo "=== micro-ingress"
+    istioctl -i istio-ingress proxy-status
+}
+
+# Get config
+#
+# - cmd (routes, listeners, endpoints, clusters)
+# - deployment (ex. ingressgateway)
+#
+# Env: ISTIO_ENV = which pilot to use ( istio-system, istio-master, istio-ingress, ...)
+function istio_cfg() {
+    local env=${ISTIO_ENV:-istio-system}
+    local cmd=$1
+    shift
+    local dep=$1
+    shift
+
+
+    istioctl -i $env proxy-config $cmd $(istioctl -i $env proxy-status | grep $dep | cut -d' ' -f 1) $*
+}
+
+##### End
+
+
+# Artifacts and temporary files.
+
+
+# Image used by the circleci, including all tools
+#export DOCKER_BUILDER=${DOCKER_BUILDER:-istio/ci:go1.10-k8s1.9}
+
+# Runs the Istio docker builder image, using the current workspace and user id.
+function dbuild() {
+  docker run --rm -u $(id -u) -it \
+	  --volume /var/run/docker.sock:/var/run/docker.sock \
+    -v $TOP:$TOP -w $TOP \
+    -e GID=$(id -g) \
+    -e USER=$USER \
+    -e HOME=$TOP \
+    --entrypoint /bin/bash \
+    $DOCKER_BUILDER \
+    -c "$*"
+}
+
+
+function grafana() {
+  kubectl -n istio-system port-forward $(kubectl -n istio-system get pod -l app=grafana -o jsonpath='{.items[0].metadata.name}') 3000:3000 &
+}
+
+#function kexec() {
+#    local label=$1
+#    local container=${2:-istio-proxy}
+#    local ns=${3:-istio-system}
+#    local cmd=${4:-/bin/bash}
+#    kubectl --namespace=$ns exec -it $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') -c $container -- $cmd
+#}
+
+# TLS:
+# - direct
+# fortio "load -t 0 -c 32 -qps 500 http://fortio-tls.test.svc.cluster.local:8080/echo"
+# - ingress (must be from raw)
+# fortioraw "load -t 0 -c 32 -qps 500 http://fortio2.v08.istio.webinf.info/echo"
+#
+# No TLS
+# fortioraw "load -t 0 -c 32 -qps 500 http://fortio.v08.istio.webinf.info/echo"
+
+function fortio() {
+    CMD=$1
+    kexec name=fortiov2 echosrv test "/usr/local/bin/fortio $CMD"
+}
+
+function fortioproxy() {
+    CMD=$1
+    kexec name=fortiov2 istio-proxy test
+}
+
+function fortioraw() {
+    CMD=$1
+    kexec name=fortionoistio echosrv test "/usr/local/bin/fortio $CMD"
+}
+
+function fortioraw2() {
+    CMD=$1
+    kexec name=fortio-noistio2 echosrv test "/usr/local/bin/fortio $CMD"
+}
+
+function ingress-exec() {
+    local ns=${1:-istio-system}
+    kubectl --namespace=$ns exec -it $(kubectl --namespace=$ns get -l istio=ingress pod -o=jsonpath='{.items[0].metadata.name}') -c ingress /bin/bash
+}
+
+function pilot-get() {
+    curl localhost:15003/cache_stats
+}
+
+# Access to istio-system components
+function pilot-logs() {
+    local ns=${1:-istio-system}
+    shift
+    klog istio=pilot discovery $ns $*
+}
+function istio-fwd-pilotmon() {
+    local ns=${1:-istio-system}
+    istio-fwd1 istio=pilot $ns 11093 9093
+}
+function istio-fwd-system-pilot() {
+    local ns=${1:-istio-system}
+    istio-fwd1 istio=pilot $ns 11080 8080
+}
+
+function ingress-logs() {
+    klog istio=ingress ingress istio-system $*
+}
+
+function pilot-exec-envoy() {
+    local ns=${1:-istio-system}
+    kexec istio=pilot istio-proxy $ns
+}
+function pilot-exec() {
+    local ns=${1:-istio-system}
+    kexec istio=pilot discovery $ns
+}
+
+function istio-exec-galley() {
+    local ns=${1:-istio-system}
+    kexec istio=galley galley istio-system
+}
+function istio-exec-pilot() {
+    local ns=${1:-istio-system}
+    kexec istio=pilot discovery istio-system
+}
+function istio-exec-ingress() {
+    kexec istio=ingressgateway istio-proxy istio-system
+}
+function istio-logs-ingress() {
+    klog istio=ingressgateway istio-proxy istio-system $*
+}
+function istio-logs-webhooks() {
+    klog istio=sidecar-injector sidecar-injector-webhook istio-system $*
+}
+function istio-logs-pilot() {
+    klog istio=pilot discovery istio-system $*
+}
+function istio-exec-legacy-ingress() {
+    kexec istio=ingress ingress istio-system
+}
+function istio-logs-mixer() {
+    klog app=telemetry mixer istio-system $*
+}
+function istio-logs-system-mixer-proxy() {
+    klog istio=mixer mixer-proxy istio-system $*
+}
+function istio-logs-sidecar-injector() {
+    klog istio=sidecar-injector sidecar-injector-webhook istio-system $*
+}
+function istio-logs-system-simple() {
+    klog app=echosrv echosrv istio-system $*
+}
+function istio-exec-a() {
+   kexec app=a istio-proxy test
+}
+function istio-exec-c() {
+   kexec app=c istio-proxy test
+}
+function istio-exec-tls() {
+   kexec app=fortio-tls istio-proxy test
+}
+
+
+# Access to pilot no-auth suite
+function istio-exec-noauth-a() {
+   kexec app=a istio-proxy pilot-noauth
+}
+function istio-logs-noauth-a() {
+    klog app=a istio-proxy pilot-noauth $*
+}
+function istio-exec-noauth-b() {
+   kexec app=b istio-proxy pilot-noauth
+}
+function istio-exec-noauth-ingress() {
+   kexec app=ingress istio-proxy pilot-noauth-system
+}
+function istio-exec-noauth-pilot() {
+   kexec infra=pilot istio-proxy pilot-noauth-system
+}
+function istio-logs-noauth-mixer-proxy() {
+    klog istio=mixer istio-proxy pilot-noauth-system $*
+}
+function istio-logs-noauth-ingress() {
+    klog app=ingress istio-proxy pilot-noauth-system $*
+}
+function istio-logs-noauth-pilot() {
+    klog infra=pilot discovery pilot-noauth-system $*
+}
+function istio-fwd-noauth-pilotmon() {
+    istio-fwd1 infra=pilot pilot-noauth-system 12093 9093
+}
+function istio-fwd-noauth-pilot() {
+    istio-fwd1 infra=pilot pilot-noauth-system 12080 8080
+}
+
+# Access to test
+# Access to pilot no-auth suite
+function istio-exec-test-a() {
+   kexec app=a istio-proxy test
+}
+function istio-logs-test-a() {
+    klog app=a istio-proxy test $*
+}
+function istio-exec-test-b() {
+   kexec app=b istio-proxy test
+}
+
+function make-bootstrap() {
+ cp $TOP/out/linux_amd64/release/bootstrap/all/envoy-rev0.json pkg/bootstrap/testdata/all_golden.json
+ cp $TOP/out/linux_amd64/release/bootstrap/auth/envoy-rev0.json pkg/bootstrap/testdata/auth_golden.json
+ cp $TOP/out/linux_amd64/release/bootstrap/default/envoy-rev0.json pkg/bootstrap/testdata/default_golden.json
+}
+
+
+function istio-fwd1() {
+    local L=$1
+    local NS=$2
+    local PL=$3
+    local PR=$4
+
+    local N=$NS-$L
+    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
+        kill -9 $(cat $LOG_DIR/fwd-$N.pid)
+    fi
+    kubectl --namespace=$NS port-forward $(kubectl --namespace=$NS get -l $L pod -o=jsonpath='{.items[0].metadata.name}') $PL:$PR &
+    echo $! > $LOG_DIR/fwd-$N.pid
+}
+
+
+# Access to the pilot auth suite
+function test-exec-auth-pilot() {
+   kexec infra=pilot istio-proxy pilot-auth-system
+}
+function test-fwd-auth-pilot() {
+   kfwd 15005 infra=pilot pilot-auth-system
+}
+function test-fwd-auth-pilot1() {
+   kfwd2 8080 15003 infra=pilot pilot-auth-system
+}
+
+
+function istio-fwd() {
+    fwd-prom
+    fwd-grafana
+    fwd-servicegraph
+    pilot-fwd
+}
+
+# Kubernetes forward port by label. Will use the same port as the app.
+function kfwd() {
+    local port=$1
+    local label=$2
+    local ns=${3:-istio-system}
+    kubectl --namespace=$ns port-forward $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') $port:$port
+}
+function kfwd2() {
+    local port=$1
+    local port2=$2
+    local label=$3
+    local ns=${4:-istio-system}
+    kubectl --namespace=$ns port-forward $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') $port:$port2
+}
+
+function istioV2() {
+   local T=${1-$TAG}
+    docker tag ${HUB}/proxyv2:$T ${HUB}/proxy:$T
+    docker tag ${HUB}/proxyv2:$T ${HUB}/proxy_debug:$T
+}
+
+function istioV2Push() {
+   local T=${1-$TAG}
+    docker push ${HUB}/proxyv2:$T
+    docker push ${HUB}/proxy:$T
+    docker push ${HUB}/proxy_debug:$T
+}
+
+function fwdApp() {
+    local N=$1
+    local P=$2
+
+    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
+        kill -9 $(cat $LOG_DIR/fwd-$N.pid)
+    fi
+
+    echo "$N http://localhost:$P"
+    kubectl --namespace=istio-system port-forward $(kubectl --namespace=istio-system get -l app=$N pod -o=jsonpath='{.items[0].metadata.name}') $P:$P &
+    echo $! > $LOG_DIR/fwd-$N.pid
+}
+
+function pilot-fwd() {
+    local N=pilot
+
+    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
+        kill -9 $(cat $LOG_DIR/fwd-$N.pid)
+    fi
+
+    local POD=$(kubectl get -n istio-system po  |grep pilot |grep Running | cut -f1 -d\ )
+    echo "Pilot http://localhost:15003/cache_stats $POD"
+    #kubectl --namespace=istio-system port-forward $(kubectl --namespace=istio-system get -l istio=pilot pod -o=jsonpath='{.items[0].metadata.name}') 15003:8080
+    kubectl --namespace=istio-system port-forward $POD 15003:8080
+}
+
+function pilot-kill() {
+    local N=pilot
+
+    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
+        kill -9 $(cat $LOG_DIR/fwd-$N.pid)
+    fi
+
+    local POD=$(kubectl get -n istio-system po  |grep pilot |grep Running | cut -f1 -d\ )
+    kubectl --namespace=istio-system delete pod $POD
+}
+
+function istio-key() {
+
+    go run ./security/cmd/generate_cert/main.go \
+        -signer-priv ./security/samples/plugin_ca_certs/ca-key.pem \
+        -signer-cert ./security/samples/plugin_ca_certs/ca-cert.pem \
+        -client -host spiffe://costin.foo.com
+
+}
+function port-registry() {
+
+  POD=$(kubectl get pods --namespace kube-system -l k8s-app=kube-registry \
+  -o template --template '{{range .items}}{{.metadata.name}} {{.status.phase}}{{"\n"}}{{end}}' \
+  | grep Running | head -1 | cut -f1 -d' ')
+    if [[ -f $LOG_DIR/registry.pid ]] ; then
+        kill -9 $(cat $LOG_DIR/registry.pid)
+    fi
+  kubectl port-forward --namespace kube-system $POD 5000:5000 &
+    echo $! > $LOG_DIR/registry.pid
+}
+
+function pilot-fwdmon() {
+    local N=pilotmon
+
+    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
+        kill -9 $(cat $LOG_DIR/fwd-$N.pid)
+    fi
+    kubectl --namespace=istio-system port-forward $(kubectl --namespace=istio-system get -l istio=pilot pod -o=jsonpath='{.items[0].metadata.name}') 19093:9093 &
+    echo $! > $LOG_DIR/fwd-$N.pid
+}
+
+function fwd-prom() {
+    fwdApp prometheus 9090
+}
+
+function fwd-grafana() {
+    fwdApp grafana 3000
+}
+
+function fwd-servicegraph() {
+    fwdApp servicegraph 8088
+}
+
+alias istiocurl="curl -k --cert /etc/certs/cert-chain.pem --cacert /etc/certs/root-cert.pem --key /etc/certs/key.pem  "
+
+# Lunch a specific environment, by sourcing files specific to the env or using gcloud.
+#
+# This allows a developer to work with multiple clusters and environments, without
+# overriding or changing his main ~/.kube/config
+#
+# For each env, create a file under $HOME/.istio/ENV_NAME
+#
+# By default, the env is the name of a gcloud project, followed by zone (defaults to us-west1-c).
+# A third argument (default to test) indicates the GKE cluster to use.
+#
+# Will set TEST_ENV and KUBECONFIG environment variables.
+#
+# Predefined:
+# - minikube: will start a regular minikube in a VM
+#
+function lunch() {
+    local env=$1
+    if [ "$env" != "minikube" ]; then
+        unset DOCKER_BUILDER
+        unset DOCKER_CERT_PATH
+        unset DOCKER_TLS_VERIFY
+        unset DOCKER_HOST
+        unset DOCKER_API_VERSION
+    fi
+
+    if [ "$env" == "local" ]; then
+    	export KUBECONFIG=${ISTIO_GO}/.circleci/config
+	    $ISTIO_GO/bin/testEnvLocalK8S.sh start
+
+        export ISTIO=127.0.0.1
+    elif [ "$env" == "minikube" ]; then
+        export KUBECONFIG=${OUT}/minikube.conf
+        minikube status | grep Running
+        if [ "$?" != "0" ]  || [ ! -f ${KUBECONFIG} ] ; then
+          minikube start --memory 8192 --vm-driver kvm2 --kvm-network minikube-net --cpus 2 --kubernetes-version v1.9.0 \
+            --apiserver-name apiserver.minikube.istio.webinf.info
+          kubectl apply -f tests/util/localregistry/localregistry.yaml
+        fi
+	    minikube update-context
+	    eval $(minikube docker-env)
+        #export HUB=localhost:5000
+        #export TAG=latest
+
+        minikube addons enable freshpod
+        minikube addons enable registry
+        minikube addons enable heapster
+
+	    export ISTIO=$(minikube ip)
+
+        port-registry
+
+    elif [[ -f $HOME/.istio/${env} ]]; then
+        export KUBECONFIG=$HOME/.k8s/k8s.$env.yaml
+        source $HOME/.istio/${env}
+        export GCP_ZONE=$ZONE
+        export GCP_PROJECT=$PROJECT
+        export CLUSTER_NAME=$CLUSTER
+        export PROJECT_ID=$PROJECT
+        rm $KUBECONFIG
+        if [[ "$PROJECT" ]]; then
+            gcloud container clusters get-credentials $CLUSTER --zone $GCP_ZONE --project $PROJECT
+        fi
+        export ISTIO=$(kubectl get -n istio-system service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+    else
+        echo "lunch local|minikube|..."
+        echo ls $HOME/.istio
+
+        echo "Env file must contain ZONE CLUSTER PROJECT"
+        return
+    fi
+
+    export TEST_ENV=$env
+    local CC=$(kubectl config current-context)
+    kubectl config set contexts.default-context.namespace istio-system
+    kubectl config set contexts.$CC.namespace istio-system
+    echo "Enabled $env with KUBECONFIG=$KUBECONFIG $CC and IP=$ISTIO"
+}
+function gkeCred() {
+    export GKEPASS=$(gcloud container clusters describe $CLUSTER --zone $ZONE  --project $PROJECT --format json | jq -r '.masterAuth.password')
+    echo PASS=$GKEPASS
+    kubectl create clusterrolebinding client-cadmin-crb --clusterrole=cluster-admin --user=client --username admin --password $GKEPASS
+}
+function kconf() {
+ kubectl config set-credentials user --username=$1 --password=$2
+ kubectl config set-cluster local-server --server=http://localhost:8080
+ kubectl config set-context default-context --cluster=local-server --user=user
+ kubectl config use-context default-context
+ kubectl config set contexts.default-context.namespace istio-system
+ kubectl config view
+}
+
+function stop() {
+    local env=$1
+    if [ "$env" == "minikube" ]; then
+        minikube stop
+    fi
+}
+
+# Deploy or update istio.
+# To see generated config and apply custom configs:
+#    kubeapply=less istioDeploy install/kubernetes/istio-helm/scale.yaml
+function istioDeploy() {
+     local v=${1:-install/kubernetes/helm/istio/values-istiotest.yaml}
+     kubectl create ns istio-system >/dev/null  2>&1
+
+     local apply=${kubeapply:-kubectl apply -n istio-system -f -}
+     echo Deploy istio with $TAG and $HUB $ISTIO_IP:30080
+#     (cd install/kubernetes/istio-helm ; istioctl gen-deploy -o yaml --values $v ) | kubectl apply -f -
+     helm template --namespace istio-system --values $v \
+       --set global.tag=$TAG \
+       --set global.hub=$HUB \
+       install/kubernetes/helm/istio | $apply
+}
+
+function istioDeployDefault() {
+     local v=${1:-install/kubernetes/helm/istio/values-istiotest.yaml}
+     kubectl create ns istio-system >/dev/null  2>&1
+     helm template --namespace istio-system --values $v \
+          install/kubernetes/helm/istio | kubectl apply -n istio-system -f -
+}
+
+# Deploy istio test apps.
+function istioDeployTest() {
+     local v=${1:-}
+
+     local apply=${kubeapply:-kubectl apply -n test -f -}
+
+     kubectl create ns test
+     export ISTIO_PROXY_IMAGE=proxyv2
+     helm template tests/helm --namespace test --set istioHub=$HUB --set testHub=$HUB --set testEnv=`date +%H%M` --set testTag=$TAG $v | istioctl \
+        kube-inject --debug --meshConfigMapName=istio --hub $HUB --tag $TAG -f - | $apply
+}
+
+# Run e2e test on deployed cluster.
+#  bookinfo. mixer, simple, pilot
+function istioE2E() {
+    local t=${1:-simple}
+
+    go test -v -timeout 20m ./tests/e2e/tests/${t} -args \
+      --skip_setup --namespace test \
+      --mixer_tag ${TAG} --pilot_tag ${TAG} --proxy_tag ${TAG} --ca_tag ${TAG} \
+      --mixer_hub ${HUB} --pilot_hub ${HUB} --proxy_hub ${HUB} --ca_hub ${HUB} \
+      --istioctl $ISTIO_OUT/istioctl
+
+}
+
+function istioLocalAgent() {
+    pilot-agent proxy --discoveryAddress localhost:8080 --ip 127.0.0.1
+}
+
+function istioTestPilot() {
+    local t=${1:-}
+    mkdir -p $OUT/logs
+
+    if [ "$t" != "" ] ; then
+        t="--testtype $t"
+    fi
+
+    ISTIO_SKIP_SYSTEM=1 go run ./pilot/test/integration/*.go --skip-cleanup \
+        -mixer=true -auth=disable \
+        -hub $HUB -tag $TAG \
+        -n istio-test -ns istio-system -logs=false \
+        $t -errorlogsdir ${OUT}/logs
+
+    # http-reachability
+    # tcp-reachablility
+}
+
+# Also docker rm $(docker ps -a -q)
+alias istioDockerCleanImages='docker rmi $(docker images -q)'
+alias kis103='kubectl -n pilot103'
+alias kt='kubectl -n test'
+alias kga='kubectl get --all-namespaces'
+
+# Switch to a new deb branch
+function istioBranch() {
+    local b=$1
+    git status -b -s --untracked-files=no
+    git checkout github/master
+    git pull github/master
+    git checkout -b $1
+}
+
+function istioSync() {
+    git fetch github
+    git fetch origin
+    git pull github master
+}
+
+function pilot-stats() {
+    curl -v http://$ZVPN:15003/cache_stats
+}
+
+function pilot-m() {
+    make pilot docker.pilot push.docker.pilot
+    istioDeploy
+    pilot-fwd
+}
+
+# Get pprof for pilot. Assumes 15003 is forwarded
+function pilot-pprof() {
+
+    if [[ -f $LOG_DIR/pprof.pid ]] ; then
+        kill -9 $(cat $LOG_DIR/pprof.pid)
+    fi
+
+    #go tool pprof -web -sample_index inuse_space  http://$ZVPN:15003/debug/pprof/heap
+    go tool pprof -web -sample_index alloc_space  http://$ZVPN:15003/debug/pprof/heap
+
+    go tool pprof -http=:9999 -alloc_space -seconds 20 http://$ZVPN:15003/debug/pprof/heap  &
+    echo $! > $LOG_DIR/pprof.pid
+    sleep 4000
+
+    #go tool pprof -http=:9998 -alloc_space -seconds 20 http://$ZVPN:15003/debug/pprof/heap  &
+
+}
+
+function cpToMk() {
+	docker save $1 | (eval $(minikube docker-env) && docker load)
+}
+function helmGet() {
+  kubectl -n kube-system get cm $1 -o=jsonpath='{.data.release}' | base64 -d |gzip -d
+}
+
+
+# Forward the k8s registry port
+function k8sLocalRegistry() {
+  POD=$(kubectl get pods --namespace istio-system -l app=kube-registry \
+            -o template --template '{{range .items}}{{.metadata.name}} {{.status.phase}}{{"\n"}}{{end}}' \
+            | grep Running | head -1 | cut -f1 -d' ')
+
+  kubectl port-forward --namespace istio-system $POD 5000:5000 &
+
+  export HUB=localhost:5000
+}
+
+# Wait for k8s to show up
+function k8sWait() {
+    set +e
+    kubectl cluster-info
+    # this for loop waits until kubectl can access the api server that Minikube has created
+    for i in {1..150}; do # timeout for 5 minutes
+       kubectl get po &> /dev/null
+       if [ $? -ne 1 ]; then
+          break
+      fi
+      sleep 2
+    done
+    kubectl get svc --all-namespaces
+}
+
+
+function istioGetCA() {
+    kubectl get secret -n istio-system istio-ca-secret -o yaml
+
+    # Delete old secrets
+    # kubectl delete secret -l istio: --all-namespaces
+    # ca-cert.pem,  ca-key.pem
+}
+
+function istioRemoteCitadel() {
+
+    istio_ca --signing-key ca-key.pem --signing-cert ca-cert.pem --root-cert root-cert.pem
+
+    # --grpcPort=0
+}
+
+# Must be run with KUBECONFIG pointing to the remote cluster
+function istioSetupRemote() {
+    CA_DATA=$2
+
+    CLUSTER_NAME=$(kubectl config view --minify=true -o jsonpath='{.clusters[].name}')
+    SERVER=$(kubectl config view --minify=true -o jsonpath='{.clusters[].cluster.server}')
+
+    export WORK_DIR=$(pwd)
+    export KUBECFG_FILE=${WORK_DIR}/${CLUSTER_NAME}
+
+    NAMESPACE=istio-system
+    SERVICE_ACCOUNT=istio-multi
+
+    SECRET_NAME=$(kubectl get sa istio-remote -n istio-ca -o jsonpath='{.secrets[].name}')
+    CA_DATA=$(kubectl get secret ${SECRET_NAME} -n istio-ca -o jsonpath="{.data['ca\.crt']}")
+    TOKEN=$(kubectl get secret ${SECRET_NAME} -n istio-ca -o jsonpath="{.data['token']}" | base64 --decode)
+
+    cat <<EOF > kubeconfig-${CLUSTER_NAME}.yaml
+apiVersion: v1
+clusters:
+   - cluster:
+       certificate-authority-data: ${CA_DATA}
+       server: ${SERVER}
+     name: ${CLUSTER_NAME}
+contexts:
+   - context:
+       cluster: ${CLUSTER_NAME}
+       user: ${CLUSTER_NAME}
+     name: ${CLUSTER_NAME}
+current-context: ${CLUSTER_NAME}
+kind: Config
+preferences: {}
+users:
+   - name: ${CLUSTER_NAME}
+     user:
+       token: ${TOKEN}
+EOF
+}
+
+
+function istioAddRemote() {
+    CLUSTER_NAME=$1
+
+    kubectl create secret generic ${CLUSTER_NAME} --from-file kube-config-${CLUSTER_NAME}.yaml -n istio-control
+    kubectl label secret ${CLUSTER_NAME} istio/multiCluster=true -n istio-control
+}
+
+function istioAddRemoteCA() {
+    CLUSTER_NAME=$1
+
+    kubectl create secret generic ${CLUSTER_NAME} --from-file kube-config-${CLUSTER_NAME}.yaml -n istio-ca
+    kubectl label secret ${CLUSTER_NAME} istio/multiCluster=true -n istio-ca
+}
+
+
+

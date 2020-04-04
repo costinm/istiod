@@ -5,7 +5,7 @@
     <go_parameters value="-i" />
     <parameters value="discovery --meshConfig ./var/lib/istio/config/mesh -n istio-system" />
     <envs>
-      <env name="KUBECONFIG" value="$USER_HOME$/.k8s/k3s.yaml" />
+      <env name="KUBECONFIG" value="$USER_HOME$/.kube/config" />
       <env name="ISTIOD_ADDR" value="istiod.istio-system.svc:15012" />
       <env name="WEBHOOK" value="istiod" />
     </envs>

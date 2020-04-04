@@ -1,56 +1,20 @@
-#apiVersion: networking.k8s.io/v1beta1
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: fortio
-  namespace: fortio
-  annotations:
-    kubernetes.io/ingress.class: istio
-spec:
-  rules:
-    - host: fortio.asm.istio.webinf.info
-      http:
-        paths:
-            - path: /.*
-              backend:
-                serviceName: fortio
-                servicePort: 8080
----
-apiVersion: networking.istio.io/v1alpha3
-kind: Gateway
-metadata:
-  name: fortio
-spec:
-  selector:
-    istio: ingressgateway
-  servers:
-    - port:
-        number: 443
-        name: https
-        protocol: HTTPS
-      tls:
-        mode: SIMPLE
-        credentialName: "fortio"
-      hosts:
-        - "fortio.asm.istio.webinf.info"
----
 apiVersion: v1
 kind: Service
 metadata:
-  name: fortio
+  name: fortio-dev
   namespace: fortio
 spec:
   ports:
   - port: 8080
     name: http-echo
   selector:
-    app: fortio
+    app: fortio-dev
 
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: fortio
+  name: fortio-dev
   namespace: fortio
 spec:
   replicas: 1
@@ -62,14 +26,12 @@ spec:
         #sidecar.istio.io/privileged: "true"
         #sidecar.istio.io/debug: "true"
         #sidecar.istio.io/componentLogLevel: "config:trace,http2:trace,init:trace,grpc:trace,upstream:trace"
-
-        policy.istio.io/check: disable
         # Override container ports
         #traffic.sidecar.istio.io/includeInboundPorts: "*"
-        sidecar.istio.io/proxyCPU: "10m"
+        sidecar.istio.io/proxyCPU: "200m"
 
       labels:
-        app: fortio
+        app: fortio-dev
         version: v1
     spec:
       containers:
@@ -83,7 +45,7 @@ spec:
           - server
         resources:
           requests:
-            cpu: 10m
+            cpu: 250m
             memory: "512Mi"
           limits:
             cpu: 1

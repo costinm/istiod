@@ -16,7 +16,7 @@ nameSuffix: -debug
 
 bases:
   #- github.com/istio/installer/kustomize/istiod
-  - ../../kustomize/istiod
+  - github.com/costinm/istio/manifests/istio-control/istio-discovery
 
 images:
   - name: gcr.io/istio-testing/istiod

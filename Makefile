@@ -18,7 +18,12 @@ IMAGE ?= ${HUB}/istiod
 CACHEDIR ?= ${TOP}/out/cache
 
 LOG_DIR ?= /tmp
-OUT ?= ${TOP}/src/istio.io/istio/out
+
+ISTIO_SRC=${TOP}/src/istio.io/istio
+
+# New variable for istio
+TARGET_OUT ?= ${ISTIO_SRC}/out
+OUT ?= ${ISTIO_SRC}/out
 
 # Namespace to use for the test app
 NS=fortio
@@ -298,13 +303,18 @@ citadel: cacerts
 start-local-kind:
 	kind start cluster --name local
 
+K3S_OPT?=-it --rm
+
+k3s-start:
+	$(MAKE) k3s K3S_OPT="-d --restart always"
+
 # Run a local k8s on the VM, in a docker container. Use k3s, with persistent directories.
 # Note that the OUT dir will have logs and volumes, very easy to grep or automate.
 k3s:
 	mkdir -p ${OUT}/k3s/kube ${OUT}/k3s/var ${OUT}/k3s/run ${OUT}/k3s/k3s
 	docker stop k3s || true
 	docker rm k3s || true
-	docker run -it --rm --name k3s \
+	docker run ${K3S_OPT} --name k3s \
 	 -e K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml \
 	 -p 6443:6443 \
 	 -p 6080:80 \
@@ -315,6 +325,9 @@ k3s:
 	 --privileged \
 	  rancher/k3s:latest \
 	 server --https-listen-port 6443
+
+	docker exec -it k3s chmod 666 /output/kubeconfig.yaml
+
 
 k3s-shell:
 	docker exec -it k3s /bin/sh
@@ -356,3 +369,50 @@ knative:
 	kubectl apply --filename https://github.com/knative/serving/releases/download/v0.11.0/serving.yaml \
 		--filename https://github.com/knative/eventing/releases/download/v0.11.0/release.yaml \
 		--filename https://github.com/knative/serving/releases/download/v0.11.0/monitoring.yaml
+
+# Swaps the container image.
+okteto:
+	#go run github.com/okteto/okteto up
+	/ws/istio-stable/bin/okteto up
+
+helm3/helmbase:
+    # Base install with helm3 works only for a fresh cluster - in many cases
+    # we want to upgrade. Helm3 would complain about existing resources
+	helm3 install istio-base  ${ISTIO_SRC}/manifests/base
+
+helm3/base:
+	kubectl create ns istio-system || true
+	helm3 template istio-base ${ISTIO_SRC}/manifests/base | kubectl apply -f -
+
+helm3/default:
+	helm3 upgrade -i -n istio-system istio-16  ${ISTIO_SRC}/manifests/istio-control/istio-discovery \
+		--set global.tag=${TAG} --set global.hub=${HUB} \
+		-f ${ISTIO_SRC}/manifests/global.yaml \
+		 --set meshConfig.defaultConfig.proxyMetadata.DNS_CAPTURE="" \
+		 --set meshConfig.defaultConfig.proxyMetadata.DNS_AGENT=""
+
+
+helm3/canary:
+	helm3 upgrade -i -n istio-system istio-canary  ${ISTIO_SRC}/manifests/istio-control/istio-discovery \
+		-f ${ISTIO_SRC}/manifests/global.yaml  \
+		--set global.tag=${TAG} --set global.hub=${HUB} \
+        --set revision=canary \
+        --set meshConfig.defaultConfig.proxyMetadata.DNS_CAPTURE=ALL \
+        --set meshConfig.defaultConfig.proxyMetadata.DNS_AGENT=DNS-TLS
+
+helm3/install: helm3/base helm3/canary helm3/default
+
+
+helm3/test/uninstall:
+	helm3 delete -n istio-system istio-16 || true
+	helm3 delete -n istio-system istio-canary || true
+	helm3 delete istio-base || true
+	kubectl delete crd -l release=istio || true
+
+export TAG=16
+#export HUB=costinm
+export HUB=localhost:5000
+export BUILD_WITH_CONTAINER=0
+
+images:
+	cd ${TOP}/src/istio.io/istio && $(MAKE) docker.pilot  DOCKER_ALL_VARIANTS=default

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-registry
+  namespace: istio-system
+  labels:
+    app: kube-registry
+    kubernetes.io/cluster-service: "true"
+    kubernetes.io/name: "KubeRegistry"
+spec:
+  selector:
+    app: kube-registry
+  ports:
+    - name: registry
+      port: 5000
+      protocol: TCP
