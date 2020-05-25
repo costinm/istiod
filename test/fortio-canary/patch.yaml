@@ -1,6 +1,9 @@
+# Not overriding anything - just to show how to change it
 apiVersion: v1
 kind: Namespace
 metadata:
   name: fortio
   labels:
-    istio-injection: enabled
+
+---
+

@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: istio-system
+
+resources:
+  - pd.yaml
+  - app.yaml
+  - service.yaml
+  - registry_proxy.yaml

@@ -1,24 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="WEB_MODULE" version="4">
-  <component name="Go" enabled="true" />
+  <component name="Go" enabled="true">
+    <buildTags>
+      <option name="goVersion" value="go1.14" />
+    </buildTags>
+  </component>
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$/../../../../../cert-manager" />
-    <content url="file://$MODULE_DIR$/../../github.com/costinm/costinm" />
-    <content url="file://$MODULE_DIR$/../../github.com/costinm/istio-discovery" />
-    <content url="file://$MODULE_DIR$/../../github.com/costinm/istio-k8s" />
-    <content url="file://$MODULE_DIR$/../../github.com/costinm/istio-xp" />
-    <content url="file://$MODULE_DIR$/../../github.com/costinm/udpa" />
-    <content url="file://$MODULE_DIR$/../../github.com/costinm/wpgate" />
+    <content url="file://$MODULE_DIR$/../../../../3p/hashicorp/consul" />
     <content url="file://$MODULE_DIR$/../api" />
-    <content url="file://$MODULE_DIR$/../fortio" />
-    <content url="file://$MODULE_DIR$/../ingress-gce" />
+    <content url="file://$MODULE_DIR$/../cni" />
     <content url="file://$MODULE_DIR$/../installer" />
     <content url="file://$MODULE_DIR$/../istio" />
-    <content url="file://$MODULE_DIR$/../istio-gcp" />
     <content url="file://$MODULE_DIR$" />
     <content url="file://$MODULE_DIR$/../tools" />
-    <content url="file://$MODULE_DIR$/../../../../../istio-stable/src/istio.io/istio-coredns-plugin" />
-    <content url="file://$MODULE_DIR$/../../../../../istio-stable/src/istio.io/istio.github.io" />
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Bundled Protobuf Distribution" level="application" />
