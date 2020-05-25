@@ -1,10 +1,13 @@
+# Example config for Istiod acting as a mutating webhook
+#
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: test-webhook
   annotations:
-             cert-manager.io/inject-apiserver-ca: "true"
-             cert-manager.io/inject-ca-from: istio-system/istiod
+      # If apiserver signs istiod cert
+      #cert-manager.io/inject-apiserver-ca: "true"
+      cert-manager.io/inject-ca-from: istio-system/istiod
 webhooks:
 - admissionReviewVersions:
   - v1beta1
@@ -14,9 +17,12 @@ webhooks:
       namespace: istio-system
       path: /inject
       port: 443
+
   failurePolicy: Fail
   matchPolicy: Exact
+
   name: test.istio.io
+
   namespaceSelector:
     matchExpressions:
     - key: istio-injection
@@ -26,6 +32,7 @@ webhooks:
       values:
       - test-canary
   objectSelector: {}
+
   reinvocationPolicy: Never
   rules:
   - apiGroups:

@@ -5,4 +5,6 @@ setup:
 	kubectl -n istio-system create secret generic istio-certmanager-ca --from-file tls.crt=tls.crt --from-file ca.crt=tls.crt --from-file tls.key=tls.key
 	rm tls.key tls.crt
 
-
+cm-install: setup
+	kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v0.15.0/cert-manager.yaml
+	kubectl -n istio-system apply -f istio-issuer.yaml
