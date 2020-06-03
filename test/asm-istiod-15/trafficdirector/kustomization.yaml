@@ -1,8 +1,0 @@
-
-resources:
-  - configmap-injection.yaml
-  - configmap-mesh.yaml
-  - default-http-backend.yaml
-  - galley.yaml
-  - glbc.yaml
-  - istiod-asm.yaml
