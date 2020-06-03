@@ -1,0 +1,48 @@
+# Hello world, exposed directly to load balancer - no proxy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: justhello
+  labels:
+    app: justhello
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  selector:
+    app: justhello
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: justhello
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: justhello
+        tier: backend
+        track: stable
+    spec:
+      containers:
+      - name: app
+        image: gcr.io/google-samples/hello-go-gke:1.0
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            # defaults 100m in GKE.
+            # For 1CPU, max is 800m
+            #cpu: 800m
+            cpu: 1500m
+            # 32 M ???
+            memory: "1G"
+          limits:
+            cpu: 2
+            memory: "2G"
+        ports:
+        - containerPort: 80
+---

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istiod-galley
+  namespace: istio-system
+  labels:
+    release: asm
+data:
+  galley.json: |
+      {
+      "EnableServiceDiscovery": true,
+      "SinkAddress": "meshconfig.googleapis.com:443",
+      "SinkAuthMode": "GOOGLE",
+      "ExcludedResourceKinds": ["Pod", "Node", "Endpoints"],
+      "SinkMeta": ["project_id=costin-istio"]
+      }
+
+  PROJECT_ID: costin-istio
+  GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/google/key.json
+  ISTIOD_ADDR: istiod-asm.istio-system.svc:15012
+
+

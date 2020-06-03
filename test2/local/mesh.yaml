@@ -1,0 +1,8 @@
+
+networks:
+  weekly10:
+    gateways:
+    - address: 35.224.222.243
+      port: 15443
+    endpoints:
+    - fromRegistry: weekly10

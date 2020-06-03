@@ -1,0 +1,38 @@
+# Example creating 2 TLS ingresses, using Gateway config
+---
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: example21
+spec:
+  hosts:
+    - httpbin.example.com
+  gateways:
+    - istio-micro-ingress/ingressgateway
+  http:
+    - route:
+        - destination:
+            host: httpbin
+            port:
+              number: 8000
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: example22
+spec:
+  hosts:
+    - fortio.example.com
+  gateways:
+    - istio-micro-ingress/ingressgateway
+  http:
+    - route:
+        - destination:
+            host: fortio
+            port:
+              number: 8080

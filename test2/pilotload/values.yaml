@@ -1,0 +1,29 @@
+
+fortioImage: istio/fortio:latest
+
+# Number of VirtualService - named byon-$N.v10.istio.webinf.info
+# All are pointing to fortio.test.
+# This creates routes.
+testAServices: 20
+
+# Number of test ServiceEntry pointing to unused IP addresses.
+# Each will create an envoy cluster and TCP listener. < 255
+# The service VIP is 9.0.0.$N
+# This creates HTTP services on port 9000 - 1 listener, N vhost
+# routes ( load-se-$N.local ).
+testVMServices: 20
+
+# Number of fake endpoints per ServiceEntry. Must be < 255
+# Endpoint IPs will be in 10.10.$VM.$N
+testVMEndpoints: 2
+
+# Number of ingress routing rules, routing "/test/N/.*" to fortiosmall.
+# Will generate envoy RDS for ingress.
+loadTestIngress: 16
+
+# Number of real services with associated deployment, names fortiosmall-$I
+# Each service has 2 ports, creating 2 clusters.
+# All services select a single instance - with 50m allocated for app and 50m for
+# sidecar.
+# The fortiosmall service will have this number of endpoints.
+loadTestServices: 20

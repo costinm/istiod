@@ -1,0 +1,17 @@
+healthPort: true
+testHub: docker.io/istionightly
+testTag: nightly-release-1.0
+
+domain: v10.istio.webinf.info
+
+# Namespace where istio control plane is installed.
+istioNamespace: istio-system
+
+fortioImage: istio/fortio:latest
+
+qps: 500
+
+healthCheck: true
+
+fortioCPU: 800m
+fortioCliCPU: 800m

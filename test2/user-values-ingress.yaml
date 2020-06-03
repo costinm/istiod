@@ -1,0 +1,145 @@
+# Example values used to customize the installation for istio-ingress by adding ports and host mappings
+# for various components. Use for debugging/test and as an example.
+#
+# iop_ingress update -f user-values-ingress.yaml --set domain=....
+#
+# or the equivalent template or helm:
+#
+# helm upgrade istio-ingress -f /workspace/istio-master/go/src/github.com/costinm/istio-install/global.yaml -f \
+#   user-values-example.yaml ./istio-ingress --set k8sIngress=true \
+#  --set global.istioNamespace=istio-ingress -f user-values-ingress.yaml --set domain=istio.example.com
+#
+# This example will auto-generate Gateway and VirtualService based on the hosts and ports section - for
+# advanced settings create Gateway/VirtualService directly.
+# The example will expose internal services for debugging - should not be used in production.
+
+# Domain is the main domain used for the Gateway. Will be appended to all 'hosts'.
+# Create a *.DOMAIN A record in DNS, pointing to the gateway IP.
+# For example, I use 'control.istio.webinf.info' for the istio-ingress, 'master.istio.webinf.info' for
+# the istio-ingress-master
+domain: control.istio.webinf.info
+
+## You can add custom gateway ports. The actual Gateways and services are declared by user - but Service must
+## have the ports.
+## Must include the default ports as well, helm is not additive
+ports:
+  - port: 80
+    name: http2
+  - port: 443
+    name: https
+  # This is the port where sni routing happens
+  - port: 15443
+    name: tls
+  - port: 5201
+    name: iperf3
+  - port: 5202
+    name: iperf3-nosidecar
+
+secretVolumes:
+  - name: ingressgateway-certs
+    secretName: istio-ingressgateway-certs
+    mountPath: /etc/istio/ingressgateway-certs
+  - name: ingressgateway-ca-certs
+    secretName: istio-ingressgateway-ca-certs
+    mountPath: /etc/istio/ingressgateway-ca-certs
+  - name: ingressgateway-certs-fortionoistio
+    secretName: istio-ingressgateway-certs-fortionoistio
+    mountPath: /etc/istio/ingressgateway-certs-fortionoistio
+  - name: ingressgateway-certs-fortiotls
+    secretName: istio-ingressgateway-certs
+    mountPath: /etc/istio/ingressgateway-certs-fortiotls
+
+# Applications mapped by port number - each port forwards to a service
+# The ports were used in Istio 1.0 old-style Gateway.
+# If you run multiple telemetry namespaces - use additional ports, or use the DNS-based method.
+# This works for TCP services as well.
+ingressPorts:
+  - name: prom15030
+    port: 15030
+    destPort: 9090
+    dest: prometheus.istio-telemetry.svc.cluster.local
+
+  - name: grafana15031
+    port: 15031
+    destPort: 3000
+    dest: grafana.istio-telemetry.svc.cluster.local
+
+  - name: kiali15029
+    port: 15029
+    destPort: 2001
+    dest: kiali.istio-telemetry.svc.cluster.local
+
+  - name: tracing15032
+    port: 15032
+    destPort: 80
+    dest: tracing.istio-telemetry.svc.cluster.local
+
+# Hosts added to istio gateway, on HTTP port.
+# For each entry, a VirtualService with the given name, and a host based on the name and 'domain' will be created.
+# The destination is set according to the entry.
+hosts:
+  - name: prom
+    destPort: 9090
+    dest: prometheus.istio-telemetry.svc.cluster.local
+
+  - name: grafana
+    dest: grafana.istio-telemetry.svc.cluster.local
+    destPort: 3000
+
+  - name: kiali
+    dest: kiali.istio-telemetry.svc.cluster.local
+    destPort: 20001
+
+  - name: sg
+    dest: servicegraph.istio-telemetry.svc.cluster.local
+    destPort: 8088
+
+  - name: tracing
+    dest: tracing.istio-telemetry.svc.cluster.local
+    destPort: 80
+
+  - name: istio-pilot
+    dest: istio-pilot.istio-pilot11.svc.cluster.local
+    destPort: 15011
+
+  ## Debug entry for Pilot
+  - name: pilot
+    dest: istio-pilot.istio-control.svc.cluster.local
+    destPort: 8080
+
+  - name: pilot-master
+    dest: istio-pilot.istio-master.svc.cluster.local
+    destPort: 8080
+
+  ## Test app access
+  - name: fortiomaster
+    dest: fortiotls.fortiomaster.svc.cluster.local
+    destPort: 8080
+
+  - name: fortiocontrol
+    dest: fortiotls.fortio-control.svc.cluster.local
+    destPort: 8080
+
+  - name: grafana-master
+    dest: grafana.istio-telemetry-master.svc.cluster.local
+    destPort: 3000
+
+  # Old 1.0 version of prometheus - collects data from 1.0 mixer
+  # The entries can be used with the 1.1 Gateway if you still run a 1.0 system ( while upgrading )
+  - name: prom10
+    dest: prometheus.istio-system.svc.cluster.local
+    destPort: 9090
+
+  # 1.0 version of grafana in istio-system
+  - name: grafana10
+    dest: grafana.istio-system.svc.cluster.local
+    destPort: 3000
+
+  - name: trace10
+    dest: tracing.istio-system.svc.cluster.local
+    destPort: 80
+
+  - name: pilot10
+    dest: istio-pilot.istio-system.svc.cluster.local
+    destPort: 8080
+
