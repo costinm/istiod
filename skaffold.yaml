@@ -4,7 +4,7 @@ metadata:
   name:	istiod
 build:
   artifacts:
-  - image: gcr.io/costin-istio/istiod
+  - image: costinm/istiod
     context: .
     #sync:	# 	beta local files synced to pods instead of triggering an image build when modified.
     # manual:	# 	manual sync rules indicating the source and destination.
@@ -19,3 +19,14 @@ deploy:
     kustomize:
       path: install/istiod/kustomize/istiod
 
+portForward:
+  - resourceType: service
+    namespace: istio-system
+    resourceName: istiod
+    port: 15010
+    localPort: 16010
+  - resourceType: deployment
+    namespace: istio-system
+    resourceName: istiod
+    port: 8080
+    localPort: 16080

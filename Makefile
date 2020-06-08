@@ -5,7 +5,8 @@
 
 BASE=$(shell cd .; pwd)
 TOP=$(shell cd ${BASE}/../../..; pwd)
-GOPATH=${TOP}
+
+GOPATH ?= ${HOME}/go
 
 CONF ?= ${BASE}/conf
 #HUB ?= gcr.io/istio-release
@@ -64,76 +65,35 @@ push-docker:
 ## ServiceEntries will be loaded from the config dir.
 ##
 ## Plugins: authz, authn, mixer, health
-#pilot:
-#	docker rm -f pilot || true
-#	docker ${DOCKER_START} --name=pilot  \
-#		-p 127.0.0.1:15080:8080 \
-#		-p 0.0.0.0:15010:15010 \
-#		-p 127.0.0.1:15014:15014 \
-#		-p 127.0.0.1:15876:9876 \
-#        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
-#		-v ${PWD}/conf/istio:/var/lib/istio/istio \
-#		-e PILOT_ENABLE_PROTOCOL_SNIFFING=true \
-#	 ${HUB}/pilot:${TAG} \
-#    	 discovery --meshConfig /var/lib/istio/pilot/mesh.yaml \
-#    	--secureGrpcAddr="" \
-#    	--plugins="authz" \
-#        --configDir /var/lib/istio/istio --registries=MCP \
-#        --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
+pilot:
+	docker rm -f pilot || true
+	docker ${DOCKER_START} --name=pilot  \
+		-p 127.0.0.1:15080:8080 \
+		-p 0.0.0.0:15010:15010 \
+		-p 127.0.0.1:15014:15014 \
+		-p 127.0.0.1:15876:9876 \
+        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
+		-v ${PWD}/conf/istio:/var/lib/istio/istio \
+	 ${HUB}/pilot:${TAG} \
+    	 discovery \
+       --meshConfig /var/lib/istio/pilot/mesh.yaml \
+    	--plugins="authz" \
+        --configDir /var/lib/istio/istio --registries=MCP \
+        --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
 
-
-# Example using pilot with MCP source. Replaced by istiod-vm
-#
-## A second Pilot instance, but using Galley config. Second pilot has a different config ( based on the local tests)
-#pilot-galley:
-#	yq m conf/pilot/mesh.yaml conf/pilot/mesh-galley.yaml > conf/pilot/gen-mesh-galley.yaml
-#	yq w -i conf/pilot/gen-mesh-galley.yaml configSources[0].address ${IP}:9901
-#	docker stop pilot-galley || true
-#	docker ${DOCKER_START} --name=pilot-galley  \
-#		-p 127.0.0.1:16080:8080 \
-#		-p 0.0.0.0:16010:15010 \
-#		-p 127.0.0.1:16014:15014 \
-#		-p 127.0.0.1:16876:9876 \
-#        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
-#		-v ${PWD}/conf/istio:/var/lib/istio/istio \
-#		-e PILOT_ENABLE_PROTOCOL_SNIFFING=true \
-#	 ${HUB}/pilot:${TAG} \
-#    	 discovery --meshConfig /var/lib/istio/pilot/gen-mesh-galley.yaml \
-#    	--secureGrpcAddr="" \
-#    	--plugins="authz" \
-#        --registries=MCP \
-#        --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
-
-# Example of starting galley from the microservice, using file source. Replaced by istiod-vm
-#
-## Start galley, using a local directory as config source.
-## Passing kubeconfig instead of configPath will use K8S server, file must be included in the galley directory or mounted.
-#galley:
-#	docker stop galley || true
-#	docker ${DOCKER_START} --name=galley  \
-#		-p 0.0.0.0:9901:9901 \
-#		-p 127.0.0.1:15015:15015 \
-#		-p 127.0.0.1:15877:9877 \
-#        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
-#        -v ${PWD}/conf/galley:/var/lib/istio/galley \
-#		-v ${PWD}/conf/istio/test:/var/lib/istio/istio \
-#	 ${HUB}/galley:${TAG} \
-#    	 server -c /var/lib/istio/galley/galley.yaml \
-#    	    --meshConfigFile /var/lib/istio/pilot/mesh.yaml \
-#			--configPath /var/lib/istio/istio
 
 # Example of local pilot, using files for config. Replaced by istiod-vm
 #
 ## Same as pilot, but running on local machine. Easy to attach a debugger/step.
 ##
-#run-local-pilot:
-#	#kill -9 $(shell cat ${LOG_DIR}/pilot.pid) | true
-#	PILOT_ENABLE_PROTOCOL_SNIFFING=true \
-#	 ${GOPATH}/bin/pilot-discovery discovery \
-#        --meshConfig conf/pilot/mesh.yaml \
-#    	--plugins="authz" \
-#        --configDir conf/istio --registries=MCP \
-#        --networksConfig test/simple/meshNetworks.yaml # & echo $$! > ${LOG_DIR}/pilot.pid
+run-local-pilot:
+	#kill -9 $(shell cat ${LOG_DIR}/pilot.pid) | true
+	PILOT_ENABLE_PROTOCOL_SNIFFING=true \
+	 ${GOPATH}/bin/pilot-discovery discovery \
+        --meshConfig conf/pilot/mesh.yaml \
+    	--plugins="authz" \
+        --configDir conf/istio --registries=MCP \
+        --networksConfig test/simple/meshNetworks.yaml # & echo $$! > ${LOG_DIR}/pilot.pid
 
 
 # Start a local gateway, running in docker. Uses upstream envoy
@@ -268,9 +228,11 @@ gateway-shell:
 # Simpler build for the components we need for testing.
 # For real use the official docker images should be used.
 build:
-	#GOPROXY=https://proxy.golang.org
-	GO111MODULE=on go get -u istio.io/istio/pilot/cmd/pilot-discovery
-	GO111MODULE=on go install istio.io/istio/security/tools/generate_cert
+	export GOPROXY=https://proxy.golang.org
+	#go get -u istio.io/istio/pilot/cmd/pilot-discovery
+	go install istio.io/istio/pilot/cmd/pilot-discovery
+	go install istio.io/istio/pilot/cmd/pilot-agent
+	go install istio.io/istio/security/tools/generate_cert
 
 # Generate root CA and certs for core components and tests
 # This can be used on the local machine directly, and can also be provisioned in remote clusters
@@ -287,18 +249,6 @@ cacerts: conf/ca/ca-cert.pem
         -host spiffe://cluster.local/ns/istio-system/sa/istio-pilot-service-account
 
 KUBECONFIG ?= ${HOME}/.kube/config
-
-# Run citadel locally, provisioning a specific K8S cluster.
-#
-citadel: cacerts
-	${BINDIR}/istio_ca  \
-      --self-signed-ca=false \
-      --root-cert=conf/ca/ca-cert.pem \
-      --signing-cert conf/ca/ca-cert.pem --signing-key=conf/ca/ca-key.pem \
-      --trust-domain=cluster.local \
-      --grpc-port=8060 \
-      --citadel-storage-namespace=istio-system \
-      --kube-config ${KUBECONFIG}
 
 start-local-kind:
 	kind start cluster --name local
@@ -373,6 +323,9 @@ knative:
 	kubectl apply --filename https://github.com/knative/serving/releases/download/v0.11.0/serving.yaml \
 		--filename https://github.com/knative/eventing/releases/download/v0.11.0/release.yaml \
 		--filename https://github.com/knative/serving/releases/download/v0.11.0/monitoring.yaml
+
+skaffold.istiod:
+	env
 
 # Swaps the container image.
 okteto:
