@@ -370,6 +370,9 @@ knative:
 		--filename https://github.com/knative/eventing/releases/download/v0.11.0/release.yaml \
 		--filename https://github.com/knative/serving/releases/download/v0.11.0/monitoring.yaml
 
+skaffold.istiod:
+	env
+
 # Swaps the container image.
 okteto:
 	#go run github.com/okteto/okteto up
