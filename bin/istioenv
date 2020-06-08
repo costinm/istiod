@@ -25,11 +25,14 @@ export ISTIO_SRC=$TOP
 export ISTIO_GO=$TOP/src/istio.io/istio
 export OUT_DIR=$ISTIO_GO/out
 export OUT=${OUT_DIR}
-export ISTIO_OUT=${OUT}/linux_amd64/release
 export TARGET_OUT=${OUT}/linux_amd64/release
 
+# Faster, make autocomplete works
+# make gen, make fmt explicitly set it
+export BUILD_WITH_CONTAINER=0
+
 export KUBECONFIG=${KUBECONFIG:-${HOME}/.kube/config}
-export PATH=$TOP/bin:$ISTIO_OUT:$PATH
+export PATH=$TOP/bin:$TARGET_OUT:$PATH
 
 export GO111MODULE=on
 
@@ -58,6 +61,10 @@ alias kic='kubectl -n istio-control'
 alias kii='kubectl -n istio-ingress'
 
 
+
+######################################3
+## Logs and exec
+
 # Helper - kubernetes log wrapper
 #
 # Params:
@@ -71,7 +78,7 @@ function klog() {
     local container=${3}
     shift; shift; shift
 
-    kubectl --namespace=$ns log $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') $container $*
+    kubectl --namespace=$ns logs $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') $container $*
 }
 
 # Kubernetes exec wrapper
@@ -87,23 +94,6 @@ function kexec() {
     kubectl --namespace=$ns exec -it $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') -c $container -- $*
 }
 
-# Forward port - Namespace, label, PortLocal, PortRemote
-# Example:
-#  kfwd istio-system istio=pilot istio-ingress 4444 8080
-function kfwd() {
-    local NS=$1
-    local L=$2
-    local PL=$3
-    local PR=$4
-
-    local N=$NS-$L
-    if [[ -f ${LOG_DIR:-/tmp}/fwd-$N.pid ]] ; then
-        kill -9 $(cat ${LOG_DIR:-/tmp}/fwd-$N.pid)
-    fi
-    kubectl --namespace=$NS port-forward $(kubectl --namespace=$NS get -l $L pod -o=jsonpath='{.items[0].metadata.name}') $PL:$PR &
-    echo $! > ${LOG_DIR:-/tmp}/fwd-$N.pid
-}
-
 function logs-gateway() {
     istioctl proxy-status -i istio-system
     klog istio-system app=ingressgateway istio-proxy $*
@@ -112,6 +102,7 @@ function logs-gateway() {
 function exec-gateway() {
     kexec istio-system app=ingressgateway istio-proxy  $*
 }
+
 function logs-ingress() {
     istioctl proxy-status -i istio-system
     klog istio-system app=ingressgateway istio-proxy $*
@@ -131,6 +122,11 @@ function logs-pilot() {
 function logs-fortio() {
     klog fortio11 app=fortiotls istio-proxy $*
 }
+
+function logs-webhook() {
+    klog istio-system istio=sidecar-injector sidecar-injector-webhook $*
+}
+
 
 function exec-fortio11-cli-proxy() {
     # curl -v  -k  --key /etc/certs/key.pem --cert /etc/certs/cert-chain.pem https://fortiotls:8080
@@ -265,21 +261,25 @@ function localSidecar() {
 
 }
 
-# Fetch the certs from a namespace, save to /etc/cert
+# Fetch the certs from a namespace, save to current dir
 # Same process used for mesh expansion, can also be used for dev machines.
 function getCerts() {
     local NS=${1:-default}
     local SA=${2:-default}
 
-    kubectl get secret istio.$SA -n $NS -o "jsonpath={.data['key\.pem']}" | base64 -d > /etc/certs/key.pem
-    kubectl get secret istio.$SA -n $NS -o "jsonpath={.data['cert-chain\.pem']}" | base64 -d > /etc/certs/cert-chain.pem
-    kubectl get secret istio.$SA -n $NS -o "jsonpath={.data['root-cert\.pem']}" | base64 -d > /etc/certs/root-cert.pem
+    go run istio.io/istio/security/tools/generate_cert  -out-cert cert-chain.pem -out-priv key.pem \
+      --host spiffe://cluster.local/ns/vmtest/sa/default
+
+    #kubectl get secret istio.$SA -n $NS -o "jsonpath={.data['key\.pem']}" | base64 -d >key.pem
+    #kubectl get secret istio.$SA -n $NS -o "jsonpath={.data['cert-chain\.pem']}" | base64 -d > cert-chain.pem
+    #kubectl get secret istio.$SA -n $NS -o "jsonpath={.data['root-cert\.pem']}" | base64 -d > /etc/certs/root-cert.pem
+    kubectl get cm istio-ca-root-cert -o "jsonpath={.data['root-cert\.pem']}" >  root-cert.pem
 }
 
 # For debugging, get the istio CA. Can be used with openssl or other tools to generate certs.
 function getCA() {
-    kubectl get secret istio-ca-secret -n istio-system -o "jsonpath={.data['ca-cert\.pem']}" | base64 -d > /etc/certs/ca-cert.pem
-    kubectl get secret istio-ca-secret -n istio-system -o "jsonpath={.data['ca-key\.pem']}" | base64 -d > /etc/certs/ca-key.pem
+    kubectl get secret istio-ca-secret -n istio-system -o "jsonpath={.data['ca-cert\.pem']}" | base64 -d > ./etc/certs/ca-cert.pem
+    kubectl get secret istio-ca-secret -n istio-system -o "jsonpath={.data['ca-key\.pem']}" | base64 -d > ./etc/certs/ca-key.pem
 }
 
 function istio_status() {
@@ -331,10 +331,6 @@ function dbuild() {
 }
 
 
-function grafana() {
-  kubectl -n istio-system port-forward $(kubectl -n istio-system get pod -l app=grafana -o jsonpath='{.items[0].metadata.name}') 3000:3000 &
-}
-
 #function kexec() {
 #    local label=$1
 #    local container=${2:-istio-proxy}
@@ -381,25 +377,6 @@ function pilot-get() {
     curl localhost:15003/cache_stats
 }
 
-# Access to istio-system components
-function pilot-logs() {
-    local ns=${1:-istio-system}
-    shift
-    klog istio=pilot discovery $ns $*
-}
-function istio-fwd-pilotmon() {
-    local ns=${1:-istio-system}
-    istio-fwd1 istio=pilot $ns 11093 9093
-}
-function istio-fwd-system-pilot() {
-    local ns=${1:-istio-system}
-    istio-fwd1 istio=pilot $ns 11080 8080
-}
-
-function ingress-logs() {
-    klog istio=ingress ingress istio-system $*
-}
-
 function pilot-exec-envoy() {
     local ns=${1:-istio-system}
     kexec istio=pilot istio-proxy $ns
@@ -420,30 +397,6 @@ function istio-exec-pilot() {
 function istio-exec-ingress() {
     kexec istio=ingressgateway istio-proxy istio-system
 }
-function istio-logs-ingress() {
-    klog istio=ingressgateway istio-proxy istio-system $*
-}
-function istio-logs-webhooks() {
-    klog istio=sidecar-injector sidecar-injector-webhook istio-system $*
-}
-function istio-logs-pilot() {
-    klog istio=pilot discovery istio-system $*
-}
-function istio-exec-legacy-ingress() {
-    kexec istio=ingress ingress istio-system
-}
-function istio-logs-mixer() {
-    klog app=telemetry mixer istio-system $*
-}
-function istio-logs-system-mixer-proxy() {
-    klog istio=mixer mixer-proxy istio-system $*
-}
-function istio-logs-sidecar-injector() {
-    klog istio=sidecar-injector sidecar-injector-webhook istio-system $*
-}
-function istio-logs-system-simple() {
-    klog app=echosrv echosrv istio-system $*
-}
 function istio-exec-a() {
    kexec app=a istio-proxy test
 }
@@ -459,9 +412,6 @@ function istio-exec-tls() {
 function istio-exec-noauth-a() {
    kexec app=a istio-proxy pilot-noauth
 }
-function istio-logs-noauth-a() {
-    klog app=a istio-proxy pilot-noauth $*
-}
 function istio-exec-noauth-b() {
    kexec app=b istio-proxy pilot-noauth
 }
@@ -471,29 +421,11 @@ function istio-exec-noauth-ingress() {
 function istio-exec-noauth-pilot() {
    kexec infra=pilot istio-proxy pilot-noauth-system
 }
-function istio-logs-noauth-mixer-proxy() {
-    klog istio=mixer istio-proxy pilot-noauth-system $*
-}
-function istio-logs-noauth-ingress() {
-    klog app=ingress istio-proxy pilot-noauth-system $*
-}
-function istio-logs-noauth-pilot() {
-    klog infra=pilot discovery pilot-noauth-system $*
-}
-function istio-fwd-noauth-pilotmon() {
-    istio-fwd1 infra=pilot pilot-noauth-system 12093 9093
-}
-function istio-fwd-noauth-pilot() {
-    istio-fwd1 infra=pilot pilot-noauth-system 12080 8080
-}
 
 # Access to test
 # Access to pilot no-auth suite
 function istio-exec-test-a() {
    kexec app=a istio-proxy test
-}
-function istio-logs-test-a() {
-    klog app=a istio-proxy test $*
 }
 function istio-exec-test-b() {
    kexec app=b istio-proxy test
@@ -506,53 +438,9 @@ function make-bootstrap() {
 }
 
 
-function istio-fwd1() {
-    local L=$1
-    local NS=$2
-    local PL=$3
-    local PR=$4
-
-    local N=$NS-$L
-    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
-        kill -9 $(cat $LOG_DIR/fwd-$N.pid)
-    fi
-    kubectl --namespace=$NS port-forward $(kubectl --namespace=$NS get -l $L pod -o=jsonpath='{.items[0].metadata.name}') $PL:$PR &
-    echo $! > $LOG_DIR/fwd-$N.pid
-}
-
-
 # Access to the pilot auth suite
 function test-exec-auth-pilot() {
    kexec infra=pilot istio-proxy pilot-auth-system
-}
-function test-fwd-auth-pilot() {
-   kfwd 15005 infra=pilot pilot-auth-system
-}
-function test-fwd-auth-pilot1() {
-   kfwd2 8080 15003 infra=pilot pilot-auth-system
-}
-
-
-function istio-fwd() {
-    fwd-prom
-    fwd-grafana
-    fwd-servicegraph
-    pilot-fwd
-}
-
-# Kubernetes forward port by label. Will use the same port as the app.
-function kfwd() {
-    local port=$1
-    local label=$2
-    local ns=${3:-istio-system}
-    kubectl --namespace=$ns port-forward $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') $port:$port
-}
-function kfwd2() {
-    local port=$1
-    local port2=$2
-    local label=$3
-    local ns=${4:-istio-system}
-    kubectl --namespace=$ns port-forward $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') $port:$port2
 }
 
 function istioV2() {
@@ -566,32 +454,6 @@ function istioV2Push() {
     docker push ${HUB}/proxyv2:$T
     docker push ${HUB}/proxy:$T
     docker push ${HUB}/proxy_debug:$T
-}
-
-function fwdApp() {
-    local N=$1
-    local P=$2
-
-    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
-        kill -9 $(cat $LOG_DIR/fwd-$N.pid)
-    fi
-
-    echo "$N http://localhost:$P"
-    kubectl --namespace=istio-system port-forward $(kubectl --namespace=istio-system get -l app=$N pod -o=jsonpath='{.items[0].metadata.name}') $P:$P &
-    echo $! > $LOG_DIR/fwd-$N.pid
-}
-
-function pilot-fwd() {
-    local N=pilot
-
-    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
-        kill -9 $(cat $LOG_DIR/fwd-$N.pid)
-    fi
-
-    local POD=$(kubectl get -n istio-system po  |grep pilot |grep Running | cut -f1 -d\ )
-    echo "Pilot http://localhost:15003/cache_stats $POD"
-    #kubectl --namespace=istio-system port-forward $(kubectl --namespace=istio-system get -l istio=pilot pod -o=jsonpath='{.items[0].metadata.name}') 15003:8080
-    kubectl --namespace=istio-system port-forward $POD 15003:8080
 }
 
 function pilot-kill() {
@@ -613,39 +475,8 @@ function istio-key() {
         -client -host spiffe://costin.foo.com
 
 }
-function port-registry() {
 
-  POD=$(kubectl get pods --namespace kube-system -l k8s-app=kube-registry \
-  -o template --template '{{range .items}}{{.metadata.name}} {{.status.phase}}{{"\n"}}{{end}}' \
-  | grep Running | head -1 | cut -f1 -d' ')
-    if [[ -f $LOG_DIR/registry.pid ]] ; then
-        kill -9 $(cat $LOG_DIR/registry.pid)
-    fi
-  kubectl port-forward --namespace kube-system $POD 5000:5000 &
-    echo $! > $LOG_DIR/registry.pid
-}
 
-function pilot-fwdmon() {
-    local N=pilotmon
-
-    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
-        kill -9 $(cat $LOG_DIR/fwd-$N.pid)
-    fi
-    kubectl --namespace=istio-system port-forward $(kubectl --namespace=istio-system get -l istio=pilot pod -o=jsonpath='{.items[0].metadata.name}') 19093:9093 &
-    echo $! > $LOG_DIR/fwd-$N.pid
-}
-
-function fwd-prom() {
-    fwdApp prometheus 9090
-}
-
-function fwd-grafana() {
-    fwdApp grafana 3000
-}
-
-function fwd-servicegraph() {
-    fwdApp servicegraph 8088
-}
 
 alias istiocurl="curl -k --cert /etc/certs/cert-chain.pem --cacert /etc/certs/root-cert.pem --key /etc/certs/key.pem  "
 
@@ -791,7 +622,7 @@ function istioE2E() {
       --skip_setup --namespace test \
       --mixer_tag ${TAG} --pilot_tag ${TAG} --proxy_tag ${TAG} --ca_tag ${TAG} \
       --mixer_hub ${HUB} --pilot_hub ${HUB} --proxy_hub ${HUB} --ca_hub ${HUB} \
-      --istioctl $ISTIO_OUT/istioctl
+      --istioctl $TARGET_OUT/istioctl
 
 }
 
@@ -815,6 +646,16 @@ function istioTestPilot() {
 
     # http-reachability
     # tcp-reachablility
+}
+
+function istioXDS() {
+  # EnvoyFilter, Gateway, VirtualService, etc
+  (cd $ISTIO_GO; \
+    go run ./pilot/tools/debug --pilot localhost:15010 \
+      --proxytag fortio  \
+      --node sidecar~10.42.0.86~fortio-856f9bb7fb-ljhwx.fortio~fortio.svc.cluster.local \
+      --type networking.istio.io/v1alpha3/VirtualService
+  )
 }
 
 # Also docker rm $(docker ps -a -q)
@@ -873,17 +714,6 @@ function helmGet() {
   kubectl -n kube-system get cm $1 -o=jsonpath='{.data.release}' | base64 -d |gzip -d
 }
 
-
-# Forward the k8s registry port
-function k8sLocalRegistry() {
-  POD=$(kubectl get pods --namespace istio-system -l app=kube-registry \
-            -o template --template '{{range .items}}{{.metadata.name}} {{.status.phase}}{{"\n"}}{{end}}' \
-            | grep Running | head -1 | cut -f1 -d' ')
-
-  kubectl port-forward --namespace istio-system $POD 5000:5000 &
-
-  export HUB=localhost:5000
-}
 
 # Wait for k8s to show up
 function k8sWait() {
@@ -971,4 +801,119 @@ function istioAddRemoteCA() {
 }
 
 
+
+###############################################
+# Port forwarding
+# Forward port - Namespace, label, PortLocal, PortRemote
+# Example:
+#  kfwd istio-system istio=pilot istio-ingress 4444 8080
+function kfwd() {
+    local NS=$1
+    local L=$2
+    local PL=$3
+    local PR=$4
+
+    local N=$NS-$L
+    if [[ -f ${LOG_DIR:-/tmp}/fwd-$N.pid ]] ; then
+        kill -9 $(cat ${LOG_DIR:-/tmp}/fwd-$N.pid)
+    fi
+    kubectl --namespace=$NS port-forward $(kubectl --namespace=$NS get -l $L pod -o=jsonpath='{.items[0].metadata.name}') $PL:$PR &
+    echo $! > ${LOG_DIR:-/tmp}/fwd-$N.pid
+}
+
+# Forward the k8s registry port
+function k8sLocalRegistry() {
+  POD=$(kubectl get pods --namespace istio-system -l app=kube-registry \
+            -o template --template '{{range .items}}{{.metadata.name}} {{.status.phase}}{{"\n"}}{{end}}' \
+            | grep Running | head -1 | cut -f1 -d' ')
+
+  kubectl port-forward --namespace istio-system $POD 30500:5000 &
+
+  export HUB=localhost:30500
+}
+
+function fwdApp() {
+    local N=$1
+    local P=$2
+
+    kfwd istio-system app=$N $P $P
+}
+
+function pilot-fwd() {
+    local N=pilot
+
+    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
+        kill -9 $(cat $LOG_DIR/fwd-$N.pid)
+    fi
+
+    local POD=$(kubectl get -n istio-system po  |grep pilot |grep Running | cut -f1 -d\ )
+    echo "Pilot http://localhost:15003/cache_stats $POD"
+    #kubectl --namespace=istio-system port-forward $(kubectl --namespace=istio-system get -l istio=pilot pod -o=jsonpath='{.items[0].metadata.name}') 15003:8080
+    kubectl --namespace=istio-system port-forward $POD 15003:8080
+}
+
+
+function istio-fwd1() {
+    local L=$1
+    local NS=$2
+    local PL=$3
+    local PR=$4
+
+    local N=$NS-$L
+    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
+        kill -9 $(cat $LOG_DIR/fwd-$PL.pid)
+    fi
+    kubectl --namespace=$NS port-forward $(kubectl --namespace=$NS get -l $L pod -o=jsonpath='{.items[0].metadata.name}') $PL:$PR &
+    echo $! > $LOG_DIR/fwd-$PL.pid
+}
+function grafana() {
+  kubectl -n istio-system port-forward $(kubectl -n istio-system get pod -l app=grafana -o jsonpath='{.items[0].metadata.name}') 3000:3000 &
+}
+
+function istio-fwd() {
+    fwd-prom
+    fwd-grafana
+    fwd-servicegraph
+    pilot-fwd
+}
+
+
+function port-registry() {
+
+  POD=$(kubectl get pods --namespace kube-system -l k8s-app=kube-registry \
+  -o template --template '{{range .items}}{{.metadata.name}} {{.status.phase}}{{"\n"}}{{end}}' \
+  | grep Running | head -1 | cut -f1 -d' ')
+    if [[ -f $LOG_DIR/registry.pid ]] ; then
+        kill -9 $(cat $LOG_DIR/registry.pid)
+    fi
+  kubectl port-forward --namespace kube-system $POD 5000:5000 &
+    echo $! > $LOG_DIR/registry.pid
+}
+
+function pilot-fwdmon() {
+    local N=pilotmon
+
+    if [[ -f $LOG_DIR/fwd-$N.pid ]] ; then
+        kill -9 $(cat $LOG_DIR/fwd-$N.pid)
+    fi
+    kubectl --namespace=istio-system port-forward $(kubectl --namespace=istio-system get -l istio=pilot pod -o=jsonpath='{.items[0].metadata.name}') 19093:9093 &
+    echo $! > $LOG_DIR/fwd-$N.pid
+}
+
+function istio-fwd-pilotmon() {
+    local ns=${1:-istio-system}
+    istio-fwd1 istio=pilot $ns 11093 9093
+}
+function istio-fwd-system-pilot() {
+    local ns=${1:-istio-system}
+    istio-fwd1 istio=pilot $ns 11080 8080
+}
+
+function fwd-prom() {
+    fwdApp prometheus 9090
+}
+
+function fwd-grafana() {
+    fwdApp grafana 3000
+}
 

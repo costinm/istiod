@@ -1,0 +1,59 @@
+# Example of 2 TLS Ingress.
+
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: httpbin1
+  annotations:
+    kubernetes.io/ingress.class: istio-micro-ingress
+spec:
+  rules:
+    - host: httpbin-ingress.example.com
+      http:
+        paths:
+          - path: /.*
+            backend:
+              serviceName: httpbin
+              servicePort: 8000
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: httpbin-ingress
+  annotations:
+    kubernetes.io/ingress.class: istio-micro-ingress
+spec:
+  rules:
+    - host: httpbin-ingress2.example.com
+      http:
+        paths:
+          - path: /.*
+            backend:
+              serviceName: httpbin
+              servicePort: 8000
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: hello1
+  annotations:
+    kubernetes.io/ingress.class: istio-micro-ingress
+spec:
+  rules:
+    - host: fortio-ingress.example.com
+      http:
+        paths:
+          - path: /.*
+            backend:
+              serviceName: fortio
+              servicePort: 8080
+
+---
+

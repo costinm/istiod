@@ -1,0 +1,194 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Sidecar
+metadata:
+  name: default
+  namespace: iperf3s
+  labels:
+    release: iperf3s
+spec:
+  egress:
+    - hosts:
+        - ./*
+        - istio-telemetry/istio-telemetry.istio-telemetry.svc.cluster.local
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: iperf3-srv
+  labels:
+    release: iperf3s
+  namespace: iperf3s
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: iperf3
+        version: v2
+    spec:
+      containers:
+        - image: docker.io/networkstatic/iperf3
+          imagePullPolicy: IfNotPresent
+          name: iperf3
+          ports:
+            - containerPort: 5201
+          args:
+            - '-s'
+            - '-p'
+            - '5201'
+          resources:
+            requests:
+              cpu: 1000m
+              memory: "1G"
+            limits:
+              cpu: 1000m
+              memory: "2G"
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: iperf3-srv-a
+  labels:
+    release: iperf3s
+  namespace: iperf3s
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: iperf3
+        version: v1
+    spec:
+      containers:
+        - image: docker.io/networkstatic/iperf3
+          imagePullPolicy: IfNotPresent
+          name: iperf3
+          ports:
+            - containerPort: 5201
+          args:
+            - '-s'
+            - '-p'
+            - '5201'
+          resources:
+            requests:
+              cpu: 1000m
+              memory: "1G"
+            limits:
+              cpu: 1000m
+              memory: "2G"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iperf3
+  labels:
+    release: iperf3s
+  namespace: iperf3s
+spec:
+  ports:
+    - name: tcp
+      port: 5201
+      targetPort: 5201
+  selector:
+    app: iperf3
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: tcp-dr
+  namespace: iperf3s
+spec:
+  host: iperf3.iperf3s.svc.cluster.local
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+  trafficPolicy:
+    tls:
+      mode: "ISTIO_MUTUAL"
+---
+# Explicit DR in istio-system
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: tcp-dr
+  namespace: istio-system
+spec:
+  host: iperf3.iperf3s.svc.cluster.local
+  subsets:
+    - name: v1
+      labels:
+        version: v1
+    - name: v2
+      labels:
+        version: v2
+  trafficPolicy:
+    tls:
+      mode: "ISTIO_MUTUAL"
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: tcp-gateway
+  namespace: istio-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 5201
+      name: tcp-5201
+      protocol: TCP
+    hosts:
+    - "*"
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: iperf3-gateway-5201
+  namespace: istio-system
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 5201
+        name: tcp-5201
+        protocol: TCP
+      hosts:
+        - "*"
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: tcp-vs
+  namespace: iperf3s
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - istio-gateway/tcp-gateway
+  - istio-system/iperf3-gateway-5201
+  tcp:
+  - match:
+    - port: 5201
+    route:
+    - destination:
+        host: iperf3.iperf3s.svc.cluster.local
+        port:
+          number: 5201
+        subset: v1
+      weight: 50
+    - destination:
+        host: iperf3.iperf3s.svc.cluster.local
+        port:
+          number: 5201
+        subset: v2
+      weight: 50
+

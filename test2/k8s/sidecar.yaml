@@ -1,0 +1,16 @@
+# This is the default sidecar for the mesh. Isolation enabled by default in 1.2
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Sidecar
+metadata:
+  name: default
+  namespace: istio-debug
+  labels:
+    release: istio-debug
+spec:
+  egress:
+    - hosts:
+        - "istio-telemetry/*"
+        - "istio-ingress/*"
+        - "istio-control/*"
+        - "."

@@ -1,0 +1,85 @@
+# Example configuration using Envoy v2 bootstrap, custom envoy configuration with SNI
+#
+# Setting up SNI in LDSv2:
+# https://www.envoyproxy.io/docs/envoy/latest/faq/sni.html#faq-how-to-setup-sni
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envoy-config
+  namespace: istio-system
+data:
+  envoy.yaml:
+    static_resources:
+      listeners:
+      - name: http
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 80 }
+        filter_chains:
+        - filters:
+          - name: envoy.http_connection_manager
+            # TODO: add mixer
+            config:
+              stat_prefix: http80
+              codec_type: AUTO
+              rds:
+                # Will be passed as part of the URL /v1/routes/80/istio-proxy/ingress~~...
+                route_config_name: "80"
+                config_source:
+                  api_config_source:
+                      api_type: REST_LEGACY
+                      refresh_delay: 10s
+                      cluster_names: [rds]
+              http_filters:
+                - name: envoy.router
+
+      - name: https
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 443 }
+        filter_chains:
+{{ range $app := .Values.sni.apps }}
+        - filter_chain_match:
+            sni_domains: {{ $app.name }}
+          tls_context:
+            common_tls_context:
+              tls_certificates:
+                - certificate_chain: { filename: "/etc/istio/sni/{{ $app.name }}/tls.crt" }
+                  private_key: { filename: "/etc/istio/sni/{{ $app.name }}/tls.key" }
+          filters:
+          - name: envoy.http_connection_manager
+            config:
+              stat_prefix: http443
+              codec_type: AUTO
+              rds:
+                # TODO: this gets all routes, we'll need to filter by domain.
+                # Shouldn't cause any harm - the filter will pre-select the domain
+                # (except cases where SNI and Host don't match - but client validation will not allow
+                # this)
+                route_config_name: "443"
+                config_source:
+                  api_config_source:
+                      api_type: REST_LEGACY
+                      refresh_delay: 10s
+                      cluster_names: [rds]
+              http_filters:
+                - name: envoy.router
+{{ end }}
+        - filters:
+          - name: envoy.http_connection_manager
+            # TODO: add mixer
+            config:
+              stat_prefix: https
+              codec_type: AUTO
+              rds:
+                route_config_name: "443"
+                config_source:
+                  api_config_source:
+                      api_type: REST_LEGACY
+                      refresh_delay: 10s
+                      cluster_names: [rds]
+              http_filters:
+                - name: envoy.router
+
+
+
+---
+{{ end }}

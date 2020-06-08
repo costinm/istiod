@@ -1,0 +1,26 @@
+# Example for configuring prometheus.
+# With sidecar, the rule must be in the gateway or imported ns.
+#apiVersion: networking.istio.io/v1alpha3
+#kind: DestinationRule
+#metadata:
+#  name: prometheus
+#  namespace: istio-control
+#spec:
+#  host: prometheus.istio-telemetry.svc.cluster.local
+#  trafficPolicy:
+#    tls:
+#      mode: DISABLE
+
+---
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: prometheus
+  namespace: istio-ingress
+spec:
+  host: prometheus.istio-telemetry.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: DISABLE

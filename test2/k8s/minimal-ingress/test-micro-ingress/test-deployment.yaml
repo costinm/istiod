@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  labels:
+    app: httpbin
+spec:
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 80
+  selector:
+    app: httpbin
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: httpbin
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: httpbin
+        version: v1
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - image: docker.io/kennethreitz/httpbin
+          imagePullPolicy: IfNotPresent
+          name: httpbin
+          ports:
+            - containerPort: 80
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: fortio
+spec:
+  ports:
+    - port: 8080 # This is the service port - connect to fortio:8080 as client (using http proxy or in mesh)
+      name: http-echo
+    - port: 8079
+      name: grpc-ping
+  selector:
+    app: fortio
+
+---
+# TODO: VirtualService using new Gateway style
+
+# TODO: use UDS
+
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: fortio
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: fortio
+        version: v1
+      annotations:
+        sidecar.istio.io/interceptionMode: NONE
+        status.sidecar.istio.io/port: "0"
+        sidecar.istio.io/inject: "false"
+    spec:
+      containers:
+        - name: echosrv
+          image: costinm/fortio:latest
+          imagePullPolicy: Always
+          args:
+            - server
+            - -static-dir
+            - "/usr/share/fortio/"
+          resources:
+            requests:
+              cpu: 100m
+              memory: "100M"
+            limits:
+              cpu: 100m
+              memory: "100M"

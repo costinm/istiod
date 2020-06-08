@@ -1,0 +1,12 @@
+
+#global: 
+  
+
+  # Example disabling the control plane security.
+  # This will allow installing without citadel (and the complex DNS setup)
+  # Can be used for a profile used for testing, where access to secrets is not needed.
+  #controlPlaneSecurityEnabled: false
+
+
+
+

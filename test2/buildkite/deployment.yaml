@@ -1,0 +1,55 @@
+# Buildkite agent running in a K8S cluster
+# The build will have access to the namespace where this agent is running !
+
+# TODO: service account, permissions to create istio installation (RBAC)
+# Or just local permissions with a namespace-restricted Istio test - where tests and
+# control plane run in a namespace, without special permissions.
+
+
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: buildkite-agent
+  namespace: buildkite
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: buildkite-agent
+    spec:
+      containers:
+        - name: buildkite-agent
+          image: istionightly/buildkite
+          imagePullPolicy: Always
+          securityContext:
+            privileged: true
+          env:
+            - name: BUILDKITE_AGENT_TOKEN
+              valueFrom: {secretKeyRef: {name: buildkite-agent, key: token}}
+          volumeMounts:
+            - name: docker-binary
+              mountPath: /usr/bin/docker
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+            # https://github.com/kubernetes-sigs/kind/issues/303
+            - mountPath: /lib/modules
+              name: modules
+              readOnly: true
+            - mountPath: /sys/fs/cgroup
+              name: cgroup
+
+      volumes:
+        - name: docker-binary
+          hostPath: {path: /usr/bin/docker}
+        - name: docker-socket
+          hostPath: {path: /var/run/docker.sock}
+        - name: modules
+          hostPath:
+            path: /lib/modules
+            type: Directory
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+            type: Directory

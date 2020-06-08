@@ -11,11 +11,11 @@ A daemon set is used to forward 'localhost' requests to the actual registry.
 
  kubectl apply -k github.com/costinm/istiod/test/registry
 
- POD=$(kubectl get pods --namespace kube-system -l k8s-app=kube-registry \
+ POD=$(kubectl get pods --namespace istio-system -l app=kube-registry \
             -o template --template '{{range .items}}{{.metadata.name}} {{.status.phase}}{{"\n"}}{{end}}' \
             | grep Running | head -1 | cut -f1 -d' ')
 
- kubectl port-forward --namespace kube-system $POD 5000:5000 &
+ kubectl port-forward --namespace istio-system $POD 5000:5000 &
 
 ```
 

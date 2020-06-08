@@ -1,3 +1,6 @@
+
+# kube-registry-proxy starts an nginx server on the node
+
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -53,7 +56,7 @@ spec:
 #        - "args":
 #            - "tcp"
 #            - "5000"
-#            - "docker-private-registry.default.svc.cluster.local"
+#            - "kube-registry.istio-system.svc.cluster.local"
 #
 #          "image": "gcr.io/google_containers/proxy-to-service:v2"
 #          "name": "proxy-tcp"

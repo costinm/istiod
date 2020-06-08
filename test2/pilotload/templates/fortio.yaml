@@ -1,0 +1,73 @@
+{{ $vs := int .Values.loadTestServices }}
+{{ range $is, $es := until $vs }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: fortiosmall-{{ $is }}
+  labels:
+    release: {{ $.Release.Name }}
+spec:
+  ports:
+  - port: 8080
+    name: http-echo
+  - port: 8079
+    name: tcp-test
+  selector:
+    app: fortiosmall-{{ $is }}
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: fortio-{{ $is }}
+  labels:
+    release: {{ $.Release.Name }}
+spec:
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/proxyCPU: 50m
+        sidecar.istio.io/proxyMemory: 128M
+        #sidecar.istio.io/controlPlaneAuthPolicy: MUTUAL_TLS
+        #sidecar.istio.io/discoveryAddress: pilot.istio-system:15012
+      labels:
+        app: fortiosmall-{{ $is }}
+        all: fortiosmall
+        version: small
+    spec:
+      containers:
+      - name: fortio
+        image: istio/fortio:latest
+        ports:
+        - containerPort: 8080
+        - containerPort: 8079
+        args:
+        - server
+        resources:
+          requests:
+            cpu: 50m
+            memory: "1G"
+          limits:
+            cpu: 100m
+            memory: "1G"
+
+---
+{{ end }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: fortiosmall
+  labels:
+    release: {{ .Release.Name }}
+spec:
+  ports:
+  - port: 8080
+    name: http-echo
+  - port: 8081
+    targetPort: 8080
+    name: http-echo1
+  - port: 8079
+    name: grpc-ping
+  selector:
+    all: fortiosmall

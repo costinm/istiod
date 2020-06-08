@@ -1,0 +1,172 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  proxy.conf: |-
+    server {
+            listen 80;
+
+            root /usr/share/nginx/html;
+            index index.html;
+
+            access_log /dev/stderr;
+
+            server_name localhost;
+
+            location / {
+                    try_files $uri $uri/ =404;
+            }
+            location /hello/ {
+              proxy_pass http://hello/;
+              proxy_http_version 1.1;
+            }
+            location /justhello/ {
+              proxy_pass http://justhello/;
+              proxy_http_version 1.1;
+            }
+
+    }
+  prom.conf: |-
+    server {
+      listen 9090;
+      location / {
+        access_log /dev/stderr;
+        proxy_pass http://prometheus:9090/;
+        proxy_http_version 1.1;
+      }
+    }
+  envoyadmin.conf: |-
+    server {
+      listen 9001;
+      location / {
+        access_log /dev/stderr;
+        proxy_pass http://envoy:9001/;
+        proxy_http_version 1.1;
+      }
+    }
+  envoystatsd.conf: |-
+    server {
+      listen 9102;
+      location / {
+        access_log /dev/stderr;
+        proxy_pass http://envoy-statsd:9102/;
+        proxy_http_version 1.1;
+      }
+    }
+  manager.conf: |-
+    server {
+      listen 8080;
+      location / {
+        access_log /dev/stderr;
+        proxy_pass http://istio-manager:8080/;
+        proxy_http_version 1.1;
+      }
+    }
+  mixerprom.conf: |-
+    server {
+      listen 42422;
+      location / {
+        access_log /dev/stderr;
+        proxy_pass http://istio-mixer:42422/;
+        proxy_http_version 1.1;
+      }
+    }
+  mixerconf.conf: |-
+    server {
+      listen 9094;
+      location / {
+        access_log /dev/stderr;
+        proxy_pass http://istio-mixer:9094/;
+        proxy_http_version 1.1;
+      }
+    }
+  mixertcp.conf: |-
+    upstream backend {
+        server istio-mixer:9091;
+    }
+
+    server {
+        listen 9091;
+        proxy_pass backend;
+    }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    name: http
+  - port: 9090
+    name: prom
+  - port: 9001
+    name: envoyadmin
+  - port: 9102
+    name: envoystatsd
+  - port: 8080
+    name: manager
+  - port: 9094
+    name: mixerconf
+  - port: 9091
+    name: mixer
+  - port: 42422
+    name: mixerprom
+  selector:
+    app: nginx
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nginx
+        tier: frontend
+        track: stable
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
+          command:
+            - "nginx"
+            - "-g"
+            - "daemon off; error_log /dev/stderr info;"
+          ports:
+            - name: http
+              containerPort: 80
+            - name: prom
+              containerPort: 9090
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/usr/sbin/nginx","-s","quit"]
+          volumeMounts:
+            - mountPath: /etc/nginx/conf.d
+              name: nginxconfig
+          resources:
+           requests:
+             cpu: 1500m
+             memory: "1G"
+           limits:
+             cpu: 2000m
+             memory: "2G"
+        - image:  costinm/netdebug:latest
+          name: debug
+          command: [ "/bin/bash", "-c", "--" ]
+          args: [ "while true; do sleep 30; done;" ]
+          securityContext:
+            privileged: true
+
+      volumes:
+        - name: nginxconfig
+          configMap:
+            name: nginx-config

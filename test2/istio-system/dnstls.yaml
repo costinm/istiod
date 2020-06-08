@@ -1,0 +1,42 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: meshexpansion-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 853
+      protocol: TCP
+      name: tcp-dns
+    hosts:
+    - "*"
+    tls:
+        mode: SIMPLE
+        #serverCertificate: /etc/istio/ingressgateway-certs-fortiotls/tls.crt
+        #privateKey: /etc/istio/ingressgateway-certs-fortiotls/tls.key
+        serverCertificate: /etc/certs/cert-chain.pem
+        privateKey: /etc/certs/key.pem
+        #serverCertificate: /a/cert-chain.pem
+        #privateKey: /a/tls.key
+        #caCertificates: /etc/certs/root-cert.pem
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: dnstls
+spec:
+  hosts:
+  - "dnstls.istio-system"
+  gateways:
+  - meshexpansion-gateway
+  tcp:
+  - match:
+    - port: 853
+    route:
+    - destination:
+        host: kube-dns.kube-system.svc.cluster.local
+        port:
+          number: 53

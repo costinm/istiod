@@ -1,0 +1,3 @@
+qps: 100
+pilotns: istio-pilot11
+debug: info

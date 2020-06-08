@@ -1,0 +1,19 @@
+# Creates an istio-debug namespace, with VirtualServices for various hosts
+# useful for debugging istio.
+#
+# This targets the 'main' control plane.
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Sidecar
+metadata:
+  name: default
+  namespace: istio-debug
+  labels:
+    release: istio-debug
+spec:
+  egress:
+    - hosts:
+        - "istio-telemetry/*"
+        - "istio-telemetry-master/*"
+        - "istio-ingress/*"
+        - "istio-control/*"

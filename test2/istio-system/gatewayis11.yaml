@@ -1,0 +1,183 @@
+# Gateway config, and associated virtual services
+# s/.is11.istio.webinf.info/yourdomain/
+
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: istio-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+#  - port:
+#      number: 443
+#      name: https-default
+#      protocol: HTTPS
+#    tls:
+#      mode: SIMPLE
+#      serverCertificate: /etc/istio/ingressgateway-certs/tls.crt
+#      privateKey: /etc/istio/ingressgateway-certs/tls.key
+#    hosts:
+#    - "*"
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: fortionone
+spec:
+  hosts:
+  - fortionone.is11.istio.webinf.info
+  gateways:
+  - istio-gateway
+  http:
+  - route:
+    - destination:
+        host: fortio.none.svc.cluster.local
+        port:
+          number: 8080
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: pilot
+spec:
+  hosts:
+  - "pilot.is11.istio.webinf.info"
+  gateways:
+  - istio-gateway
+  http:
+  - route:
+    - destination:
+        host: istio-pilot.istio-system.svc.cluster.local
+        port:
+          number: 15014
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: httpbin
+spec:
+  hosts:
+  - "httpbin.is11.istio.webinf.info"
+  gateways:
+  - istio-gateway
+  http:
+  - route:
+    - destination:
+        host: httpbin.test.svc.cluster.local
+        port:
+          number: 8000
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: grafana
+spec:
+  hosts:
+  - "grafana.is11.istio.webinf.info"
+  gateways:
+  - istio-gateway
+  http:
+  - route:
+    - destination:
+        host: grafana.istio-system.svc.cluster.local
+        port:
+          number: 3000
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: trace
+spec:
+  hosts:
+  - "trace.is11.istio.webinf.info"
+  gateways:
+  - istio-gateway
+  http:
+  - route:
+    - destination:
+        host: tracing.istio-system.svc.cluster.local
+        port:
+          number: 80
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: servicegraph
+spec:
+  hosts:
+  - "servicegraph.is11.istio.webinf.info"
+  gateways:
+  - istio-gateway
+  http:
+  - route:
+    - destination:
+        host: servicegraph.istio-system.svc.cluster.local
+        port:
+          number: 8088
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: kiali
+spec:
+  hosts:
+  - "kiali.is11.istio.webinf.info"
+  gateways:
+  - istio-gateway
+  http:
+  - route:
+    - destination:
+        host: kiali.istio-system.svc.cluster.local
+        port:
+          number: 20001
+
+
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: prom
+spec:
+  hosts:
+  - "prom.is11.istio.webinf.info"
+  gateways:
+  - istio-gateway
+  http:
+  - route:
+    - destination:
+        host: prometheus.istio-system.svc.cluster.local
+        port:
+          number: 9090
+---
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: bookinfo
+spec:
+  hosts:
+  - "bookinfo.is11.istio.webinf.info"
+  gateways:
+  - istio-gateway
+  http:
+  - route:
+    - destination:
+        host: productpage.bookinfo.svc.cluster.local
+        port:
+          number: 9080
+
+---

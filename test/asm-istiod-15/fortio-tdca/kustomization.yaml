@@ -1,6 +1,0 @@
-
-resources:
-  - ns.yaml
-  - fortio.yaml
-  - fortio-cli.yaml
-  - strict.yaml

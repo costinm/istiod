@@ -1,0 +1,36 @@
+# Overrides to run Istio with larger allocations, for medium-size traffic.
+#
+global:
+  proxy:
+    resources:
+      cpu: 900m
+
+gateways:
+  istio-ingressgateway:
+    replicas: 3
+    autoscaleMin: 3
+    resources:
+      limits:
+        cpu: 6000m
+        memory: 512Mi
+      requests:
+        cpu: 4000m
+        memory: 512Mi
+
+pilot:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 4800m
+      memory: 2G
+
+galley:
+  replicaCount: 2
+
+
+mixer:
+  #image: gcr.io/istio-release/mixer:release-1.0-20180720-00-11
+  resources:
+    requests:
+      cpu: 3800m
+      memory: 4G

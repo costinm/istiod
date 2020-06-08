@@ -1,0 +1,135 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-istio-config
+data:
+  proxy.conf: |-
+    server {
+            listen 80;
+
+            root /usr/share/nginx/html;
+            index index.html;
+
+            server_name localhost;
+
+            location / {
+                    try_files $uri $uri/ =404;
+            }
+            location /hello/ {
+              proxy_pass http://hello/;
+              proxy_http_version 1.1;
+            }
+            location /justhello/ {
+              proxy_pass http://justhello/;
+              proxy_http_version 1.1;
+            }
+
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginxistio
+  labels:
+    app: nginxistio
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    name: http
+  selector:
+    app: nginxistio
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  name: nginxistio
+spec:
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        alpha.istio.io/sidecar: injected
+        alpha.istio.io/version: jenkins@ubuntu-16-04-build-61a755c70c12d-stable-0772486-14-g3903ef6-3903ef6
+        #pod.beta.kubernetes.io/init-containers: '[{"args":["-p","15001","-u","1337","-i","10.0.0.0/8"],"image":"docker.io/istio/init:latest","imagePullPolicy":"Always","name":"init","securityContext":{"capabilities":{"add":["NET_ADMIN"]}}},{"args":["-c","sysctl
+        #  -w kernel.core_pattern=/tmp/core.%e.%p.%t \u0026\u0026 ulimit -c unlimited"],"command":["/bin/sh"],"image":"alpine","imagePullPolicy":"Always","name":"enable-core-dump","securityContext":{"privileged":true}}]'
+        #pod.beta.kubernetes.io/init-containers: '[
+        #{"args":["-p","15001","-u","1337", "-i", "10.0.0.0/8"],"image":"docker.io/istio/init::2017-05-01-19.24.52","imagePullPolicy":"Always","name":"init","securityContext":{"capabilities":{"add":["NET_ADMIN"]}}},
+        #{"args":["-c","sysctl -w kernel.core_pattern=/tmp/core.%e.%p.%t \u0026\u0026 ulimit -c unlimited"],"command":["/bin/sh"],"image":"alpine","imagePullPolicy":"Always","name":"enable-core-dump","securityContext":{"privileged":true}}
+        #]'
+        pod.beta.kubernetes.io/init-containers: '[{"args":["-p","15001","-u","1337", "-i", "10.0.0.0/8"],"image":"docker.io/istio/init:2017-05-01-19.24.52","imagePullPolicy":"Always","name":"init","securityContext":{"capabilities":{"add":["NET_ADMIN"]}}},{"args":["-c","sysctl
+          -w kernel.core_pattern=/tmp/core.%e.%p.%t \u0026\u0026 ulimit -c unlimited"],"command":["/bin/sh"],"image":"alpine","imagePullPolicy":"IfNotPresent","name":"enable-core-dump","securityContext":{"privileged":true}}]'
+      creationTimestamp: null
+      labels:
+        app: nginxistio
+        tier: frontend
+        track: stable
+    spec:
+      containers:
+      - image:  costinm/netdebug:latest
+        name: debug
+        command: [ "/bin/bash", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
+        securityContext:
+          privileged: true
+      - image: nginx
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /usr/sbin/nginx
+              - -s
+              - quit
+        name: nginxistio
+        ports:
+        - containerPort: 80
+          name: http
+        volumeMounts:
+        - mountPath: /etc/nginx/conf.d
+          name: nginxconfig
+        resources:
+           requests:
+             cpu: 1000m
+             memory: "1G"
+           limits:
+             cpu: 1000m
+             memory: "2G"
+
+      - image: docker.io/istio/proxy:latest
+        args:
+        - proxy
+        - sidecar
+        - -v
+        - "2"
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        imagePullPolicy: Always
+        name: proxy
+        resources:
+           requests:
+             cpu: 1000m
+             memory: "1G"
+           limits:
+             cpu: 1000m
+             memory: "2G"
+        securityContext:
+          runAsUser: 1337
+      volumes:
+      - configMap:
+          name: nginx-istio-config
+        name: nginxconfig
+status: {}
+---

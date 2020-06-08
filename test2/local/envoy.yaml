@@ -1,0 +1,178 @@
+# Manually configured envoy. No mixer calls.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envoy-config
+data:
+  envoy.conf: |-
+    {
+     "listeners": [
+        {
+          "address": "tcp://0.0.0.0:80",
+          "bind_to_port": true,
+          "filters": [
+            {
+              "type": "read",
+              "name": "http_connection_manager",
+              "config": {
+                "codec_type": "auto",
+                "stat_prefix": "ingress_http",
+                "route_config": {
+                  "virtual_hosts": [
+                    {
+                      "name": "backend",
+                      "domains": ["*"],
+                      "routes": [
+                        {
+                          "timeout_ms": 0,
+                          "prefix": "/justhello",
+                          "cluster": "justhello",
+                          "opaque_config": {
+                            "mixer_control": "on",
+                            "mixer_forward": "off"
+                          }
+                        },
+                        {
+                          "timeout_ms": 0,
+                          "prefix": "/hello",
+                          "cluster": "hello",
+                          "opaque_config": {
+                            "mixer_control": "on",
+                            "mixer_forward": "off"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "access_log": [
+                  {
+                    "path": "/dev/stdout"
+                  }
+                ],
+                "filters": [
+                  {
+                    "type": "decoder",
+                    "name": "router",
+                    "config": {}
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+     "admin": {
+        "access_log_path": "/dev/stdout",
+        "address": "tcp://0.0.0.0:9001"
+      },
+      "cluster_manager": {
+        "clusters": [
+          {
+            "name": "justhello",
+            "connect_timeout_ms": 5000,
+            "type": "strict_dns",
+            "lb_type": "round_robin",
+            "hosts": [
+              {
+                "url": "tcp://justhello:80"
+              }
+            ]
+          },
+          {
+            "name": "hello",
+            "connect_timeout_ms": 5000,
+            "type": "strict_dns",
+            "lb_type": "round_robin",
+            "hosts": [
+              {
+                "url": "tcp://hello:80"
+              }
+            ]
+          }
+        ]
+      },
+      "statsd_local_udp_port": 9125
+    }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy
+  labels:
+    app: envoy
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    name: http
+  selector:
+    app: envoy
+---
+# Only internal, for prometheus
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy-statsd
+spec:
+  ports:
+  - port: 9102
+    name: http
+  - port: 9125
+    name: udp
+  selector:
+    app: envoy
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: envoy
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: envoy
+    spec:
+      containers:
+      - name: envoy
+        # Manually start envoy, without using manager, so we can override the config.
+        command: ["/usr/local/bin/envoy"]
+        image: docker.io/istio/proxy:2017-05-01-19.24.52
+        #image: docker.io/istio/envoy
+        args: ["-c", "/etc/envoy/envoy.conf", "--service-cluster", "istio-proxy", "--service-node" , "ingress", "-l", "debug"]
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        volumeMounts:
+          - mountPath: /etc/envoy
+            name: envoyconfig
+        resources:
+          requests:
+            cpu: 1500m
+            memory: "1G"
+          limits:
+            cpu: 2000m
+            memory: "2G"
+      - name: envoy-statsd
+        # Collect stats from envoy. Export to prometheus
+        image: prom/statsd-exporter
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9102
+          name: http
+        - containerPort: 9125
+          name: upd
+      volumes:
+        - name: envoyconfig
+          configMap:
+            name: envoy-config
+---
+
