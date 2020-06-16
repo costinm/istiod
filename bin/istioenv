@@ -5,6 +5,8 @@
 #
 #
 
+ source <(kubectl completion bash)
+
 # gcloud config set container/use_application_default_credentials false
 
 # Allow setting some common per user env.
