@@ -7,7 +7,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-resources:
-  - configmap-mesh.yaml
-  - configmap-injection.yaml
-  - istiod.yaml
+bases:
+  - github.com/istio/istio/manifests/charts/istio-control/istio-discovery
+
+images:
+  - name: gcr.io/istio-testing/pilot
+    newName: costinm/pilot

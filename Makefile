@@ -382,14 +382,14 @@ okteto:
 helm3/base-helm:
     # Base install with helm3 works only for a fresh cluster - in many cases
     # we want to upgrade. Helm3 would complain about existing resources
-	helm3 install istio-base  ${ISTIO_SRC}/manifests/charts/base
+	helm3 template istio-base  ${ISTIO_SRC}/manifests/charts/base > kustomize/base/gen.yaml
 
 helm3/base-template:
 	kubectl create ns istio-system || true
 	helm3 template istio-base ${ISTIO_SRC}/manifests/charts/base | kubectl apply -f -
 
 helm3/default:
-	helm3 upgrade -i -n istio-system istio-16  ${ISTIO_SRC}/manifests/istio-control/istio-discovery \
+	helm3 template -i -n istio-system istio-16  ${ISTIO_SRC}/manifests/istio-control/istio-discovery \
 		--set global.tag=${TAG} --set global.hub=${HUB} \
 		-f ${ISTIO_SRC}/manifests/global.yaml \
 		 --set meshConfig.defaultConfig.proxyMetadata.DNS_CAPTURE="" \
@@ -482,3 +482,12 @@ events-watch:
 	sleep 1
 
 	echo '{"node": {"id": "sidecar~1.1.1.1~debug~cluster.local", "metadata": {"GENERATOR": "event"}},"typeUrl": "istio.io/connections"}' > /tmp/istiod1
+
+# Special makefile to build the image expected by skaffold
+#
+# Env:
+#   IMAGES=costinm/pilot:TAG
+#   HUB
+#   PUSH_IMAGE=true
+skaffold.istiod:
+	docker tag costinm/pilot:latest ${IMAGE}

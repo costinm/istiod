@@ -4,7 +4,8 @@ metadata:
   name:	istiod
 build:
   artifacts:
-  - image: gcr.io/costin-istio/istiod
+  - #image: gcr.io/costin-istio/istiod
+    image: pilot
     context: .
     #sync:	# 	beta local files synced to pods instead of triggering an image build when modified.
     # manual:	# 	manual sync rules indicating the source and destination.
