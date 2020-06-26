@@ -6,18 +6,12 @@
     </buildTags>
   </component>
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$/../../../../3p/hashicorp/consul" />
     <content url="file://$MODULE_DIR$/../api" />
     <content url="file://$MODULE_DIR$/../cni" />
     <content url="file://$MODULE_DIR$/../installer" />
     <content url="file://$MODULE_DIR$/../istio" />
     <content url="file://$MODULE_DIR$" />
     <content url="file://$MODULE_DIR$/../tools" />
-    <content url="file://$MODULE_DIR$/../../../../src/3p/grpc" />
-    <content url="file://$MODULE_DIR$/../../../../src/cert-manager" />
-    <content url="file://$MODULE_DIR$/../../../../src/istio-discovery" />
-    <content url="file://$MODULE_DIR$/../../../../src/istio-xp" />
-    <content url="file://$MODULE_DIR$/../../../../src/xds-relay" />
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Bundled Protobuf Distribution" level="application" />
