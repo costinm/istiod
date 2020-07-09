@@ -4,8 +4,7 @@
     <working_directory value="$PROJECT_DIR$/../istio" />
     <parameters value="proxy" />
     <envs>
-      <env name="PROXY_CONFIG" value="{'binary_path':'./out/linux_amd64/release/envoy','proxy_bootstrap_template_path':'../istio/tools/packaging/common/envoy_bootstrap_v2.json'}" />
-      <env name="PROV_CERT" value="./etc/certs" />
+      <env name="MESH_CONFIG" value="{'default_config':{'binary_path':'./out/linux_amd64/release/envoy','proxy_bootstrap_template_path':'./tools/packaging/common/envoy_bootstrap_v2.json'}}" />
     </envs>
     <kind value="PACKAGE" />
     <filePath value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-agent/main.go" />
