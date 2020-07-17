@@ -1,0 +1,13 @@
+
+testAServices: 250
+
+# Number of test 'rawVM' services pointing to unused IP addresses.
+# Each will create an envoy cluster and listener.
+testVMServices: 250
+
+# Number of fake endpoints per service. Must be < 255
+testVMEndpoints: 16
+
+loadTestIngress: 1000
+
+loadTestServices: 100

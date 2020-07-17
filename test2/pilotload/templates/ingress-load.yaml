@@ -1,0 +1,21 @@
+# Creates a set number of ingress routes, to test ingress scalability.
+# Each ingress is translated to a fake VirtualService
+{{ $v := int .Values.loadTestIngress }}
+# {{ $v }}
+{{ range $i, $e := until $v }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: istio-ingress-load-{{ $i }}
+  labels:
+    release: {{ $.Release.Name }}
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /test/{{ $i }}/.*
+            backend:
+              serviceName: fortiosmall
+              servicePort: 80
+---
+{{ end }}

@@ -11,12 +11,15 @@ spec:
     app: fortio-dev
 
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: fortio-dev
   namespace: fortio
 spec:
+  selector:
+    matchLabels:
+      app: fortio-dev
   replicas: 1
   template:
     metadata:
@@ -43,11 +46,4 @@ spec:
          - containerPort: 8079
         args:
           - server
-        resources:
-          requests:
-            cpu: 250m
-            memory: "512Mi"
-          limits:
-            cpu: 1
-            memory: "1G"
 

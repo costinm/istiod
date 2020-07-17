@@ -1,0 +1,91 @@
+# Using istio-ingress namespace (with dedicated pilot, default k8s ingress)
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: prom-ingress
+  namespace: istio-debug
+  labels:
+    release: istio-debug
+spec:
+  hosts:
+    - prometheus.control.istio.webinf.info
+  gateways:
+    - istio-ingress/ingressgateway
+  http:
+    - route:
+        - destination:
+            host: prometheus.istio-telemetry.svc.cluster.local
+            port:
+              number: 9090
+
+---
+
+# Must be in the ingress namespace
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: prometheus
+  namespace: istio-ingress
+  labels:
+    release: istio-debug
+spec:
+  host: prometheus.istio-telemetry.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: DISABLE
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: grafana
+  namespace: istio-debug
+  labels:
+    release: istio-debug
+spec:
+  hosts:
+    - grafana.control.istio.webinf.info
+  gateways:
+    - istio-ingress/ingressgateway
+  http:
+    - route:
+        - destination:
+            host: grafana.istio-telemetry.svc.cluster.local
+            port:
+              number: 3000
+---
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: grafana-master
+  namespace: istio-debug
+  labels:
+    release: istio-debug
+spec:
+  hosts:
+    - grafana-master.control.istio.webinf.info
+  gateways:
+    - istio-ingress/ingressgateway
+  http:
+    - route:
+        - destination:
+            host: grafana.istio-telemetry-master.svc.cluster.local
+            port:
+              number: 3000
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: trace
+spec:
+  hosts:
+    - "trace.control.istio.webinf.info"
+  gateways:
+    - istio-ingress/ingressgateway
+  http:
+    - route:
+        - destination:
+            host: tracing.istio-telemetry.svc.cluster.local
+            port:
+              number: 80

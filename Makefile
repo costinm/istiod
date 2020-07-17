@@ -3,13 +3,18 @@
 # - 'go get github.com/costinm/istiod/cmd/istiod'
 # - from IDE using normal run/debug command
 
-BASE=$(shell cd .; pwd)
+ISTIOD=$(shell cd .; pwd)
+ISTIO_SRC=$(shell cd ../istio; pwd)
 TOP=$(shell cd ${BASE}/../../..; pwd)
-GOPATH=${TOP}
+
+BASE=$(shell cd .; pwd)
+GOPATH=${HOME}/go
 
 CONF ?= ${BASE}/conf
-HUB ?= gcr.io/istio-release
-TAG ?= master-latest-daily
+#HUB ?= gcr.io/istio-release
+#HUB ?= costinm
+HUB ?= localhost:5000
+TAG ?= latest
 
 # TODO: update when moving to istio
 #IMAGE ?= costinm/istiod
@@ -19,10 +24,6 @@ CACHEDIR ?= ${TOP}/out/cache
 
 LOG_DIR ?= /tmp
 
-ISTIO_SRC=${TOP}/src/istio.io/istio
-
-# New variable for istio
-TARGET_OUT ?= ${ISTIO_SRC}/out
 OUT ?= ${ISTIO_SRC}/out
 
 # Namespace to use for the test app
@@ -35,20 +36,59 @@ IP ?= $(shell hostname --ip-address)
 # Set to "run -it --rm " for debugging
 DOCKER_START ?= run -d
 
-BINDIR=${TOP}/out/linux_amd64/release
+BINDIR=${OUT}/linux_amd64
 
-istiod:
-	mkdir -p ${TOP}/istiod
-	CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o ${TOP}/istiod istio.io/istio/cmd/istiod
-	cp -a ./var ${TOP}/istiod/
+build/istiod:
+	cd ${ISTIO_SRC} && CGO_ENABLED=0 \
+	go build -a -ldflags '-extldflags "-static"' -o ${BINDIR}/pilot-discovery ./pilot/cmd/pilot-discovery
+
+build/istio-agent:
+	cd ${ISTIO_SRC} && \
+	CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' -o ${BINDIR}/pilot-agent ./pilot/cmd/pilot-agent
+
+# Example using external OIDC
+#TOKEN_ISSUER=https://container.googleapis.com/v1/projects/costin-istio/locations/us-west1-c/clusters/istio-test
+
+run/istiod:
+	cd ${ISTIO_SRC} && ${BINDIR}/pilot-discovery discovery
+
+NAMESPACE ?= default
+
+# Fetch bootstrap token and root cert
+# John's script:
+bootstrap/short:
+	mkdir -p ${ISTIO_SRC}/var/run/secrets/tokens ${ISTIO_SRC}/var/run/secrets/istio
+	echo '{"kind":"TokenRequest","apiVersion":"authentication.k8s.io/v1","spec":{"audiences":["istio-ca"], "expirationSeconds":2592000}}' | \
+    		kubectl create --raw /api/v1/namespaces/${NAMESPACE}/serviceaccounts/default/token -f - | \
+    		jq -j '.status.token' > ${ISTIO_SRC}/var/run/secrets/tokens/istio-token
+    	kubectl -n istio-system get secret istio-ca-secret -ojsonpath='{.data.ca-cert\.pem}' | \
+      	 base64 -d > ${ISTIO_SRC}/var/run/secrets/istio/root-cert.pem
+
+
+PROXY_CONFIG = {"binaryPath": "${BINDIR}/release/envoy", "configPath": "${BINDIR}", "proxyBootstrapTemplatePath": \
+	"${ISTIO_SRC}/tools/packaging/common/envoy_bootstrap.json", "discoveryAddress": "localhost:15012", \
+    "terminationDrainDuration": "0s"}
+
+export PROXY_CONFIG
+
+run/sidecar:
+	echo PROXY_CONFIG=${PROXY_CONFIG}
+	cd ${ISTIO_SRC} && XDS_LOCAL=127.0.0.1:15002 \
+		${BINDIR}/pilot-agent proxy sidecar
+
+run/gateway:
+	cd ${ISTIO_SRC} && ISTIO_META_CLUSTER_ID=Kubernetes \
+	ISTIO_METAJSON_LABELS="{\"istio\": \"ingressgateway\", \"app\": \"istio-ingressgateway\"}" \
+		${BINDIR}/pilot-agent proxy router
+
 
 # Doesn't work with alpine
 build-local-docker: istiod
-	docker build ${TOP}/istiod -f tools/local_docker/Dockerfile -t ${IMAGE}:latest
+	docker build ${TOP}/istiod -f tools/local_docker/Dockerfile -t ${IMAGE}:${TAG}
 
 build-docker:
 	DOCKER_BUILDKIT=1 docker build . -t ${IMAGE}:latest
-	#DOCKER_BUILDKIT=1 docker build . --target distroless -t ${IMAGE}-distroless:latest
+	#DOCKER_BUILDKIT=1 docker build . --target distroless -t ${IMAGE}-distroless:${TAG}
 
 push-docker:
 	docker push ${IMAGE}:latest
@@ -308,14 +348,18 @@ K3S_OPT?=-it --rm
 k3s-start:
 	$(MAKE) k3s K3S_OPT="-d --restart always"
 
+EXTRA_TLS=--tls-san 10.1.10.1
+
 # Run a local k8s on the VM, in a docker container. Use k3s, with persistent directories.
 # Note that the OUT dir will have logs and volumes, very easy to grep or automate.
 k3s:
+    # k3s/server/manifests - will have manifests
 	mkdir -p ${OUT}/k3s/kube ${OUT}/k3s/var ${OUT}/k3s/run ${OUT}/k3s/k3s
 	docker stop k3s || true
 	docker rm k3s || true
 	docker run ${K3S_OPT} --name k3s \
 	 -e K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml \
+	 -e K3S_KUBECONFIG_MODE=666 \
 	 -p 6443:6443 \
 	 -p 6080:80 \
 	 -v ${OUT}/k3s/kube:/output \
@@ -324,7 +368,7 @@ k3s:
 	 -v ${OUT}/k3s/k3s:/var/lib/rancher/k3s \
 	 --privileged \
 	  rancher/k3s:latest \
-	 server --https-listen-port 6443
+	 server --https-listen-port 6443 ${EXTRA_TLS}
 
 	docker exec -it k3s chmod 666 /output/kubeconfig.yaml
 
@@ -375,17 +419,17 @@ okteto:
 	#go run github.com/okteto/okteto up
 	/ws/istio-stable/bin/okteto up
 
-helm3/helmbase:
+helm3/base-helm:
     # Base install with helm3 works only for a fresh cluster - in many cases
     # we want to upgrade. Helm3 would complain about existing resources
-	helm3 install istio-base  ${ISTIO_SRC}/manifests/base
+	helm3 template istio-base  ${ISTIO_SRC}/manifests/charts/base > kustomize/base/gen.yaml
 
-helm3/base:
+helm3/base-template:
 	kubectl create ns istio-system || true
-	helm3 template istio-base ${ISTIO_SRC}/manifests/base | kubectl apply -f -
+	helm3 template istio-base ${ISTIO_SRC}/manifests/charts/base | kubectl apply -f -
 
 helm3/default:
-	helm3 upgrade -i -n istio-system istio-16  ${ISTIO_SRC}/manifests/istio-control/istio-discovery \
+	helm3 template -i -n istio-system istio-16  ${ISTIO_SRC}/manifests/istio-control/istio-discovery \
 		--set global.tag=${TAG} --set global.hub=${HUB} \
 		-f ${ISTIO_SRC}/manifests/global.yaml \
 		 --set meshConfig.defaultConfig.proxyMetadata.DNS_CAPTURE="" \
@@ -402,6 +446,11 @@ helm3/canary:
 
 helm3/install: helm3/base helm3/canary helm3/default
 
+install:
+	(cd ${ISTIO_SRC} && make helm3/install )
+	kubectl apply -k test/fortio
+	kubectl apply -k test/certmanager
+
 
 helm3/test/uninstall:
 	helm3 delete -n istio-system istio-16 || true
@@ -409,10 +458,76 @@ helm3/test/uninstall:
 	helm3 delete istio-base || true
 	kubectl delete crd -l release=istio || true
 
-export TAG=16
-#export HUB=costinm
-export HUB=localhost:5000
-export BUILD_WITH_CONTAINER=0
+update:
+	kubectl apply -k test/fortio-dev
+
+#####################################################3
+# Building
+#export TAG=latest
+export HUB2 ?= costinm
+export HUB=localhost:30500
+#export BUILD_WITH_CONTAINER=0
+
+# Create docker images - no push needed.
+# Works with K3S, minikube (docker or remote docker)
+docker/pilot:
+	cd ${ISTIO_GO} && $(MAKE) docker.pilot  DOCKER_ALL_VARIANTS=default
+
+docker/proxyv2:
+	cd ${TOP}/src/istio.io/istio && $(MAKE) docker.proxyv2  DOCKER_ALL_VARIANTS=default
 
 images:
-	cd ${TOP}/src/istio.io/istio && $(MAKE) docker.pilot  DOCKER_ALL_VARIANTS=default
+	cd ${TOP}/src/istio.io/istio && $(MAKE) docker.pilot docker.proxyv2  DOCKER_ALL_VARIANTS=default
+
+push/pilot:
+	cd ${TOP}/src/istio.io/istio && $(MAKE) push.docker.pilot  DOCKER_ALL_VARIANTS=default
+
+push/proxyv2:
+	cd ${TOP}/src/istio.io/istio && $(MAKE) push.docker.proxyv2  DOCKER_ALL_VARIANTS=default
+
+# Push using TAG - to registry running in k8s
+push:
+	cd ${TOP}/src/istio.io/istio && $(MAKE) docker.pilot push.docker.proxyv2  DOCKER_ALL_VARIANTS=default
+
+# Retag the local registry images, push do dockerhub
+push/up:
+	docker tag ${HUB}/pilot:${TAG} ${HUB2}/pilot:${TAG}
+	docker tag ${HUB}/proxyv2:${TAG} ${HUB2}/proxyv2:${TAG}
+	docker push ${HUB2}/pilot:${TAG}
+	docker push ${HUB2}/proxyv2:${TAG}
+
+
+gen:
+	cd ${TOP}/src/istio.io/istio && \
+	BUILD_WITH_CONTAINER=1 $(MAKE) fmt gen
+
+prepareLocal:
+	cd ${TOP}/src/istio.io/istio && \
+		mkdir -p etc/certs && \
+		cp -a  tests/testdata/certs/default/* etc/certs/
+
+fetchCerts:
+	cd ${TOP}/src/istio.io/istio/etc/certs && \
+	go run istio.io/istio/security/tools/generate_cert
+
+
+grpcurl-get:
+	echo ${GOPATH}
+	go get github.com/fullstorydev/grpcurl/cmd/grpcurl
+
+events-watch:
+	mkfifo /tmp/istiod1 || true
+	sleep 100 > /tmp/istiod1 &
+	cat /tmp/istiod1 | grpcurl -insecure localhost:15012 envoy.service.discovery.v2.AggregatedDiscoveryService/StreamAggregatedResources &
+	sleep 1
+
+	echo '{"node": {"id": "sidecar~1.1.1.1~debug~cluster.local", "metadata": {"GENERATOR": "event"}},"typeUrl": "istio.io/connections"}' > /tmp/istiod1
+
+# Special makefile to build the image expected by skaffold
+#
+# Env:
+#   IMAGES=costinm/pilot:TAG
+#   HUB
+#   PUSH_IMAGE=true
+skaffold.istiod:
+	docker tag costinm/pilot:latest ${IMAGE}

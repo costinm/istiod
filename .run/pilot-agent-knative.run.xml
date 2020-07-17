@@ -1,0 +1,14 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="pilot-agent-knative" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="dmesh" />
+    <working_directory value="/work" />
+    <parameters value="proxy sidecar" />
+    <envs>
+      <env name="PROXY_CONFIG" value="{&quot;discoveryAddress&quot;: &quot;istiod-xds-icq63pqnqq-uc.a.run.app:443&quot;,&quot;proxyBootstrapTemplatePath&quot;: &quot;/work/tools/packaging/common/envoy_bootstrap.json&quot;} " />
+    </envs>
+    <kind value="PACKAGE" />
+    <package value="istio.io/istio/pilot/cmd/pilot-agent" />
+    <directory value="$PROJECT_DIR$/.idea/modules" />
+    <method v="2" />
+  </configuration>
+</component>

@@ -1,0 +1,34 @@
+
+{{ $v1 := int .Values.testVMServices }}
+{{ $e1 := int .Values.testVMEndpoints }}
+
+{{ range $i, $e := until $v1 }}
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: load-se-{{ $i }}
+  labels:
+    release: {{ $.Release.Name }}
+spec:
+   addresses:
+   - 9.0.0.{{ $i }}
+   hosts:
+   - load-se-{{ $i }}.local
+   ports:
+   - number: 9000
+     # {{ add $i 9000 }}
+     name: http
+     protocol: HTTP
+   resolution: STATIC
+   location: MESH_INTERNAL
+   endpoints:
+{{ range $j, $f := until $e1 }}
+    - address: 10.10.{{ $i }}.{{ $j }}
+      ports:
+        http: 8080
+      labels:
+        istio: load-se
+{{ end }}
+---
+{{ end }}
+

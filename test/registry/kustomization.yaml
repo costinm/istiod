@@ -7,4 +7,3 @@ resources:
   - pd.yaml
   - app.yaml
   - service.yaml
-  - registry_proxy.yaml
