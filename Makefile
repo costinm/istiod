@@ -59,10 +59,10 @@ NAMESPACE ?= default
 bootstrap/short:
 	mkdir -p ${ISTIO_SRC}/var/run/secrets/tokens ${ISTIO_SRC}/var/run/secrets/istio
 	echo '{"kind":"TokenRequest","apiVersion":"authentication.k8s.io/v1","spec":{"audiences":["istio-ca"], "expirationSeconds":2592000}}' | \
-		kubectl create --raw /api/v1/namespaces/${NAMESPACE}/serviceaccounts/default/token -f - | \
-		jq -j '.status.token' > ${ISTIO_SRC}/var/run/secrets/tokens/istio-token
-	kubectl -n istio-system get secret istio-ca-secret -ojsonpath='{.data.ca-cert\.pem}' | \
-  	 base64 -d > ${ISTIO_SRC}/var/run/secrets/istio/root-cert.pem
+    		kubectl create --raw /api/v1/namespaces/${NAMESPACE}/serviceaccounts/default/token -f - | \
+    		jq -j '.status.token' > ${ISTIO_SRC}/var/run/secrets/tokens/istio-token
+    	kubectl -n istio-system get secret istio-ca-secret -ojsonpath='{.data.ca-cert\.pem}' | \
+      	 base64 -d > ${ISTIO_SRC}/var/run/secrets/istio/root-cert.pem
 
 
 PROXY_CONFIG = {"binaryPath": "${BINDIR}/release/envoy", "configPath": "${BINDIR}", "proxyBootstrapTemplatePath": \

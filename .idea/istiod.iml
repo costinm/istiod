@@ -7,7 +7,6 @@
   </component>
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$/../api" />
-    <content url="file://$MODULE_DIR$/../cni" />
     <content url="file://$MODULE_DIR$/../installer" />
     <content url="file://$MODULE_DIR$/../istio" />
     <content url="file://$MODULE_DIR$" />

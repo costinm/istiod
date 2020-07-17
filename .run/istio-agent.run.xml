@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="istio-agent" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="istiod" />
+    <working_directory value="istio-stable/src/istio.io/istio" />
+    <parameters value="proxy" />
+    <envs>
+      <env name="PROXY_CONFIG" value="{&quot;binaryPath&quot;: &quot;./out/linux_amd64/release/envoy&quot;, &quot;configPath&quot;: &quot;./out/linux_amd64&quot;, &quot;proxyBootstrapTemplatePath&quot;: &quot;./tools/packaging/common/envoy_bootstrap.json&quot;, &quot;discoveryAddress&quot;: &quot;localhost:15012&quot;, &quot;terminationDrainDuration&quot;: &quot;0s&quot;}" />
+      <env name="XDS_LOCAL" value="localhost:15002" />
+    </envs>
+    <kind value="DIRECTORY" />
+    <filePath value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-agent/main.go" />
+    <package value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-discovery/" />
+    <directory value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-agent" />
+    <method v="2" />
+  </configuration>
+</component>
