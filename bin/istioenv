@@ -96,6 +96,16 @@ function kexec() {
     kubectl --namespace=$ns exec -it $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') -c $container -- $*
 }
 
+function kexec1() {
+    local ns=$1
+    local label=$2
+    local container=$3
+    shift; shift; shift
+
+    kubectl --namespace=$ns exec $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') -c $container -- $*
+}
+
+
 function logs-gateway() {
     istioctl proxy-status -i istio-system
     klog istio-system app=ingressgateway istio-proxy $*
@@ -308,6 +318,35 @@ function istio_cfg() {
 
 
     istioctl -i $env proxy-config $cmd $(istioctl -i $env proxy-status | grep $dep | cut -d' ' -f 1) $*
+}
+
+
+
+# Get the token and CA for running istiod locally
+# After running this command, you can start either Istiod or pilot-agent.
+function getIstioToken() {
+    local NS=${1:-istio-system}
+    local L=${2:-app=istiod}
+
+    POD=$(kubectl --namespace=$NS get -l $L pod -o=jsonpath='{.items[0].metadata.name}')
+
+    mkdir -p var/run/secrets/tokens
+    kubectl -n $NS exec $POD -- cat /var/run/secrets/tokens/istio-token >  var/run/secrets/tokens/istio-token
+    kubectl -n $NS exec $POD -- cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt >  var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+}
+
+
+function dumpNS() {
+  NS=$1
+
+  kubectl api-resources | awk '{print $1}' | while read TARGET
+  do
+   echo "# -------"
+   echo "# resource: $TARGET"
+   echo "# -------"
+   kubectl get $TARGET -n $NS -o yaml
+  done > dump-$NS.yaml
 }
 
 ##### End

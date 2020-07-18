@@ -14,11 +14,11 @@ INTERMEDIATE_CN ?= Intermediate CA
 
 # Get a cert from the CA, using the token. Alternative to downloading the root CA and generating the cert locally.
 %/token-cert: L=$(dir $@)
-%/token-cert: %/workload.csr %/token
+%/token-cert: %/workload.csr %/token  %/key.pem
 	echo -n '{"csr": "' >$(dir $@)/csr-escaped
 	cat  $< | awk -F'\\n' '{printf "%s\\n",$$0} END {print "\"}"}'  >> $(dir $@)/csr-escaped
-	cat $(dir $@)csr-escaped | grpcurl  -import-path /work/security/proto/ \
-        -proto /work/security/proto/istioca.proto -use-reflection=false \
+	cat $(dir $@)csr-escaped | grpcurl  -import-path . \
+        -proto ./istioca.proto -use-reflection=false \
          -d @ -H "Authorization:  Bearer $(shell cat $(dir $@)istio-token )" \
          ${CA_ADDR} istio.v1.auth.IstioCertificateService/CreateCertificate > $(dir $@)/cert.json
 	cat default/cert.json |jq .certChain[0] | sed 's/\\n/\n/g' | sed 's/"//' > $(dir $@)/workload-cert.pem

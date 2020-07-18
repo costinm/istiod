@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="istio-agent local" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="dmesh" />
+    <working_directory value="$PROJECT_DIR$/../istio-stable/src/istio.io/istio" />
+    <parameters value="proxy --discoveryAddress localhost:15012" />
+    <envs>
+      <env name="JWT_POLICY" value="" />
+      <env name="PROV_CERT" value="./tests/testdata/certs/vm" />
+      <env name="CA_ADDR" value="localhost:15012" />
+      <env name="OUTPUT_CERTS" value="./tests/testdata/certs/vm" />
+    </envs>
+    <kind value="PACKAGE" />
+    <package value="istio.io/istio/pilot/cmd/pilot-agent" />
+    <method v="2" />
+  </configuration>
+</component>
