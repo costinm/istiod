@@ -1,0 +1,67 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: istiod
+  namespace: '438684899409'
+  selfLink: /apis/serving.knative.dev/v1/namespaces/438684899409/services/istiod
+  uid: 949d9398-6081-4947-9188-53262349a83f
+  resourceVersion: AAWqgUvuKmA
+  generation: 7
+  creationTimestamp: '2020-07-15T00:43:47.153982Z'
+  labels:
+    cloud.googleapis.com/location: us-east4
+  annotations:
+    run.googleapis.com/client-name: cloud-console
+    serving.knative.dev/creator: costin@google.com
+    serving.knative.dev/lastModifier: costin@google.com
+    client.knative.dev/user-image: gcr.io/costin-asm1/pilot:latest
+spec:
+  template:
+    metadata:
+      name: istiod-00007-haz
+      annotations:
+        run.googleapis.com/client-name: cloud-console
+        autoscaling.knative.dev/maxScale: '1000'
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      serviceAccountName: 438684899409-compute@developer.gserviceaccount.com
+      containers:
+        - image: gcr.io/costin-asm1/pilot:latest
+          args:
+            - discovery
+            - --registries=Mock
+            - --configDir=/var/lib/istio
+          ports:
+            - containerPort: 15010
+          env:
+            - name: ENABLE_CA_SERVER
+              value: 'false'
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 256Mi
+  traffic:
+    - percent: 100
+      latestRevision: true
+status:
+  observedGeneration: 7
+  conditions:
+    - type: Ready
+      status: 'True'
+      lastTransitionTime: '2020-07-15T21:06:24.890Z'
+    - type: ConfigurationsReady
+      status: 'True'
+      lastTransitionTime: '2020-07-15T21:06:18.518Z'
+    - type: RoutesReady
+      status: 'True'
+      lastTransitionTime: '2020-07-15T21:06:24.956Z'
+  latestReadyRevisionName: istiod-00007-haz
+  latestCreatedRevisionName: istiod-00007-haz
+  traffic:
+    - revisionName: istiod-00007-haz
+      percent: 100
+      latestRevision: true
+  url: https://istiod-b3lo6zbfmq-uk.a.run.app
+  address:
+    url: https://istiod-b3lo6zbfmq-uk.a.run.app

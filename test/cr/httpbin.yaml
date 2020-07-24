@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: httpbin
+  labels:
+    istio.io/rev: managed
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: prober
+  namespace: httpbin
+spec:
+  containers:
+    - name: ubuntu
+      image: library/ubuntu:bionic
+      command: ["sleep", "infinity"]
+  hostAliases:
+    - ip: "149.28.196.14"
+      hostnames:
+        - "istiod-costin-asm1-big1-xds-icq63pqnqq-uc.a.run.app"
+        - "istiod-costin-asm1-big1-xds-t2mbbtjbiq-uc.a.cloud-run-qual.sandbox.google.com"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: httpbin
+  labels:
+    app: httpbin
+spec:
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 80
+  selector:
+    app: httpbin
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Sidecar
+metadata:
+  name: default
+  namespace: httpbin
+spec:
+  egress:
+    - hosts:
+        - "./*"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+  template:
+    metadata:
+      labels:
+        app: httpbin
+        version: v1
+      annotations:
+        sidecar.istio.io/debug: debug
+        sidecar.istio.io/proxyImage: costinm/proxyv2:gcp
+    spec:
+      containers:
+        - image: docker.io/kennethreitz/httpbin
+          imagePullPolicy: IfNotPresent
+          name: httpbin
+          ports:
+            - containerPort: 80
+      hostAliases:
+        - ip: "149.28.196.14"
+          hostnames:
+            - "istiod-costin-asm1-big1-xds-icq63pqnqq-uc.a.run.app"
+            - "istiod-costin-asm1-big1-xds-t2mbbtjbiq-uc.a.cloud-run-qual.sandbox.google.com"

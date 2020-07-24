@@ -1,0 +1,8 @@
+# Mesh config overrides, located on ./etc/istio/config/mesh
+# Docker will use an env to override.
+
+enablePrometheusMerge: true
+defaultConfig:
+  proxyMetadata: {}
+  discoveryAddress: ${K_SERVICE}-xds${ISTIOD_DOMAIN}:${ISTIOD_PORT:-443}
+  tracing: {}
