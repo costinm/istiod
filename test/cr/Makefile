@@ -1,5 +1,5 @@
-TENANT_REGION ?= us-central1
-TENANT_PROJECT ?= wlhe-cr
+ISTIO_REGION ?= us-central1
+ISTIO_PROJECT ?= wlhe-cr
 
 PROJECT ?= costin-asm1
 ZONE ?= us-central1-c
@@ -63,8 +63,8 @@ build/istiod:
 #export DOCKER_HOST=tcp://localhost:2375
 
 build/remote: build/istiod
-	docker build -t gcr.io/${TENANT_PROJECT}/pilot:gcp .
-	docker push  gcr.io/${TENANT_PROJECT}/pilot:gcp
+	docker build -t gcr.io/${ISTIO_PROJECT}/pilot:gcp .
+	docker push  gcr.io/${ISTIO_PROJECT}/pilot:gcp
 
 push/proxy:
 	cd /work && TAG=gcp HUB=costinm make push.docker.proxyv2
@@ -74,26 +74,26 @@ run:
 	make _run
 
 _run:
-	gcloud run deploy istiod${REV}-${PROJECT}-${CLUSTER} --allow-unauthenticated \
-	 --project ${TENANT_PROJECT} --region ${TENANT_REGION} --platform managed \
-     --image gcr.io/${TENANT_PROJECT}/pilot:gcp \
+	gcloud config unset api_endpoint_overrides/run
+	# Slow start - but pinned
+	# Alternative: --cpu 4 --memory 4G
+	gcloud alpha run deploy istiod${REV}-${PROJECT}-${CLUSTER} --allow-unauthenticated \
+	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
+     --image gcr.io/${ISTIO_PROJECT}/pilot:gcp \
      --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT},ISTIOD_DOMAIN=${SDOMAIN},EXTRA_ARGS=--grpcAddr=OFF \
-	 --port 8080 --memory 2G
+	 --port 8080 --cpu 1 --memory 2G --min-instances=1
 
-	gcloud run deploy istiod${REV}-${PROJECT}-${CLUSTER}-xds --allow-unauthenticated \
-	 --project ${TENANT_PROJECT} --region ${TENANT_REGION} --platform managed \
-        --image gcr.io/${TENANT_PROJECT}/pilot:gcp \
+	gcloud config set api_endpoint_overrides/run https://staging-run.sandbox.googleapis.com/
+	gcloud alpha run deploy istiod${REV}-${PROJECT}-${CLUSTER}-xds --allow-unauthenticated \
+	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
+        --image gcr.io/${ISTIO_PROJECT}/pilot:gcp \
        --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT},ISTIOD_DOMAIN=${DOMAIN},INJECT_ENABLED=false,VALIDATION_ENABLED=false \
-        --port 15010 --memory 2G
+        --port 15010 --cpu 1 --memory 2G --min-instances=1
+	gcloud config unset api_endpoint_overrides/run
 
 build/staging:
 	PROJECT=costin-asm1 make build/remote
 
-run_staging:
-	gcloud config set api_endpoint_overrides/run https://staging-run.sandbox.googleapis.com/
-	#REV=staging
-	make _run
-	gcloud config unset api_endpoint_overrides/run
 
 staging: build/staging run_staging
 
@@ -108,7 +108,7 @@ cert:
 
 # Verify injection is active
 test/inject:
-	curl -v https://istiod${REV}-${PROJECT}-${CLUSTER}${DOMAIN}/inject  -d @mutating_req.json -HContent-Type:application/json | jq .response.patch | sed s/\"// | base64 -d | jq .
+	time curl -v https://istiod${REV}-${PROJECT}-${CLUSTER}${DOMAIN}/inject  -d @mutating_req.json -HContent-Type:application/json | jq .response.patch | sed s/\"// | base64 -d | jq .
 
 
 
@@ -120,21 +120,35 @@ test/local_inject:
 # - create cluster
 # - grant IAM to cloud run to cluster
 # - base install
-
+GOOGLE_APPLICATION_CREDENTIALS=${HOME}/.config/gcloud/legacy_credentials/costin@google.com/adc.json
 local:
-	docker run -it --rm --name istiod \
+	#docker stop istiod || true
+	#docker rm -f istiod || true
+	docker run -it --rm  \
     -p 9090:8080 \
     -e PORT=8080 \
+    -m 2G \
+    --cpus=8 \
     -e K_SERVICE=dev \
     -e K_CONFIGURATION=dev \
     -e K_REVISION=dev-00001 \
     -e PROJECT=${PROJECT} \
     -e CLUSTER=${CLUSTER} \
     -e ZONE=${ZONE} \
+    -e LOG_ARGS=--log_output_level=info \
     -e CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=/var/run/secrets/google/google.json \
     -e GOOGLE_APPLICATION_CREDENTIALS=/var/run/secrets/google/google.json \
     -v ${GOOGLE_APPLICATION_CREDENTIALS}:/var/run/secrets/google/google.json:ro \
-    gcr.io/${TARGET_PROJECT}/pilot:gcp
+    gcr.io/${ISTIO_PROJECT}/pilot:gcp
+
+ #-e GODEBUG=http2client=0 \
+  #  -e GOMAXPROCS=1 \
+
+# 8 core -
+# 4 core - 2 sec
+# 2 core - 9 sec
+# 1 core - 20 sec
+#
 
 testrun:
 	kubectl run -n httpbin shell --rm -i --tty --image ubuntu -- bash

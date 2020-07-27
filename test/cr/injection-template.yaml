@@ -137,6 +137,8 @@ template: |
     args:
     - proxy
     - sidecar
+    - stsPort
+    - "15009"
     - --domain
     - $(POD_NAMESPACE).svc.{{ .Values.global.proxy.clusterDomain }}
     - --serviceCluster
