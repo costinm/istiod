@@ -7,7 +7,7 @@ CLUSTER ?= big1
 
 # Suffix for the domain URLs -
 DOMAIN=-icq63pqnqq-uc.a.run.app
-SDOMAIN=-t2mbbtjbiq-uc.a.cloud-run-qual.sandbox.google.com
+#SDOMAIN=-t2mbbtjbiq-uc.a.cloud-run-qual.sandbox.google.com
 
 init:
 	gcloud services enable staging-run.sandbox.googleapis.com
@@ -74,22 +74,22 @@ run:
 	make _run
 
 _run:
-	gcloud config unset api_endpoint_overrides/run
+	#gcloud config unset api_endpoint_overrides/run
 	# Slow start - but pinned
 	# Alternative: --cpu 4 --memory 4G
 	gcloud alpha run deploy istiod${REV}-${PROJECT}-${CLUSTER} --allow-unauthenticated \
 	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
      --image gcr.io/${ISTIO_PROJECT}/pilot:gcp \
-     --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT},ISTIOD_DOMAIN=${SDOMAIN},EXTRA_ARGS=--grpcAddr=OFF \
-	 --port 8080 --cpu 1 --memory 2G --min-instances=1
+     --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT},ISTIOD_DOMAIN=${DOMAIN},EXTRA_ARGS=--grpcAddr=OFF \
+	 --port 8080 --cpu 4 --memory 4G --min-instances=1
 
-	gcloud config set api_endpoint_overrides/run https://staging-run.sandbox.googleapis.com/
+	#gcloud config set api_endpoint_overrides/run https://staging-run.sandbox.googleapis.com/
 	gcloud alpha run deploy istiod${REV}-${PROJECT}-${CLUSTER}-xds --allow-unauthenticated \
 	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
         --image gcr.io/${ISTIO_PROJECT}/pilot:gcp \
        --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT},ISTIOD_DOMAIN=${DOMAIN},INJECT_ENABLED=false,VALIDATION_ENABLED=false \
-        --port 15010 --cpu 1 --memory 2G --min-instances=1
-	gcloud config unset api_endpoint_overrides/run
+        --port 15010 --cpu 4 --memory 4G --min-instances=1
+	#gcloud config unset api_endpoint_overrides/run
 
 build/staging:
 	PROJECT=costin-asm1 make build/remote
@@ -128,7 +128,7 @@ local:
     -p 9090:8080 \
     -e PORT=8080 \
     -m 2G \
-    --cpus=8 \
+    --cpus=1 \
     -e K_SERVICE=dev \
     -e K_CONFIGURATION=dev \
     -e K_REVISION=dev-00001 \
@@ -141,7 +141,8 @@ local:
     -v ${GOOGLE_APPLICATION_CREDENTIALS}:/var/run/secrets/google/google.json:ro \
     gcr.io/${ISTIO_PROJECT}/pilot:gcp
 
- #-e GODEBUG=http2client=0 \
+   	#--entrypoint /bin/sh \
+  #-e GODEBUG=http2client=0 \
   #  -e GOMAXPROCS=1 \
 
 # 8 core -

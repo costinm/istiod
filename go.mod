@@ -1,133 +1,152 @@
-module github.com/costinm/istiod
+module istio.io/istio
 
-go 1.13
+go 1.14
 
-//replace istio.io/istio => /ws/istio-master/go/src/istio.io/istio
-
-//replace istio.io/istio => github.com/costinm/istio v0.0.0-20191022214508-382391b5279c
-
-// Reminder cut&pasted from istio/istio
 replace github.com/golang/glog => github.com/istio/glog v0.0.0-20190424172949-d7cfb6fa2ccd
 
 replace k8s.io/klog => github.com/istio/klog v0.0.0-20190424230111-fb7481ea8bcf
 
 replace github.com/spf13/viper => github.com/istio/viper v1.3.3-0.20190515210538-2789fed3109c
 
+// For license
 replace github.com/docker/docker => github.com/docker/engine v1.4.2-0.20191011211953-adfac697dc5b
 
+// Old version had no license
+replace github.com/chzyer/logex => github.com/chzyer/logex v1.1.11-0.20170329064859-445be9e134b2
+
+// Avoid pulling in incompatible libraries
+replace github.com/docker/distribution => github.com/docker/distribution v2.7.1+incompatible
+
+// Avoid pulling in kubernetes/kubernetes
+replace github.com/Microsoft/hcsshim => github.com/Microsoft/hcsshim v0.8.8-0.20200421182805-c3e488f0d815
+
+// Client-go does not handle different versions of mergo due to some breaking changes - use the matching version
+replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.5
+
+// See https://github.com/kubernetes/kubernetes/issues/92867, there is a bug in the library
+replace github.com/evanphx/json-patch => github.com/evanphx/json-patch v0.0.0-20190815234213-e83c0a1c26c8
+
+//replace istio.io/istio => github.com/costinm/istio v0.0.0-20200727163637-9c8656454363
+
+//replace istio.io/istio => ../istio
+
 require (
-	cloud.google.com/go v0.50.0
-	cloud.google.com/go/logging v1.0.0
-	contrib.go.opencensus.io/exporter/prometheus v0.1.0
-	contrib.go.opencensus.io/exporter/stackdriver v0.12.9
-	contrib.go.opencensus.io/exporter/zipkin v0.1.1
-	fortio.org/fortio v1.3.1
-	fyne.io/fynedesk v0.1.3 // indirect
-	github.com/DataDog/datadog-go v2.2.0+incompatible
-	github.com/Masterminds/semver v1.4.2
-	github.com/alicebob/miniredis v0.0.0-20180201100744-9d52b1fc8da9
-	github.com/aws/aws-sdk-go v1.23.20
-	github.com/cactus/go-statsd-client v3.1.1+incompatible
-	github.com/cenkalti/backoff v2.0.0+incompatible
-	github.com/census-instrumentation/opencensus-proto v0.2.1
-	github.com/circonus-labs/circonus-gometrics v2.3.1+incompatible
-	github.com/cncf/udpa/go v0.0.0-20200313221541-5f7e5dd04533
-	github.com/coreos/etcd v3.3.15+incompatible
-	github.com/coreos/go-oidc v2.1.0+incompatible
-	github.com/davecgh/go-spew v1.1.1
-	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/docker v1.13.1
-	github.com/docker/go-connections v0.4.0
-	github.com/envoyproxy/go-control-plane v0.9.5-0.20200316225419-d560923b20a0
-	github.com/evanphx/json-patch v4.5.0+incompatible
-	github.com/fluent/fluent-logger-golang v1.3.0
-	github.com/fsnotify/fsnotify v1.4.7
-	github.com/fullstorydev/grpcurl v1.6.0 // indirect
-	github.com/ghodss/yaml v1.0.0
-	github.com/go-logr/logr v0.1.0
-	github.com/go-redis/redis v6.10.2+incompatible
-	github.com/gogo/protobuf v1.3.0
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
-	github.com/golang/protobuf v1.3.5
-	github.com/golang/sync v0.0.0-20180314180146-1d60e4601c6f
-	github.com/google/cel-go v0.2.0
-	github.com/google/go-cmp v0.3.1
-	github.com/google/go-github v17.0.0+incompatible
-	github.com/google/uuid v1.1.1
-	github.com/googleapis/gax-go v2.0.2+incompatible
-	github.com/googleapis/gax-go/v2 v2.0.5
-	github.com/gorilla/mux v1.7.3
-	github.com/gorilla/websocket v1.4.1
-	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4
-	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20171214222146-0e7658f8ee99
-	github.com/hashicorp/consul v1.3.1
-	github.com/hashicorp/go-multierror v1.0.0
-	github.com/hashicorp/go-version v1.2.0
-	github.com/hashicorp/vault/api v1.0.3
-	github.com/howeyc/fsnotify v0.9.0
-	github.com/istio.io/proxy/src/envoy/tcp/metadata_exchange/config v0.0.0
-	github.com/kr/pretty v0.1.0
-	github.com/kylelemons/godebug v1.1.0
-	github.com/lestrrat-go/jwx v0.9.0
-	github.com/mattn/go-isatty v0.0.12
-	github.com/mholt/archiver v3.1.1+incompatible
-	github.com/mitchellh/copystructure v1.0.0
-	github.com/mitchellh/go-homedir v1.1.0
-	github.com/natefinch/lumberjack v2.0.0+incompatible
-	github.com/onsi/gomega v1.7.1
-	github.com/open-policy-agent/opa v0.8.2
-	github.com/openshift/api v3.9.1-0.20191008181517-e4fd21196097+incompatible
-	github.com/opentracing/opentracing-go v1.0.2
-	github.com/openzipkin/zipkin-go v0.1.7
-	github.com/pkg/errors v0.8.1
-	github.com/pmezard/go-difflib v1.0.0
-	github.com/prometheus/client_golang v1.1.0
-	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
-	github.com/prometheus/common v0.6.0
-	github.com/prometheus/prom2json v1.2.2
-	github.com/prometheus/tsdb v0.7.1 // indirect
-	github.com/ryanuber/go-glob v1.0.0
-	github.com/satori/go.uuid v1.2.0
-	github.com/spf13/cobra v0.0.5
-	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.4.0
-	github.com/stretchr/testify v1.4.0
-	github.com/uber/jaeger-client-go v0.0.0-20190228190846-ecf2d03a9e80
-	github.com/yl2chen/cidranger v0.0.0-20180214081945-928b519e5268
-	go.opencensus.io v0.22.2
-	go.uber.org/atomic v1.4.0
-	go.uber.org/zap v1.10.0
-	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
-	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
-	golang.org/x/time v0.0.0-20190921001708-c4c64cad1fd0
-	golang.org/x/tools v0.0.0-20200426102838-f3a5411a4c3b
-	google.golang.org/api v0.15.0
-	google.golang.org/genproto v0.0.0-20191223191004-3caeed10a8bf
-	google.golang.org/grpc v1.29.0
-	gopkg.in/d4l3k/messagediff.v1 v1.2.1
-	gopkg.in/square/go-jose.v2 v2.3.1
-	gopkg.in/yaml.v2 v2.2.7
-	istio.io/api v0.0.0-20200316183217-dc6271ee34e2
-	istio.io/gogo-genproto v0.0.0-20200227125611-d2e4aa9d5634
-	istio.io/istio v0.0.0-20200319150413-82b8af7035d3
-	istio.io/pkg v0.0.0-20200227125209-63966175aa01
-	k8s.io/api v0.17.2
-	k8s.io/apiextensions-apiserver v0.17.2
-	k8s.io/apimachinery v0.17.2
-	k8s.io/cli-runtime v0.17.2
-	k8s.io/client-go v0.17.2
-	k8s.io/helm v2.14.3+incompatible
-	k8s.io/kubectl v0.17.2
-	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
-	sigs.k8s.io/controller-runtime v0.4.0
-	sigs.k8s.io/yaml v1.1.0
+	cloud.google.com/go v0.61.0 // indirect
+	contrib.go.opencensus.io/exporter/prometheus v0.2.0 // indirect
+	fortio.org/fortio v1.6.3 // indirect
+	github.com/Azure/go-autorest/autorest v0.9.4 // indirect
+	github.com/Azure/go-autorest/autorest/adal v0.8.3 // indirect
+	github.com/Masterminds/semver v1.4.2 // indirect
+	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
+	github.com/aws/aws-sdk-go v1.33.11 // indirect
+	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
+	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
+	github.com/cheggaaa/pb/v3 v3.0.4 // indirect
+	github.com/cncf/udpa/go v0.0.0-20200629203442-efcf912fb354 // indirect
+	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
+	github.com/containernetworking/cni v0.7.0-alpha1 // indirect
+	github.com/containernetworking/plugins v0.7.3 // indirect
+	github.com/coreos/etcd v3.3.15+incompatible // indirect
+	github.com/coreos/go-oidc v2.2.1+incompatible // indirect
+	github.com/d4l3k/messagediff v1.2.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/docker/distribution v2.7.1+incompatible // indirect
+	github.com/docker/docker v1.13.1 // indirect
+	github.com/docker/go-connections v0.4.0 // indirect
+	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
+	github.com/dsnet/compress v0.0.1 // indirect
+	github.com/elazarl/goproxy v0.0.0-20190630181448-f1e96bc0f4c5 // indirect
+	github.com/elazarl/goproxy/ext v0.0.0-20190630181448-f1e96bc0f4c5 // indirect
+	github.com/emicklei/go-restful v2.9.6+incompatible // indirect
+	github.com/envoyproxy/go-control-plane v0.9.6-0.20200623200256-ba7954ce7df4
+	github.com/evanphx/json-patch v4.5.0+incompatible // indirect
+	github.com/fatih/color v1.9.0 // indirect
+	github.com/frankban/quicktest v1.4.1 // indirect
+	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
+	github.com/go-logr/zapr v0.1.1 // indirect
+	github.com/go-openapi/spec v0.19.5 // indirect
+	github.com/go-openapi/swag v0.19.6 // indirect
+	github.com/gogo/protobuf v1.3.1
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
+	github.com/golang/protobuf v1.4.2
+	github.com/golang/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
+	github.com/google/go-cmp v0.5.1 // indirect
+	github.com/google/gofuzz v1.1.0 // indirect
+	github.com/google/uuid v1.1.1 // indirect
+	github.com/gorilla/mux v1.7.4 // indirect
+	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0 // indirect
+	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.0 // indirect
+	github.com/hashicorp/go-version v1.2.0 // indirect
+	github.com/hashicorp/vault/api v1.0.3 // indirect
+	github.com/howeyc/fsnotify v0.9.0 // indirect
+	github.com/kr/pretty v0.2.0 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/lestrrat-go/jwx v1.0.3 // indirect
+	github.com/mattn/go-isatty v0.0.12 // indirect
+	github.com/mholt/archiver v3.1.1+incompatible // indirect
+	github.com/miekg/dns v1.1.30 // indirect
+	github.com/mitchellh/copystructure v1.0.0 // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
+	github.com/mitchellh/reflectwalk v1.0.1 // indirect
+	github.com/nwaples/rardecode v1.0.0 // indirect
+	github.com/onsi/gomega v1.10.1 // indirect
+	github.com/openshift/api v0.0.0-20200713203337-b2494ecb17dd // indirect
+	github.com/opentracing/opentracing-go v1.2.0 // indirect
+	github.com/pelletier/go-toml v1.3.0 // indirect
+	github.com/pierrec/lz4 v2.2.7+incompatible // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pquerna/cachecontrol v0.0.0-20180306154005-525d0eb5f91d // indirect
+	github.com/prometheus/client_golang v1.7.1 // indirect
+	github.com/prometheus/client_model v0.2.0 // indirect
+	github.com/prometheus/common v0.10.0 // indirect
+	github.com/prometheus/prom2json v1.2.2 // indirect
+	github.com/ryanuber/go-glob v1.0.0 // indirect
+	github.com/satori/go.uuid v1.2.0 // indirect
+	github.com/spf13/cobra v1.0.0 // indirect
+	github.com/spf13/jwalterweatherman v1.1.0 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/viper v1.4.0 // indirect
+	github.com/stretchr/testify v1.6.1 // indirect
+	github.com/uber/jaeger-client-go v2.25.0+incompatible // indirect
+	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
+	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
+	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
+	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
+	github.com/yl2chen/cidranger v1.0.0 // indirect
+	go.opencensus.io v0.22.4 // indirect
+	go.uber.org/atomic v1.6.0 // indirect
+	go.uber.org/multierr v1.5.0 // indirect
+	go.uber.org/zap v1.15.0 // indirect
+	golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899 // indirect
+	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect
+	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
+	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208 // indirect
+	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
+	google.golang.org/api v0.29.0 // indirect
+	google.golang.org/genproto v0.0.0-20200722002428-88e341933a54 // indirect
+	google.golang.org/grpc v1.30.0 // indirect
+	google.golang.org/protobuf v1.25.0 // indirect
+	gopkg.in/d4l3k/messagediff.v1 v1.2.1 // indirect
+	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
+	gopkg.in/yaml.v2 v2.3.0 // indirect
+	helm.sh/helm/v3 v3.2.4 // indirect
+	istio.io/api v0.0.0-20200723154128-12ba196bf594
+	istio.io/client-go v0.0.0-20200626204548-8f69a2d0fe26 // indirect
+	istio.io/gogo-genproto v0.0.0-20200720193312-b523a30fe746 // indirect
+	istio.io/pkg v0.0.0-20200721143030-6b837ddaf2ab
+	k8s.io/api v0.18.6 // indirect
+	k8s.io/apiextensions-apiserver v0.18.6 // indirect
+	k8s.io/apimachinery v0.18.6 // indirect
+	k8s.io/cli-runtime v0.18.6 // indirect
+	k8s.io/client-go v0.18.6 // indirect
+	k8s.io/kubectl v0.18.6 // indirect
+	k8s.io/utils v0.0.0-20200720150651-0bdb4ca86cbc // indirect
+	sigs.k8s.io/controller-runtime v0.6.1 // indirect
+	sigs.k8s.io/service-apis v0.0.0-20200708220836-10c7cb28ed93 // indirect
+	sigs.k8s.io/yaml v1.2.0 // indirect
 )
-
-replace github.com/Azure/go-autorest/autorest => github.com/Azure/go-autorest/autorest v0.9.0
-
-replace github.com/Azure/go-autorest/autorest/adal => github.com/Azure/go-autorest/autorest/adal v0.5.0
-
-replace github.com/Azure/go-autorest => github.com/Azure/go-autorest v13.2.0+incompatible
-
-replace github.com/istio.io/proxy/src/envoy/tcp/metadata_exchange/config => istio.io/istio/pilot/pkg/metadata_exchange v0.0.0-20200123191201-47e363a83438

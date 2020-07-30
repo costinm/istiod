@@ -15,11 +15,6 @@ spec:
     - name: ubuntu
       image: library/ubuntu:bionic
       command: ["sleep", "infinity"]
-  hostAliases:
-    - ip: "149.28.196.14"
-      hostnames:
-        - "istiod-costin-asm1-big1-xds-icq63pqnqq-uc.a.run.app"
-        - "istiod-costin-asm1-big1-xds-t2mbbtjbiq-uc.a.cloud-run-qual.sandbox.google.com"
 ---
 apiVersion: v1
 kind: Service
@@ -71,8 +66,3 @@ spec:
           name: httpbin
           ports:
             - containerPort: 80
-      hostAliases:
-        - ip: "149.28.196.14"
-          hostnames:
-            - "istiod-costin-asm1-big1-xds-icq63pqnqq-uc.a.run.app"
-            - "istiod-costin-asm1-big1-xds-t2mbbtjbiq-uc.a.cloud-run-qual.sandbox.google.com"

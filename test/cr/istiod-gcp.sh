@@ -7,7 +7,7 @@ if [[ -n ${PROJECT} ]]; then
   gcloud container clusters get-credentials ${CLUSTER} --zone ${ZONE} --project ${PROJECT}
 fi
 
-ISTIOD_PORT=${ISTIOD_PORT:-443}
+export ISTIOD_PORT=${ISTIOD_PORT:-443}
 
 # Disable webhook config patching - manual configs used, proper DNS certs means no cert patching.
 export VALIDATION_WEBHOOK_CONFIG_NAME=
@@ -26,8 +26,10 @@ if [[ -n ${MESH} ]]; then
   echo ${MESH} > /etc/istio/config/mesh
 else
   cat /etc/istio/config/mesh_template.yaml | envsubst > /etc/istio/config/mesh
+  cat /etc/istio/config/mesh
 fi
 
+kubectl get ns
 echo Starting with: $*
 
 exec /usr/local/bin/pilot-discovery discovery \
