@@ -55,7 +55,7 @@ global:
   centralIstiod: false
 
   proxy:
-    image: costinm/proxyv2:gcp
+    image: costinm/proxyv2:cr
 
     # cluster domain. Default value is "cluster.local".
     clusterDomain: "cluster.local"

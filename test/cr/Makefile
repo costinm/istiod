@@ -4,6 +4,10 @@ ISTIO_PROJECT ?= wlhe-cr
 PROJECT ?= costin-asm1
 ZONE ?= us-central1-c
 CLUSTER ?= big1
+TAG ?= cr
+HUB ?= gcr.io/${ISTIO_PROJECT}
+export TAG
+export HUB
 
 # Suffix for the domain URLs -
 DOMAIN=-icq63pqnqq-uc.a.run.app
@@ -63,14 +67,16 @@ build/istiod:
 #export DOCKER_HOST=tcp://localhost:2375
 
 build/remote: build/istiod
-	docker build -t gcr.io/${ISTIO_PROJECT}/pilot:gcp .
-	docker push  gcr.io/${ISTIO_PROJECT}/pilot:gcp
+	docker build -t ${HUB}/pilot:${TAG} .
+	docker push  ${HUB}/pilot:${TAG}
 
 push/proxy:
-	cd /work && TAG=gcp HUB=costinm make push.docker.proxyv2
+	cd /work && HUB=${HUB} TAG=${TAG} make push.docker.proxyv2
+	docker tag ${HUB}/proxyv2:${TAG} costinm/proxyv2:${TAG}
+	docker push costinm/proxyv2:${TAG}
 
 run:
-	gcloud config unset api_endpoint_overrides/run
+	#gcloud config unset api_endpoint_overrides/run
 	make _run
 
 _run:
@@ -79,16 +85,16 @@ _run:
 	# Alternative: --cpu 4 --memory 4G
 	gcloud alpha run deploy istiod${REV}-${PROJECT}-${CLUSTER} --allow-unauthenticated \
 	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
-     --image gcr.io/${ISTIO_PROJECT}/pilot:gcp \
+     --image gcr.io/${ISTIO_PROJECT}/pilot:${TAG} \
      --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT},ISTIOD_DOMAIN=${DOMAIN},EXTRA_ARGS=--grpcAddr=OFF \
 	 --port 8080 --cpu 4 --memory 4G --min-instances=1
 
 	#gcloud config set api_endpoint_overrides/run https://staging-run.sandbox.googleapis.com/
-	gcloud alpha run deploy istiod${REV}-${PROJECT}-${CLUSTER}-xds --allow-unauthenticated \
-	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
-        --image gcr.io/${ISTIO_PROJECT}/pilot:gcp \
-       --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT},ISTIOD_DOMAIN=${DOMAIN},INJECT_ENABLED=false,VALIDATION_ENABLED=false \
-        --port 15010 --cpu 4 --memory 4G --min-instances=1
+#	gcloud alpha run deploy istiod${REV}-${PROJECT}-${CLUSTER}-xds --allow-unauthenticated \
+#	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
+#        --image gcr.io/${ISTIO_PROJECT}/pilot:${TAG} \
+#       --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT},ISTIOD_DOMAIN=${DOMAIN},INJECT_ENABLED=false,VALIDATION_ENABLED=false \
+#        --port 15010 --cpu 4 --memory 4G --min-instances=1
 	#gcloud config unset api_endpoint_overrides/run
 
 build/staging:
@@ -113,8 +119,11 @@ test/inject:
 
 
 # Inject on a local workload
-test/local_inject:
+local/inject:
 	curl  http://localhost:8080/inject/  -d @mutating_req.json -HContent-Type:application/json  | jq .response.patch | sed s/\"// | base64 -d | jq .
+
+local/grpc:
+
 
 # Steps:
 # - create cluster

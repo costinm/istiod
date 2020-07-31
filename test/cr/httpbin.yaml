@@ -12,9 +12,9 @@ metadata:
   namespace: httpbin
 spec:
   containers:
-    - name: ubuntu
-      image: library/ubuntu:bionic
-      command: ["sleep", "infinity"]
+    - name: app
+      image: curlimages/curl:latest
+      args: ["/bin/sh", "-c", "sleep 5d"]
 ---
 apiVersion: v1
 kind: Service
@@ -27,7 +27,7 @@ spec:
   ports:
     - name: http
       port: 8000
-      targetPort: 80
+      targetPort: 8080
   selector:
     app: httpbin
 ---
@@ -61,8 +61,11 @@ spec:
         sidecar.istio.io/proxyImage: costinm/proxyv2:gcp
     spec:
       containers:
-        - image: docker.io/kennethreitz/httpbin
+        - image: mccutchen/go-httpbin
           imagePullPolicy: IfNotPresent
-          name: httpbin
+          name: app
           ports:
-            - containerPort: 80
+            - containerPort: 8080
+
+#kubectl -n httpbin exec -it prober -- curl httpbin:8000
+#
