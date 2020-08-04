@@ -5,5 +5,4 @@ enablePrometheusMerge: true
 defaultConfig:
   proxyMetadata: {}
   discoveryAddress: "${K_SERVICE}${ISTIOD_DOMAIN}:443"
-  #discoveryAddress: "${K_SERVICE}-xds${ISTIOD_DOMAIN}:443"
   tracing: {}

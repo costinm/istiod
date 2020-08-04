@@ -11,6 +11,7 @@
 # still be overridden by users, but won't show in basic documentation.
 
 # This doesn't match istio defaults, which are more geared towards tests and bookinfo.
+logOutputLevel: default:info
 
 global:
   # Used to locate istio-pilot.
@@ -269,7 +270,7 @@ global:
   # The default depends on the environment.
   #   kubernetes: cluster.local
   #   else:  default dns domain
-  trustDomain: "cluster.local"
+  trustDomain: "${TRUST_DOMAIN}"
 
   # Mesh ID means Mesh Identifier. It should be unique within the scope where
   # meshes will interact with each other, but it is not required to be
@@ -309,12 +310,12 @@ global:
   omitSidecarInjectorConfigMap: false
   sds:
     token:
-      aud: istio-ca
+      aud: ${TRUST_DOMAIN}
 
   sts:
     # The service port used by Security Token Service (STS) server to handle token exchange requests.
     # Setting this port to a non-zero value enables STS server.
-    servicePort: 0
+    servicePort: 15009
 
   # The customized CA address to retrieve certificates for the pods in the cluster.
   # CSR clients such as the Istio Agent and ingress gateways can use this to specify the CA endpoint.

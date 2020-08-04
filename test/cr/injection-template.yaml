@@ -137,8 +137,6 @@ template: |
     args:
     - proxy
     - sidecar
-    - --stsPort
-    - "15009"
     - --domain
     - $(POD_NAMESPACE).svc.{{ .Values.global.proxy.clusterDomain }}
     - --serviceCluster
@@ -147,6 +145,7 @@ template: |
     {{ else -}}
     - "{{ valueOrDefault .DeploymentMeta.Name `istio-proxy` }}.{{ valueOrDefault .DeploymentMeta.Namespace `default` }}"
     {{ end -}}
+    - --log_output_level={{ annotation .ObjectMeta `sidecar.istio.io/debug` .Values.logOutputLevel}}
     - --proxyLogLevel={{ annotation .ObjectMeta `sidecar.istio.io/logLevel` .Values.global.proxy.logLevel}}
     - --proxyComponentLogLevel={{ annotation .ObjectMeta `sidecar.istio.io/componentLogLevel` .Values.global.proxy.componentLogLevel}}
   {{- if .Values.global.sts.servicePort }}

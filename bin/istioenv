@@ -5,7 +5,7 @@
 #
 #
 
- source <(kubectl completion bash)
+source <(kubectl completion bash)
 
 # gcloud config set container/use_application_default_credentials false
 
@@ -19,26 +19,22 @@ fi
 # TARGET_OUT is defined in istio/out/.env
 # set by common/scripts/setup_env.sh
 
-export GO_TOP=$TOP
-# Used in the shell scripts.
-export ISTIO_SRC=$TOP
-# Not used - default is ~/go, used for pkg
-#export GOPATH=$TOP
-export ISTIO_GO=$TOP/src/istio.io/istio
-export OUT_DIR=$ISTIO_GO/out
-export OUT=${OUT_DIR}
-export TARGET_OUT=${OUT}/linux_amd64/release
+export ISTIO_SRC=/work
+export ISTIOD_SRC=${HOME}/istio-stable/src/istio.io/istiod
+export BINDIR=${ISTIO_SRC}/out/linux_amd64/release
+export LOG_DIR=${BINDIR}/logs
+export PATH=${BINDIR}:${PATH}
 
-# Faster, make autocomplete works
-# make gen, make fmt explicitly set it
-export BUILD_WITH_CONTAINER=0
+function istioEnvSet() {
+  export OUT_DIR=$ISTIO_GO/out
+  export OUT=${OUT_DIR}
 
-export KUBECONFIG=${KUBECONFIG:-${HOME}/.kube/config}
-export PATH=$TOP/bin:$TARGET_OUT:$PATH
+  # Faster, make autocomplete works
+  # make gen, make fmt explicitly set it
+  export BUILD_WITH_CONTAINER=0
+}
 
-export GO111MODULE=on
 
-export LOG_DIR=${OUT_DIR}
 alias kwatch="kubectl get events --all-namespaces -w"
 alias kall="kubectl get all --all-namespaces -o wide"
 alias kpo="kubectl get po --all-namespaces -o wide"
@@ -49,18 +45,16 @@ alias kpo="kubectl get po --all-namespaces -o wide"
 # Also minikube seems to use 192.168.99.1 for the host, .100 for the VM
 alias dockerips="docker ps -q | xargs -n 1 docker inspect --format '{{ .NetworkSettings.IPAddress }} {{ .Name }}' | sed 's/ \// /'"
 
-# Source the file with: ". istioenv"
-
-if [ "$TOP" == "" ]; then
-  BASE=.
-else
-  BASE=$TOP/src/istio.io/installer
-fi
-
-# Aliases for common kubectl
 alias kis='kubectl -n istio-system'
 alias kic='kubectl -n istio-control'
 alias kii='kubectl -n istio-ingress'
+
+# Also docker rm $(docker ps -a -q)
+alias istioDockerCleanImages='docker rmi $(docker images -q)'
+alias kis103='kubectl -n pilot103'
+alias kt='kubectl -n test'
+alias kga='kubectl get --all-namespaces'
+
 
 
 
@@ -77,7 +71,7 @@ alias kii='kubectl -n istio-ingress'
 function klog() {
     local ns=${1}
     local label=${2}
-    local container=${3}
+    local container=${3:-istio-proxy}
     shift; shift; shift
 
     kubectl --namespace=$ns logs $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') $container $*
@@ -94,6 +88,10 @@ function kexec() {
     shift; shift; shift
 
     kubectl --namespace=$ns exec -it $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') -c $container -- $*
+}
+
+function kcdump() {
+  kexec1 $1 $2 istio-proxy curl localhost:15000/config_dump
 }
 
 function kexec1() {
@@ -143,12 +141,6 @@ function logs-webhook() {
 function exec-fortio11-cli-proxy() {
     # curl -v  -k  --key /etc/certs/key.pem --cert /etc/certs/cert-chain.pem https://fortiotls:8080
     kexec fortio11 app=cli-fortio-tls istio-proxy $*
-}
-
-function iop_test_apps() {
-    iop none none ${BASE}/test/none $*
-    kubectl create ns httpbin
-    kubectl -n httpbin apply -f ${BASE}/test/k8s/httpbin.yaml
 }
 
 # Prepare GKE for Lego DNS. You must have a domain, $DNS_PROJECT
@@ -233,7 +225,7 @@ function localPilot() {
     if [[ -f  $PID ]] ; then
         kill -9 $(cat ${PID})
     fi
-    ${TARGET_OUT}/pilot-discovery discovery \
+    ${BINDIR}/pilot-discovery discovery \
         --kubeconfig $KUBECONFIG \
         --meshConfig test/simple/mesh.yaml \
         --networksConfig test/simple/meshNetworks.yaml &
@@ -252,7 +244,6 @@ function localStop() {
 
 # For testing the config of sidecar
 function localSidecar() {
-    BINDIR=${TOP}/out/linux_amd64/release
     ${BINDIR}/pilot-agent proxy sidecar \
         --domain simple-micro.svc.cluster.local \
         --configPath ${TOP}/out \
@@ -546,12 +537,7 @@ function lunch() {
         unset DOCKER_API_VERSION
     fi
 
-    if [ "$env" == "local" ]; then
-    	export KUBECONFIG=${ISTIO_GO}/.circleci/config
-	    $ISTIO_GO/bin/testEnvLocalK8S.sh start
-
-        export ISTIO=127.0.0.1
-    elif [ "$env" == "minikube" ]; then
+    if [ "$env" == "minikube" ]; then
         export KUBECONFIG=${OUT}/minikube.conf
         minikube status | grep Running
         if [ "$?" != "0" ]  || [ ! -f ${KUBECONFIG} ] ; then
@@ -663,7 +649,7 @@ function istioE2E() {
       --skip_setup --namespace test \
       --mixer_tag ${TAG} --pilot_tag ${TAG} --proxy_tag ${TAG} --ca_tag ${TAG} \
       --mixer_hub ${HUB} --pilot_hub ${HUB} --proxy_hub ${HUB} --ca_hub ${HUB} \
-      --istioctl $TARGET_OUT/istioctl
+      --istioctl ${BINDIR}/istioctl
 
 }
 
@@ -691,19 +677,13 @@ function istioTestPilot() {
 
 function istioXDS() {
   # EnvoyFilter, Gateway, VirtualService, etc
-  (cd $ISTIO_GO; \
+  (cd $ISTIO_SRC; \
     go run ./pilot/tools/debug --pilot localhost:15010 \
       --proxytag fortio  \
       --node sidecar~10.42.0.86~fortio-856f9bb7fb-ljhwx.fortio~fortio.svc.cluster.local \
       --type networking.istio.io/v1alpha3/VirtualService
   )
 }
-
-# Also docker rm $(docker ps -a -q)
-alias istioDockerCleanImages='docker rmi $(docker images -q)'
-alias kis103='kubectl -n pilot103'
-alias kt='kubectl -n test'
-alias kga='kubectl get --all-namespaces'
 
 # Switch to a new deb branch
 function istioBranch() {
@@ -769,22 +749,6 @@ function k8sWait() {
       sleep 2
     done
     kubectl get svc --all-namespaces
-}
-
-
-function istioGetCA() {
-    kubectl get secret -n istio-system istio-ca-secret -o yaml
-
-    # Delete old secrets
-    # kubectl delete secret -l istio: --all-namespaces
-    # ca-cert.pem,  ca-key.pem
-}
-
-function istioRemoteCitadel() {
-
-    istio_ca --signing-key ca-key.pem --signing-cert ca-cert.pem --root-cert root-cert.pem
-
-    # --grpcPort=0
 }
 
 # Must be run with KUBECONFIG pointing to the remote cluster

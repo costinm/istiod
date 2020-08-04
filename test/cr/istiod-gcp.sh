@@ -22,6 +22,28 @@ export USE_TOKEN_FOR_XDS=true
 # Disable the DNS-over-TLS server
 export DNS_ADDR=
 
+export REVISION=${REV:-managed}
+
+export TRUST_DOMAIN=${PROJECT}.svc.id.goog
+
+# TODO:
+# - copy inject template and mesh config to cluster (first time) or from cluster
+# - revision support
+# - option to enable 'default' ingress class
+# - telemetry on stackdriver
+# - option for managed CA
+# - support non-GKE clusters - fetch a kubeconfig from secret manager
+# - set trustDomain to match managed CA by default ( no need for cluster.local )
+
+kubectl get ns istio-system
+if [[ "$?" != "0" ]]; then
+  echo "Initializing istio-system and CRDs, fresh cluster"
+  kubectl create ns istio-system
+  #kubectl apply -k github.com/istio/istio/manifests/charts/base
+  kubectl apply -f /var/lib/istio/config/gen-istio-cluster.yaml \
+      --record=false --overwrite=false   --force-conflicts=true --server-side
+fi
+
 if [[ -n ${MESH} ]]; then
   echo ${MESH} > /etc/istio/config/mesh
 else
@@ -29,15 +51,20 @@ else
   cat /etc/istio/config/mesh
 fi
 
-kubectl get ns istio-system
-if [[ "$?" == "1" ]]; then
-  kubectl create ns istio-system
-  kubectl apply -k github.com/istio/istio/manifests/charts/base
+cat /var/lib/istio/inject/values_template.yaml | envsubst > /var/lib/istio/inject/values
+
+# TODO: istio must watch it - no file reloading
+kubectl get -n istio-system cm istio-${REVISION}
+if [[ "$?" != "0" ]]; then
+  echo "Initializing revision"
+  kubectl -n istio-system create cm istio-${REVISION} --from-file /etc/istio/config/mesh
+  cat /var/lib/istio/config/telemetry.yaml | envsubst | kubectl apply -f -
 fi
+
 
 # Make sure the mutating webhook is installed, and prepare CRDs
 # This also 'warms' up the kubeconfig - otherwise gcloud will slow down startup of istiod.
-kubectl get mutatingwebhookconfiguration istiod-managed
+kubectl get mutatingwebhookconfiguration istiod-${REVISION}
 if [[ "$?" == "1" ]]; then
   echo "Mutating webhook missing, initializing"
   # TODO: include the charts in the image !
@@ -47,13 +74,18 @@ if [[ "$?" == "1" ]]; then
 else
   echo "Mutating webhook found"
 fi
-echo Starting with: $*
+echo Starting $*
 
+# What audience to expect for Citadel and XDS - currently using the non-standard format
+# TODO: use https://... - and separate token for stackdriver/managedCA
+export TOKEN_AUDIENCE=${TRUST_DOMAIN}
 
 # TODO: if injection template, injection values are present in the cluster, get them and use instead of the
 # built-in templates. Same for mesh config.
 
 exec /usr/local/bin/pilot-discovery discovery \
    --httpsAddr OFF \
+   --trust-domain ${TRUST_DOMAIN} \
    --secureGRPCAddr OFF \
+   --grpcAddr OFF \
    ${EXTRA_ARGS} ${LOG_ARGS} $*

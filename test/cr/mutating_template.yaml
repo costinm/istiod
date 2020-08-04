@@ -1,9 +1,10 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: istiod-managed
+  name: istiod-${REVISION}
 webhooks:
   - name: managed-injector.istio.io
+    timeoutSeconds: 29
     clientConfig:
       url: https://${K_SERVICE}${ISTIOD_DOMAIN}/inject/${CLUSTER}/default
     sideEffects: None
@@ -21,7 +22,7 @@ webhooks:
         - key: istio.io/rev
           operator: In
           values:
-            - managed
+            - ${REVISION}
     objectSelector:
       matchExpressions:
         - key: "sidecar.istio.io/inject"
