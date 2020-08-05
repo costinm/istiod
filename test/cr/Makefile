@@ -7,6 +7,9 @@ ZONE ?= us-central1-c
 PROJECT_ID ?= costin-asm1
 CLUSTER ?= big1
 
+CPU ?= 1
+MEM ?= 2G
+
 # Works with telemetry/stackdriver
 #REV ?= m4
 #TAG ?= cr
@@ -27,7 +30,7 @@ URL=istiod-${PROJECT_ID}-${CLUSTER}-${REV}${DOMAIN}
 ISTIO_SRC=/work
 
 # Main testing target for ASM
-all: build/remote run_asm fortio
+all: build/remote run_asm test
 
 proxy:
 	cd /work && HUB=${HUB} TAG=${TAG} make push.docker.proxyv2
@@ -75,17 +78,26 @@ build/remote: build/istiod
 	docker build -t ${HUB}/pilot:${TAG} .
 	docker push  ${HUB}/pilot:${TAG}
 
-
+# Run 2 revisions - one ASM one OSS
+# The OSS revision can be used in non-GKE clusters
+# The ASM will use ManagedCA and Stackdriver, on GKE
 run:
 	#gcloud config unset api_endpoint_overrides/run
-	make _run
+	REV=oss $(MAKE) _run
+	REV=asm ENVEXTRA="ASM=1," CPU=4 MEM=4G $(MAKE) _run
 
+# Run just the ASM version.
 run_asm:
 	#gcloud config unset api_endpoint_overrides/run
-	ENVEXTRA="ASM=1," make _run
+	ENVEXTRA="ASM=1," $(MAKE) _run
 
+test/run:
+	REV=asm $(MAKE) fortio
+	REV=oss $(MAKE) fortio
+
+# Run fortio in fortio-$REV, with $REV istio env
 fortio:
-	cat fortio.yaml | envsubst | kubectl apply -f -
+	cat test/fortio.yaml | envsubst | kubectl apply -f -
 
 # Common target for running
 _run:
@@ -96,7 +108,7 @@ _run:
 	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
      --image gcr.io/${ISTIO_PROJECT}/pilot:${TAG} \
      --set-env-vars=${ENVEXTRA}REV=${REV},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${DOMAIN} \
-	 --port 8080 --concurrency 1000 --timeout 900 --cpu 2 --memory 2G --max-instances=1
+	 --port 8080 --concurrency 1000 --timeout 900 --cpu ${CPU} --memory ${MEM} --max-instances=1
 
 #--cpu 4 --memory 4G --min-instances=1
 
