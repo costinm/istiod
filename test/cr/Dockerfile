@@ -22,5 +22,6 @@ COPY mutating_template.yaml /var/lib/istio/inject/mutating_template.yaml
 
 COPY gen-istio-cluster.yaml /var/lib/istio/config/gen-istio-cluster.yaml
 COPY telemetry.yaml /var/lib/istio/config/telemetry.yaml
+COPY telemetry-sd.yaml /var/lib/istio/config/telemetry-sd.yaml
 
 ENTRYPOINT /usr/local/bin/istiod-gcp.sh

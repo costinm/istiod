@@ -173,6 +173,8 @@ template: |
           - wait
   {{- end }}
     env:
+    - name: GKE_CLUSTER_URL
+      value: {{ .Values.gkeClusterURL }}
     - name: JWT_POLICY
       value: {{ .Values.global.jwtPolicy }}
     - name: PILOT_CERT_PROVIDER

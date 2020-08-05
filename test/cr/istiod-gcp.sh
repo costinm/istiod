@@ -23,8 +23,15 @@ export USE_TOKEN_FOR_XDS=true
 export DNS_ADDR=
 
 export REVISION=${REV:-managed}
-
+export GKE_CLUSTER_URL=https://container.googleapis.com/v1/projects/${PROJECT}/locations/${ZONE}/clusters/${CLUSTER}
 export TRUST_DOMAIN=${PROJECT}.svc.id.goog
+export CA_PROVIDER=${CA_PROVIDER:-istiod}
+export CA_ADDR=${CA_ADDR:-}
+
+if [[ "${ASM}" == "1" ]]; then
+  export STACKDRIVER=1
+  export CA_ADDR=meshca.googleapis.com:443
+fi
 
 # TODO:
 # - copy inject template and mesh config to cluster (first time) or from cluster
@@ -58,7 +65,14 @@ kubectl get -n istio-system cm istio-${REVISION}
 if [[ "$?" != "0" ]]; then
   echo "Initializing revision"
   kubectl -n istio-system create cm istio-${REVISION} --from-file /etc/istio/config/mesh
-  cat /var/lib/istio/config/telemetry.yaml | envsubst | kubectl apply -f -
+
+  # Sidecars will report to stackdriver - requires proper setup.
+  if [[ "${STACKDRIVER}" == "1" ]]; then
+    cat /var/lib/istio/config/telemetry-sd.yaml | envsubst | kubectl apply -f -
+  else
+    # Prometheus only.
+    cat /var/lib/istio/config/telemetry.yaml | envsubst | kubectl apply -f -
+  fi
 fi
 
 
@@ -79,6 +93,9 @@ echo Starting $*
 # What audience to expect for Citadel and XDS - currently using the non-standard format
 # TODO: use https://... - and separate token for stackdriver/managedCA
 export TOKEN_AUDIENCE=${TRUST_DOMAIN}
+
+# Istiod will report to stackdriver
+export ENABLE_STACKDRIVER_MONITORING=${ENABLE_STACKDRIVER_MONITORING:-1}
 
 # TODO: if injection template, injection values are present in the cluster, get them and use instead of the
 # built-in templates. Same for mesh config.

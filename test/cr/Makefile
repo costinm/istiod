@@ -4,21 +4,37 @@ ISTIO_PROJECT ?= wlhe-cr
 ZONE ?= us-central1-c
 #PROJECT ?= costin-asm1
 #CLUSTER ?= big1
-PROJECT ?= costin-asm1
+PROJECT_ID ?= costin-asm1
 CLUSTER ?= big1
-REVISION ?= m1
 
-TAG ?= cr
+# Works with telemetry/stackdriver
+#REV ?= m4
+#TAG ?= cr
+
+# WIP: stackdriver+managedca
+REV ?= asm
+TAG ?= asm
+
 HUB ?= gcr.io/${ISTIO_PROJECT}
 export TAG
 export HUB
-
+export REV
 # Suffix for the domain URLs -
 DOMAIN?=-icq63pqnqq-uc.a.run.app
 #SDOMAIN=-t2mbbtjbiq-uc.a.cloud-run-qual.sandbox.google.com
-URL=istiod-${PROJECT}-${CLUSTER}-${REVISION}${DOMAIN}
+URL=istiod-${PROJECT_ID}-${CLUSTER}-${REV}${DOMAIN}
 
 ISTIO_SRC=/work
+
+# Main testing target for ASM
+all: build/remote run_asm fortio
+
+proxy:
+	cd /work && HUB=${HUB} TAG=${TAG} make push.docker.proxyv2
+	docker tag ${HUB}/proxyv2:${TAG} costinm/proxyv2:${TAG}
+	docker push costinm/proxyv2:${TAG}
+	# Kick the pod to force reload
+	kubectl -n fortio-${REV} delete po --all --force --grace-period=0
 
 gcp/init:
 	gcloud services enable staging-run.sandbox.googleapis.com
@@ -59,26 +75,27 @@ build/remote: build/istiod
 	docker build -t ${HUB}/pilot:${TAG} .
 	docker push  ${HUB}/pilot:${TAG}
 
-push/proxy:
-	cd /work && HUB=${HUB} TAG=${TAG} make push.docker.proxyv2
-	docker tag ${HUB}/proxyv2:${TAG} costinm/proxyv2:${TAG}
-	docker push costinm/proxyv2:${TAG}
 
 run:
 	#gcloud config unset api_endpoint_overrides/run
 	make _run
 
+run_asm:
+	#gcloud config unset api_endpoint_overrides/run
+	ENVEXTRA="ASM=1," make _run
+
 fortio:
 	cat fortio.yaml | envsubst | kubectl apply -f -
 
+# Common target for running
 _run:
 	#gcloud config unset api_endpoint_overrides/run
 	# Slow start - but pinned
 	# Alternative: --cpu 4 --memory 4G
-	gcloud alpha run deploy istiod-${PROJECT}-${CLUSTER}-${REVISION} --allow-unauthenticated \
+	gcloud alpha run deploy istiod-${PROJECT_ID}-${CLUSTER}-${REV} --allow-unauthenticated \
 	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
      --image gcr.io/${ISTIO_PROJECT}/pilot:${TAG} \
-     --set-env-vars=REV=${REVISION},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT},ISTIOD_DOMAIN=${DOMAIN} \
+     --set-env-vars=${ENVEXTRA}REV=${REV},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${DOMAIN} \
 	 --port 8080 --concurrency 1000 --timeout 900 --cpu 2 --memory 2G --max-instances=1
 
 #--cpu 4 --memory 4G --min-instances=1
@@ -86,15 +103,15 @@ _run:
 # Max set to 1 to test single-instance perf
 
 	#gcloud config set api_endpoint_overrides/run https://staging-run.sandbox.googleapis.com/
-#	gcloud alpha run deploy istiod${REV}-${PROJECT}-${CLUSTER}-xds --allow-unauthenticated \
+#	gcloud alpha run deploy istiod${REV}-${PROJECT_ID}-${CLUSTER}-xds --allow-unauthenticated \
 #	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
 #        --image gcr.io/${ISTIO_PROJECT}/pilot:${TAG} \
-#       --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT},ISTIOD_DOMAIN=${DOMAIN},INJECT_ENABLED=false,VALIDATION_ENABLED=false \
+#       --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${DOMAIN},INJECT_ENABLED=false,VALIDATION_ENABLED=false \
 #        --port 15010 --cpu 4 --memory 4G --min-instances=1q
 	#gcloud config unset api_endpoint_overrides/run
 
 build/staging:
-	PROJECT=costin-asm1 make build/remote
+	PROJECT_ID=costin-asm1 make build/remote
 
 
 staging: build/staging run_staging
@@ -110,7 +127,7 @@ cert:
 
 # Verify injection is active
 test/inject:
-	time curl -v https://istiod${REV}-${PROJECT}-${CLUSTER}${DOMAIN}/inject  -d @mutating_req.json -HContent-Type:application/json | jq .response.patch | sed s/\"// | base64 -d | jq .
+	time curl -v https://istiod${REV}-${PROJECT_ID}-${CLUSTER}${DOMAIN}/inject  -d @mutating_req.json -HContent-Type:application/json | jq .response.patch | sed s/\"// | base64 -d | jq .
 
 
 test/dump:
@@ -146,10 +163,10 @@ local:
     -e K_SERVICE=dev \
     -e K_CONFIGURATION=dev \
     -e K_REVISION=dev-00001 \
-    -e PROJECT=${PROJECT} \
+    -e PROJECT=${PROJECT_ID} \
     -e CLUSTER=${CLUSTER} \
     -e ZONE=${ZONE} \
-    -e REVISION=${REVISION} \
+    -e REV=${REV} \
     -e LOG_ARGS=--log_output_level=info \
     -e CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=/var/run/secrets/google/google.json \
     -e GOOGLE_APPLICATION_CREDENTIALS=/var/run/secrets/google/google.json \
@@ -169,7 +186,7 @@ local:
 testrun:
 	kubectl run -n httpbin shell --rm -i --tty --image ubuntu -- bash
 
-CA_ADDR ?= istiod-${PROJECT}-${CLUSTER}${DOMAIN}:443
+CA_ADDR ?= istiod-${PROJECT_ID}-${CLUSTER}${DOMAIN}:443
 SERVICE_ACCOUNT ?= default
 INTERMEDIATE_KEYSZ ?= 4096
 INTERMEDIATE_ORG ?= Istio
