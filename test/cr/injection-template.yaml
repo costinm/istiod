@@ -183,6 +183,8 @@ template: |
     - name: CA_ADDR
       value: {{ .Values.global.caAddress }}
     {{- end }}
+    - name: OUTPUT_CERTS
+      value: /etc/istio/proxy/
     - name: POD_NAME
       valueFrom:
         fieldRef:

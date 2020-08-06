@@ -27,13 +27,14 @@ DOMAIN?=-icq63pqnqq-uc.a.run.app
 #SDOMAIN=-t2mbbtjbiq-uc.a.cloud-run-qual.sandbox.google.com
 URL=istiod-${PROJECT_ID}-${CLUSTER}-${REV}${DOMAIN}
 
-ISTIO_SRC=/work
+# Default to the docker env dir
+ISTIO_SRC ?= /work
 
 # Main testing target for ASM
-all: build/remote run_asm test
+all: build/cloudrun run_asm test/run
 
 proxy:
-	cd /work && HUB=${HUB} TAG=${TAG} make push.docker.proxyv2
+	cd ${ISTIO_SRC} && HUB=${HUB} TAG=${TAG} make push.docker.proxyv2
 	docker tag ${HUB}/proxyv2:${TAG} costinm/proxyv2:${TAG}
 	docker push costinm/proxyv2:${TAG}
 	# Kick the pod to force reload
@@ -68,13 +69,14 @@ build/telemetry-gen:
         --set revision=XREVISION --set telemetry.v2.metadataExchange.wasmEnabled=true  \
         --set global.multiCluster.clusterName=XCLUSTER ) | sed s/XREVISION/\$${REVISION}/ > istio-all.yaml
 
+# Build Istiod only - this is what goes into the docker image.
 build/istiod:
 	(cd ${ISTIO_SRC}; go build -o ${TOP}/istiod ./pilot/cmd/pilot-discovery)
 
 
 #export DOCKER_HOST=tcp://localhost:2375
 
-build/remote: build/istiod
+build/cloudrun: build/istiod
 	docker build -t ${HUB}/pilot:${TAG} .
 	docker push  ${HUB}/pilot:${TAG}
 

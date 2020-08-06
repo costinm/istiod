@@ -5,41 +5,54 @@ metadata:
   labels:
     istio.io/rev: ${REV}
 ---
-#apiVersion: v1
-#kind: Pod
-#metadata:
-#  name: fortio-cli
-#  namespace: fortio
-#  annotations:
-#      sidecar.istio.io/logLevel: info
-#      sidecar.istio.io/debug: token:debug
-#      sidecar.istio.io/proxyImage: costinm/proxyv2:cr
-#      sidecar.istio.io/proxyCPU: 10m
-#spec:
-#  containers:
-#    - name: app
-#      image: costinm/fortio:latest
-#      args:
-#        - load
-#        - -allow-initial-errors
-#        - -t
-#        - "0"
-#        - -abort-on
-#        - "123"
-#        - -allow-initial-errors
-#        - -c
-#        - "1"
-#        - -qps
-#        - "1"
-#        - http://fortio:8080/echo?size=5000
-#      env:
-#          - name: istio
-#            value: ${REV}
-#      resources:
-#          requests:
-#            cpu: 10m
-#          limits:
-#            cpu: 800m
+apiVersion: v1
+kind: Service
+metadata:
+  name: fortio
+  namespace: fortio-${REV}
+  labels:
+    app: fortio
+spec:
+  ports:
+    - name: http
+      port: 8080
+  selector:
+    app: fortio
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Sidecar
+metadata:
+  name: default
+  namespace: fortio-${REV}
+spec:
+  egress:
+    - hosts:
+        - "./*"
+---
+# Strict auth for this namespace - this should be the default.
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: fortio-${REV}
+spec:
+#  selector:
+#    matchLabels:
+#      app: fortio
+  mtls:
+    mode: STRICT
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: fortios
+  namespace: fortio-${REV}
+spec:
+  host: fortio
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
 
 ---
 apiVersion: apps/v1
@@ -61,7 +74,7 @@ spec:
       annotations:
         sidecar.istio.io/logLevel: info
         sidecar.istio.io/debug: token:debug
-        sidecar.istio.io/proxyImage: costinm/proxyv2:cr
+        sidecar.istio.io/proxyImage: costinm/proxyv2:${TAG}
         sidecar.istio.io/proxyCPU: 10m
     spec:
       containers:
@@ -90,30 +103,6 @@ spec:
               cpu: 800m
 
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: fortio
-  namespace: fortio-${REV}
-  labels:
-    app: fortio
-spec:
-  ports:
-    - name: http
-      port: 8080
-  selector:
-    app: fortio
----
-apiVersion: networking.istio.io/v1alpha3
-kind: Sidecar
-metadata:
-  name: default
-  namespace: fortio-${REV}
-spec:
-  egress:
-    - hosts:
-        - "./*"
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -133,12 +122,12 @@ spec:
         sidecar.istio.io/logLevel: info
         #sidecar.istio.io/componentLogLevel: token:debug
         sidecar.istio.io/debug: token:debug
-        sidecar.istio.io/proxyImage: costinm/proxyv2:asm
+        sidecar.istio.io/proxyImage: costinm/proxyv2:${TAG}
         sidecar.istio.io/proxyCPU: 10m
     spec:
       containers:
        -  name: app
-          image: "costinm/fortio:latest"
+          image: costinm/fortio:latest
           ports:
             - containerPort: 8080
             - containerPort: 8081
@@ -155,6 +144,3 @@ spec:
             limits:
               cpu: 1000m
               memory: "1G"
-
-#kubectl -n fortio exec -it prober -- curl httpbin:8000
-#
