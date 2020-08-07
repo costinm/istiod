@@ -110,7 +110,9 @@ _run:
 	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
      --image gcr.io/${ISTIO_PROJECT}/pilot:${TAG} \
      --set-env-vars=${ENVEXTRA}REV=${REV},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${DOMAIN} \
-	 --port 8080 --concurrency 1000 --timeout 900 --cpu ${CPU} --memory ${MEM} --max-instances=1
+	 --port 8080 --concurrency 1000 --timeout 900 --cpu ${CPU} --memory ${MEM}
+
+#--max-instances=1
 
 #--cpu 4 --memory 4G --min-instances=1
 

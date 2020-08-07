@@ -2,6 +2,9 @@
 # Docker will use an env to override.
 
 enablePrometheusMerge: true
+trustDomain: ${TRUST_DOMAIN}
+trustDomainAliases:
+  - cluster.local
 defaultConfig:
   proxyMetadata: {}
   discoveryAddress: "${K_SERVICE}${ISTIOD_DOMAIN}:443"
