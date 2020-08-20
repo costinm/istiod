@@ -146,7 +146,7 @@ spec:
         sidecar.istio.io/logLevel: info
         #sidecar.istio.io/componentLogLevel: token:debug
         sidecar.istio.io/debug: token:debug
-`        sidecar.istio.io/proxyCPU: 10m
+        sidecar.istio.io/proxyCPU: 10m
     spec:
       containers:
        -  name: app
