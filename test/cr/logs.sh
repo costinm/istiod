@@ -1,0 +1,1 @@
+gcloud logging read --project wlhe-cr 'resource.type = "cloud_run_revision" AND resource.labels.service_name = "istiod--howardjohn-asm"' --limit=1000 --format json | jq '.[] | .labels.instanceId[-10:] + " " + (if .textPayload then .textPayload else (.httpRequest | tostring) end)' -r | tac

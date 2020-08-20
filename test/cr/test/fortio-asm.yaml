@@ -1,15 +1,15 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: fortio-${REV}
+  name: fortio-asm
   labels:
-    istio.io/rev: ${REV}
+    istio.io/rev: asm
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: fortio
-  namespace: fortio-${REV}
+  namespace: fortio-asm
   labels:
     app: fortio
 spec:
@@ -23,7 +23,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: Sidecar
 metadata:
   name: default
-  namespace: fortio-${REV}
+  namespace: fortio-asm
 spec:
   egress:
     - hosts:
@@ -36,7 +36,7 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: default
-  namespace: fortio-${REV}
+  namespace: fortio-asm
 spec:
 #  selector:
 #    matchLabels:
@@ -49,7 +49,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
   name: fortios
-  namespace: fortio-${REV}
+  namespace: fortio-asm
 spec:
   host: fortio
   trafficPolicy:
@@ -61,7 +61,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: fortio-cli
-  namespace: fortio-${REV}
+  namespace: fortio-asm
 spec:
   replicas: 1
   selector:
@@ -76,7 +76,6 @@ spec:
       annotations:
         sidecar.istio.io/logLevel: info
         sidecar.istio.io/debug: token:debug
-        sidecar.istio.io/proxyImage: gcr.io/wlhe-cr/proxyv2:${TAG}
         sidecar.istio.io/proxyCPU: 10m
     spec:
       containers:
@@ -97,7 +96,7 @@ spec:
             - http://fortio.fortio-oss.svc:8080/echo?size=5000
           env:
             - name: istio
-              value: ${REV}
+              value: asm
           resources:
             requests:
               cpu: 10m
@@ -120,7 +119,7 @@ spec:
             - http://fortio.fortio-asm.svc:8080/echo?size=5000
           env:
             - name: istio
-              value: ${REV}
+              value: asm
           resources:
             requests:
               cpu: 10m
@@ -132,7 +131,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: fortio
-  namespace: fortio-${REV}
+  namespace: fortio-asm
 spec:
   replicas: 1
   selector:
@@ -147,8 +146,7 @@ spec:
         sidecar.istio.io/logLevel: info
         #sidecar.istio.io/componentLogLevel: token:debug
         sidecar.istio.io/debug: token:debug
-        sidecar.istio.io/proxyImage: gcr.io/wlhe-cr/proxyv2:${TAG}
-        sidecar.istio.io/proxyCPU: 10m
+`        sidecar.istio.io/proxyCPU: 10m
     spec:
       containers:
        -  name: app
@@ -161,7 +159,7 @@ spec:
             - server
           env:
             - name: istio
-              value: ${REV}
+              value: asm
           resources:
             requests:
               cpu: 10m

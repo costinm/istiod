@@ -1,6 +1,11 @@
+# Run
+# export HUB=gcr.io/wlhe-cr
+# export TAG=asm-cr
+#  make push.docker.cloudrun push.docker.proxyv2
+
 ISTIO_REGION ?= us-central1
 ISTIO_PROJECT ?= wlhe-cr
-
+ISTIO_SA ?= 601426346923-compute@developer.gserviceaccount.com
 ZONE ?= us-central1-c
 #PROJECT ?= costin-asm1
 #CLUSTER ?= big1
@@ -16,53 +21,111 @@ MEM ?= 2G
 
 # WIP: stackdriver+managedca
 REV ?= asm
-TAG ?= asm
+TAG ?= asm-cr
 
 HUB ?= gcr.io/${ISTIO_PROJECT}
+# TODO: export the image on wlhe
+PROXY_HUB ?= costinm
 export TAG
 export HUB
 export REV
+export VERSION=1.8-$(shell date +%y%m%d)
 # Suffix for the domain URLs -
-DOMAIN?=-icq63pqnqq-uc.a.run.app
-#SDOMAIN=-t2mbbtjbiq-uc.a.cloud-run-qual.sandbox.google.com
-URL=istiod-${PROJECT_ID}-${CLUSTER}-${REV}${DOMAIN}
+ISTIO_SUFFIX?=-icq63pqnqq-uc.a.run.app
+#SISTIO_SUFFIX=-t2mbbtjbiq-uc.a.cloud-run-qual.sandbox.google.com
+URL=istiod-${PROJECT_ID}-${CLUSTER}-${REV}${ISTIO_SUFFIX}
 
 # Default to the docker env dir
-ISTIO_SRC ?= /work
+ISTIO_GO ?= /work
+
+ISTIO_OUT=${ISTIO_GO}/out/
+DOCKER_BUILD_TOP:=${ISTIO_OUT}/docker_build
 
 # Main testing target for ASM
-all: build/cloudrun run_asm test/run
+all: knative/cloudrun knative/canary knative/prober
 
-proxy:
-	cd ${ISTIO_SRC} && HUB=${HUB} TAG=${TAG} make push.docker.proxyv2
-	docker tag ${HUB}/proxyv2:${TAG} costinm/proxyv2:${TAG}
-	docker push costinm/proxyv2:${TAG}
-	# Kick the pod to force reload
-	kubectl -n fortio-${REV} delete po --all --force --grace-period=0
+gob:
+	TAG=asm-gob REV=asm-gob ENVEXTRA="ASM=1," $(MAKE) _run
+	TAG=asm-gob REV=asm-gob $(MAKE) fortio
 
+knative/cloudrun:
+	(cd ${ISTIO_GO} ; TAG=${TAG} HUB=${HUB} make push.docker.cloudrun)
+
+# Run just the ASM version.
+knative/canary:
+	REV=asm ENVEXTRA="ASM=1," $(MAKE) _run
+	REV=oss $(MAKE) _run
+
+knative/prober:
+	REV=asm $(MAKE) fortio
+	REV=oss $(MAKE) fortio
+
+# Build the proxy in a separate hub (until wlhe repo is public)
+knative/proxy:
+	cd ${ISTIO_GO} && HUB=${PROXY_HUB} TAG=${TAG} make push.docker.proxyv2
+
+# Restart the fortio images in PROJECT_ID / CLUSTER / REV.
+knative/test/proxy:
+	#kubectl --context gke_wlhe-cr_us-central1-c_istio -n fortio-${REV} delete po --all --force --grace-period=0
+	#kubectl --context gke_costin-asm1_us-central1-c_cloudrun -n fortio-${REV} delete po --all --force --grace-period=0
+	kubectl --context gke_costin-asm1_us-central1-c_big1 -n fortio-${REV} delete po --all --force --grace-period=0
+
+# Steps:
+# - create cluster
+# - grant IAM to cloud run to cluster
+# - base install
+   	#--entrypoint /bin/sh \
+  #-e GODEBUG=http2client=0 \
+  #  -e GOMAXPROCS=1 \
+
+GOOGLE_APPLICATION_CREDENTIALS=${HOME}/.config/gcloud/legacy_credentials/costin@google.com/adc.json
+local/docker:
+	#docker stop istiod || true
+	#docker rm -f istiod || true
+	docker run -it --rm  \
+    -p 9091:8080 \
+    -e PORT=8080 \
+    -m 2G \
+    --cpus=1 \
+    -e K_SERVICE=dev \
+    -e K_CONFIGURATION=dev \
+    -e K_REVISION=dev-00001 \
+    -e PROJECT=${PROJECT_ID} \
+    -e CLUSTER=${CLUSTER} \
+    -e ZONE=${ZONE} \
+    -e REV=${REV} \
+    -e ASM=1 \
+    -e LOG_ARGS=--log_output_level=info \
+    -e CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=/var/run/secrets/google/google.json \
+    -e GOOGLE_APPLICATION_CREDENTIALS=/var/run/secrets/google/google.json \
+    -v ${GOOGLE_APPLICATION_CREDENTIALS}:/var/run/secrets/google/google.json:ro \
+    gcr.io/${ISTIO_PROJECT}/cloudrun:${TAG}
+
+   	#--entrypoint /bin/sh \
+  #-e GODEBUG=http2client=0 \
+  #  -e GOMAXPROCS=1 \
+
+# Temp: Init the current project for staging
 gcp/init:
 	gcloud services enable staging-run.sandbox.googleapis.com
 	gcloud config set run/region us-central1
 	gcloud config set run/platform managed
 	gcloud config set project costin-asm1
+	#gcloud config unset api_endpoint_overrides/run
 	#https://gce-staging.pantheon-ci.corp.google.com/run?project=costin-asm1
 	#gcloud config set api_endpoint_overrides/run https://staging-run.sandbox.googleapis.com/
 
 cr/status:
 	gcloud run services --platform managed list
 
-# Command - to override the default command ( pilot )
-
 # --concurrency= = 0 unspec, set a max per instance
 # --service-account - create one per tenant
 # --timeout - 10m5s
 
-#{"node": {"id": "sidecar~1.1.1.1~debug~cluster.local", "metadata": {"GENERATOR": "event"}},"typeUrl": "istio.io/connections"}
-
 TOP=$(shell pwd)
 
 build/telemetry-gen:
-	(cd ${ISTIO_SRC} && helm3 template -n istio-system istio-default \
+	(cd ${ISTIO_GO} && helm3 template -n istio-system istio-default \
 		manifests/charts/istio-control/istio-discovery \
 		--set telemetry.v2.stackdriver.enabled=true --set telemetry.v2.prometheus.enabled=true \
         --set telemetry.v2.prometheus.wasmEnabled=true --set telemetry.v2.accessLogPolicy.enabled=true \
@@ -70,36 +133,38 @@ build/telemetry-gen:
         --set global.multiCluster.clusterName=XCLUSTER ) | sed s/XREVISION/\$${REVISION}/ > istio-all.yaml
 
 # Build Istiod only - this is what goes into the docker image.
-build/istiod:
-	(cd ${ISTIO_SRC}; go build -o ${TOP}/istiod ./pilot/cmd/pilot-discovery)
+pilot-discovery:
+	(cd ${ISTIO_GO}; go build -o ${TOP}/istiod ./pilot/cmd/pilot-discovery)
 
-
+#gcloud config unset api_endpoint_overrides/run
 #export DOCKER_HOST=tcp://localhost:2375
-
-build/cloudrun: build/istiod
-	docker build -t ${HUB}/pilot:${TAG} .
-	docker push  ${HUB}/pilot:${TAG}
 
 # Run 2 revisions - one ASM one OSS
 # The OSS revision can be used in non-GKE clusters
 # The ASM will use ManagedCA and Stackdriver, on GKE
 run:
-	#gcloud config unset api_endpoint_overrides/run
-	REV=oss $(MAKE) _run
 	REV=asm ENVEXTRA="ASM=1," CPU=4 MEM=4G $(MAKE) _run
+#	REV=oss $(MAKE) _run
 
-# Run just the ASM version.
-run_asm:
-	#gcloud config unset api_endpoint_overrides/run
-	ENVEXTRA="ASM=1," $(MAKE) _run
-
-test/run:
-	REV=asm $(MAKE) fortio
-	REV=oss $(MAKE) fortio
 
 # Run fortio in fortio-$REV, with $REV istio env
 fortio:
+	cat test/fortio.yaml | envsubst
 	cat test/fortio.yaml | envsubst | kubectl apply -f -
+
+knative/all_clusters:
+	CLUSTER=cloudrun REV=asm ENVEXTRA="ASM=1," CPU=4 MEM=4G $(MAKE) _run
+	CLUSTER=test1 REV=asm ENVEXTRA="ASM=1," CPU=4 MEM=4G $(MAKE) _run
+	PROJECT_ID=costin-demo1 CLUSTER=demo1 REV=asm ENVEXTRA="ASM=1," CPU=4 MEM=4G $(MAKE) _run
+	PROJECT_ID=wlhe-cr CLUSTER=istio REV=asm ENVEXTRA="ASM=1," CPU=4 MEM=4G $(MAKE) _run
+
+
+#    cat test/fortio.yaml | envsubst | kubectl --context gke_costin-asm1_us-central1-c_cloudrun apply -f -
+#	cat test/fortio.yaml | envsubst | kubectl --context gke_costin-asm1_us-central1-c_test1 apply -f -
+#	cat test/fortio.yaml | envsubst | kubectl --context gke_costin-demo1_us-central1-c_demo1  apply -f -
+#	cat test/fortio.yaml | envsubst | kubectl --context gke_wlhe-cr_us-central1-c_istio apply -f -
+
+#LOG_ARGS=--log_output_level=debug,
 
 # Common target for running
 _run:
@@ -108,8 +173,8 @@ _run:
 	# Alternative: --cpu 4 --memory 4G
 	gcloud alpha run deploy istiod-${PROJECT_ID}-${CLUSTER}-${REV} --allow-unauthenticated \
 	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
-     --image gcr.io/${ISTIO_PROJECT}/pilot:${TAG} \
-     --set-env-vars=${ENVEXTRA}REV=${REV},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${DOMAIN} \
+     --image gcr.io/${ISTIO_PROJECT}/cloudrun:${TAG} \
+     --set-env-vars=${ENVEXTRA}REV=${REV},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${ISTIO_SUFFIX} \
 	 --port 8080 --concurrency 1000 --timeout 900 --cpu ${CPU} --memory ${MEM}
 
 #--max-instances=1
@@ -122,7 +187,7 @@ _run:
 #	gcloud alpha run deploy istiod${REV}-${PROJECT_ID}-${CLUSTER}-xds --allow-unauthenticated \
 #	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
 #        --image gcr.io/${ISTIO_PROJECT}/pilot:${TAG} \
-#       --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${DOMAIN},INJECT_ENABLED=false,VALIDATION_ENABLED=false \
+#       --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${ISTIO_SUFFIX},INJECT_ENABLED=false,VALIDATION_ENABLED=false \
 #        --port 15010 --cpu 4 --memory 4G --min-instances=1q
 	#gcloud config unset api_endpoint_overrides/run
 
@@ -143,7 +208,7 @@ cert:
 
 # Verify injection is active
 test/inject:
-	time curl -v https://istiod${REV}-${PROJECT_ID}-${CLUSTER}${DOMAIN}/inject  -d @mutating_req.json -HContent-Type:application/json | jq .response.patch | sed s/\"// | base64 -d | jq .
+	time curl  https://istiod-${PROJECT_ID}-${CLUSTER}-${REV}${ISTIO_SUFFIX}/inject  -d @test/mutating_req.json -HContent-Type:application/json | jq .response.patch | sed s/\"// | base64 -d | jq .
 
 
 test/dump:
@@ -152,46 +217,20 @@ test/dump:
 test/ep:
 	curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" https://${URL}:443/debug/connectionz
 
+
 test/grpc:
-	 echo {} | grpcurl -v -d @ ${URL}:443 envoy.service.discovery.v3.AggregatedDiscoveryService/StreamAggregatedResources
+	echo '{"node": {"id": "sidecar~1.1.1.1~debug~cluster.local","typeUrl": "istio.io/connections"}' \
+      | grpcurl -v -d @ ${URL}:443 envoy.service.discovery.v3.AggregatedDiscoveryService/StreamAggregatedResources
 
 
 # Inject on a local workload
 local/inject:
 	curl  http://localhost:8080/inject/  -d @mutating_req.json -HContent-Type:application/json  | jq .response.patch | sed s/\"// | base64 -d | jq .
 
-local/grpc:
+test/ps:
+	${ISTIO_GO}/out/linux_amd64/istioctl x ps --xds-address ${URL}:443
 
 
-# Steps:
-# - create cluste
-# - grant IAM to cloud run to cluster
-# - base install
-GOOGLE_APPLICATION_CREDENTIALS=${HOME}/.config/gcloud/legacy_credentials/costin@google.com/adc.json
-local:
-	#docker stop istiod || true
-	#docker rm -f istiod || true
-	docker run -it --rm  \
-    -p 9090:8080 \
-    -e PORT=8080 \
-    -m 2G \
-    --cpus=1 \
-    -e K_SERVICE=dev \
-    -e K_CONFIGURATION=dev \
-    -e K_REVISION=dev-00001 \
-    -e PROJECT=${PROJECT_ID} \
-    -e CLUSTER=${CLUSTER} \
-    -e ZONE=${ZONE} \
-    -e REV=${REV} \
-    -e LOG_ARGS=--log_output_level=info \
-    -e CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=/var/run/secrets/google/google.json \
-    -e GOOGLE_APPLICATION_CREDENTIALS=/var/run/secrets/google/google.json \
-    -v ${GOOGLE_APPLICATION_CREDENTIALS}:/var/run/secrets/google/google.json:ro \
-    gcr.io/${ISTIO_PROJECT}/pilot:${TAG}
-
-   	#--entrypoint /bin/sh \
-  #-e GODEBUG=http2client=0 \
-  #  -e GOMAXPROCS=1 \
 
 # 8 core -
 # 4 core - 2 sec
@@ -202,7 +241,7 @@ local:
 testrun:
 	kubectl run -n httpbin shell --rm -i --tty --image ubuntu -- bash
 
-CA_ADDR ?= istiod-${PROJECT_ID}-${CLUSTER}${DOMAIN}:443
+CA_ADDR ?= istiod-${PROJECT_ID}-${CLUSTER}${ISTIO_SUFFIX}:443
 SERVICE_ACCOUNT ?= default
 INTERMEDIATE_KEYSZ ?= 4096
 INTERMEDIATE_ORG ?= Istio
@@ -264,4 +303,32 @@ INTERMEDIATE_CN ?= Intermediate CA
 	@echo "O = $(INTERMEDIATE_ORG)" >> $@
 	@echo "CN = $(INTERMEDIATE_CN)" >> $@
 	@echo "L = $(L:/=)" >> $@
+
+knative/project_setup:
+	gcloud projects add-iam-policy-binding \
+            ${PROJECT_ID} \
+            --member="serviceAccount:${ISTIO_SA}" \
+            --role="roles/container.admin"
+	gcloud --project ${PROJECT_ID} services enable \
+        container.googleapis.com \
+        compute.googleapis.com \
+        monitoring.googleapis.com \
+        logging.googleapis.com \
+        cloudtrace.googleapis.com \
+        meshca.googleapis.com \
+        meshtelemetry.googleapis.com \
+        meshconfig.googleapis.com \
+        iamcredentials.googleapis.com \
+        anthos.googleapis.com \
+        gkeconnect.googleapis.com \
+        gkehub.googleapis.com \
+        cloudresourcemanager.googleapis.com
+
+#  gcloud projects add-iam-policy-binding wlhe-cr --member="serviceAccount:601426346923-compute@developer.gserviceaccount.com" --role="roles/serviceusage.serviceUsageConsumer"
+
+knative/asm_init:
+	curl --request POST \
+      --header "Authorization: Bearer $(shell gcloud --project ${PROJECT_ID} auth print-access-token)" \
+      --data '' \
+    "https://meshconfig.googleapis.com/v1alpha1/projects/${PROJECT_ID}:initialize"
 
