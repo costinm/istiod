@@ -1,78 +1,65 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: fortio-${REV}
-  labels:
-    istio.io/rev: ${REV}
----
-apiVersion: v1
 kind: Service
 metadata:
-  name: fortio
-  namespace: fortio-${REV}
+  name: simple
+  namespace: simple
   labels:
-    app: fortio
+    app: simple
 spec:
   ports:
     - name: http
       port: 8080
   selector:
-    app: fortio
+    app: simple
 ---
-apiVersion: networking.istio.io/v1alpha3
-kind: Sidecar
-metadata:
-  name: default
-  namespace: fortio-${REV}
-spec:
-  egress:
-    - hosts:
-        - "./*"
-        - "fortio-oss/*"
-        - "fortio-asm/*"
----
+#apiVersion: networking.istio.io/v1alpha3
+#kind: Sidecar
+#metadata:
+#  name: default
+#  namespace: simple
+#spec:
+#  egress:
+#    - hosts:
+#        - "./*"
+#---
 # Strict auth for this namespace - this should be the default.
 #apiVersion: security.istio.io/v1beta1
 #kind: PeerAuthentication
 #metadata:
 #  name: default
-#  namespace: fortio-${REV}
+#  namespace: simple-${REV}
 #spec:
 ##  selector:
 ##    matchLabels:
-##      app: fortio
+##      app: simple
 #  mtls:
 #    mode: STRICT
-
----
-apiVersion: networking.istio.io/v1alpha3
-kind: DestinationRule
-metadata:
-  name: fortios
-  namespace: fortio-${REV}
-spec:
-  host: fortio
-  trafficPolicy:
-    tls:
-      mode: ISTIO_MUTUAL
-
+#apiVersion: networking.istio.io/v1alpha3
+#kind: DestinationRule
+#metadata:
+#  name: simples
+#spec:
+#  host: simple
+#  trafficPolicy:
+#    tls:
+#      mode: ISTIO_MUTUAL
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fortio-cli
-  namespace: fortio-${REV}
+  name: simple-cli
+  namespace: simple
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: fortio-cli
+      app: simple-cli
   template:
     metadata:
-      name: fortio-cli
-      namespace: fortio
+      name: simple-cli
+      namespace: simple
       labels:
-        app: fortio-cli
+        app: simple-cli
       annotations:
         sidecar.istio.io/logLevel: info
         sidecar.istio.io/debug: token:debug
@@ -95,7 +82,7 @@ spec:
             - "1"
             - -qps
             - "1"
-            - http://fortio.fortio-${REV}:8080/echo?size=5000
+            - http://simple.simple.svc:8080/echo?size=5000
           env:
             - name: istio
               value: ${REV}
@@ -104,56 +91,32 @@ spec:
               cpu: 10m
             limits:
               cpu: 200m
-#        - name: oss
-#          image: costinm/fortio:latest
-#          args:
-#            - load
-#            - -allow-initial-errors
-#            - -t
-#            - "0"
-#            - -abort-on
-#            - "123"
-#            - -allow-initial-errors
-#            - -c
-#            - "1"
-#            - -qps
-#            - "1"
-#            - http://fortio.fortio${TARGET}.svc:8080/echo?size=5000
-#          env:
-#            - name: istio
-#              value: ${REV}
-#          resources:
-#            requests:
-#              cpu: 10m
-#            limits:
-#              cpu: 100m
-
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fortio
-  namespace: fortio-${REV}
+  name: simple
+  namespace: simple
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: fortio
+      app: simple
   template:
     metadata:
       labels:
-        app: fortio
+        app: simple
         version: v1
       annotations:
-        sidecar.istio.io/logLevel: info
+        #sidecar.istio.io/logLevel: info
         #sidecar.istio.io/componentLogLevel: token:debug
-        sidecar.istio.io/debug: token:debug
+        #sidecar.istio.io/debug: token:debug
         #sidecar.istio.io/proxyImage: gcr.io/wlhe-cr/proxyv2:${TAG}
         sidecar.istio.io/proxyCPU: 10m
         sidecar.istio.io/proxyMemory: 200m
     spec:
       containers:
-       -  name: app
+        - name: app
           image: costinm/fortio:latest
           ports:
             - containerPort: 8080

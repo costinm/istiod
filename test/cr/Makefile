@@ -21,11 +21,13 @@ MEM ?= 2G
 
 # WIP: stackdriver+managedca
 REV ?= asm
-TAG ?= asm-cr
+
+# asm-cr should only be built out of git-on-borg !!!
+TAG ?= asm-canary
 
 HUB ?= gcr.io/${ISTIO_PROJECT}
 # TODO: export the image on wlhe
-PROXY_HUB ?= costinm
+PROXY_HUB ?= ${HUB}
 export TAG
 export HUB
 export REV
@@ -37,9 +39,12 @@ URL=istiod-${PROJECT_ID}-${CLUSTER}-${REV}${ISTIO_SUFFIX}
 
 # Default to the docker env dir
 ISTIO_GO ?= /work
-
+export TARGET ?= -asm
 ISTIO_OUT=${ISTIO_GO}/out/
 DOCKER_BUILD_TOP:=${ISTIO_OUT}/docker_build
+
+include test.mk
+include clusters.mk
 
 # Main testing target for ASM
 all: knative/cloudrun knative/canary knative/prober
@@ -47,6 +52,52 @@ all: knative/cloudrun knative/canary knative/prober
 gob:
 	TAG=asm-gob REV=asm-gob ENVEXTRA="ASM=1," $(MAKE) _run
 	TAG=asm-gob REV=asm-gob $(MAKE) fortio
+
+canary: canary/build canary/deploy canary/test
+
+canary/build:
+	(cd ${ISTIO_GO} ; TAG=asm-canary REV=asm-canary make push.docker.cloudrun )
+
+canary/build2:
+	(cd ${ISTIO_GO} ; TAG=asm-canary REV=asm-canary make push.docker.cloudrun push.docker.proxyv2)
+
+canary/deploy:
+	TAG=asm-canary REV=asm-canary ENVEXTRA="ASM=1," $(MAKE) _run
+	TAG=asm-canary REV=oss-canary ENVEXTRA="" $(MAKE) _run
+	TAG=asm-canary REV=asmca-canary ENVEXTRA="ASM=1,CA=1," $(MAKE) _run
+
+#canary/test:
+#    TAG=asm-canary REV=asm-canary $(MAKE) fortio
+#    TAG=asm-canary REV=asmca-canary $(MAKE) fortio
+#    TAG=asm-canary REV=oss-canary $(MAKE) fortio
+
+# Common target for running
+_run: PROJECT_NUMBER=$(shell gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)")
+_run:
+	gcloud alpha run deploy istiod-${PROJECT_ID}-${CLUSTER}-${REV} --allow-unauthenticated \
+	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
+     --image gcr.io/${ISTIO_PROJECT}/cloudrun:${TAG} \
+     --set-env-vars=${ENVEXTRA}REV=${REV},PROJECT_NUMBER=${PROJECT_NUMBER},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${ISTIO_SUFFIX} \
+	 --port 8080 --concurrency 1000 --timeout 900 --cpu ${CPU} --memory ${MEM}
+
+run3: PROJECT_NUMBER=$(shell gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)")
+run3:
+	gcloud alpha run deploy istiod-${PROJECT_ID}-${CLUSTER}-asm --allow-unauthenticated \
+	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
+     --image gcr.io/${ISTIO_PROJECT}/cloudrun:${TAG} \
+     --set-env-vars=${ENVEXTRA}REV=asm,ASM=1,PROJECT_NUMBER=${PROJECT_NUMBER},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${ISTIO_SUFFIX} \
+	 --port 8080 --concurrency 1000 --timeout 900 --cpu ${CPU} --memory ${MEM} --min-instances=1
+	gcloud alpha run deploy istiod-${PROJECT_ID}-${CLUSTER}-ossmanaged --allow-unauthenticated \
+	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
+     --image gcr.io/${ISTIO_PROJECT}/cloudrun:${TAG} \
+     --set-env-vars=${ENVEXTRA}REV=ossmanaged,PROJECT_NUMBER=${PROJECT_NUMBER},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${ISTIO_SUFFIX} \
+	 --port 8080 --concurrency 1000 --timeout 900 --cpu ${CPU} --memory ${MEM}
+	gcloud alpha run deploy istiod-${PROJECT_ID}-${CLUSTER}-asmca --allow-unauthenticated \
+	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
+     --image gcr.io/${ISTIO_PROJECT}/cloudrun:${TAG} \
+     --set-env-vars=${ENVEXTRA}REV=asmca,ASM=1,CA=1,PROJECT_NUMBER=${PROJECT_NUMBER},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${ISTIO_SUFFIX} \
+	 --port 8080 --concurrency 1000 --timeout 900 --cpu ${CPU} --memory ${MEM}
+
 
 knative/cloudrun:
 	(cd ${ISTIO_GO} ; TAG=${TAG} HUB=${HUB} make push.docker.cloudrun)
@@ -111,6 +162,8 @@ gcp/init:
 	gcloud config set run/region us-central1
 	gcloud config set run/platform managed
 	gcloud config set project costin-asm1
+
+	 gcloud container clusters update big1 --zone us-central1-c --enable-stackdriver-kubernetes
 	#gcloud config unset api_endpoint_overrides/run
 	#https://gce-staging.pantheon-ci.corp.google.com/run?project=costin-asm1
 	#gcloud config set api_endpoint_overrides/run https://staging-run.sandbox.googleapis.com/
@@ -132,10 +185,6 @@ build/telemetry-gen:
         --set revision=XREVISION --set telemetry.v2.metadataExchange.wasmEnabled=true  \
         --set global.multiCluster.clusterName=XCLUSTER ) | sed s/XREVISION/\$${REVISION}/ > istio-all.yaml
 
-# Build Istiod only - this is what goes into the docker image.
-pilot-discovery:
-	(cd ${ISTIO_GO}; go build -o ${TOP}/istiod ./pilot/cmd/pilot-discovery)
-
 #gcloud config unset api_endpoint_overrides/run
 #export DOCKER_HOST=tcp://localhost:2375
 
@@ -144,56 +193,15 @@ pilot-discovery:
 # The ASM will use ManagedCA and Stackdriver, on GKE
 run:
 	REV=asm ENVEXTRA="ASM=1," CPU=4 MEM=4G $(MAKE) _run
-#	REV=oss $(MAKE) _run
-
-
-# Run fortio in fortio-$REV, with $REV istio env
-fortio:
-	cat test/fortio.yaml | envsubst
-	cat test/fortio.yaml | envsubst | kubectl apply -f -
-
-knative/all_clusters:
-	CLUSTER=cloudrun REV=asm ENVEXTRA="ASM=1," CPU=4 MEM=4G $(MAKE) _run
-	CLUSTER=test1 REV=asm ENVEXTRA="ASM=1," CPU=4 MEM=4G $(MAKE) _run
-	PROJECT_ID=costin-demo1 CLUSTER=demo1 REV=asm ENVEXTRA="ASM=1," CPU=4 MEM=4G $(MAKE) _run
-	PROJECT_ID=wlhe-cr CLUSTER=istio REV=asm ENVEXTRA="ASM=1," CPU=4 MEM=4G $(MAKE) _run
-
-
-#    cat test/fortio.yaml | envsubst | kubectl --context gke_costin-asm1_us-central1-c_cloudrun apply -f -
-#	cat test/fortio.yaml | envsubst | kubectl --context gke_costin-asm1_us-central1-c_test1 apply -f -
-#	cat test/fortio.yaml | envsubst | kubectl --context gke_costin-demo1_us-central1-c_demo1  apply -f -
-#	cat test/fortio.yaml | envsubst | kubectl --context gke_wlhe-cr_us-central1-c_istio apply -f -
 
 #LOG_ARGS=--log_output_level=debug,
-
-# Common target for running
-_run:
-	#gcloud config unset api_endpoint_overrides/run
-	# Slow start - but pinned
-	# Alternative: --cpu 4 --memory 4G
-	gcloud alpha run deploy istiod-${PROJECT_ID}-${CLUSTER}-${REV} --allow-unauthenticated \
-	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
-     --image gcr.io/${ISTIO_PROJECT}/cloudrun:${TAG} \
-     --set-env-vars=${ENVEXTRA}REV=${REV},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${ISTIO_SUFFIX} \
-	 --port 8080 --concurrency 1000 --timeout 900 --cpu ${CPU} --memory ${MEM}
-
+#gcloud config unset api_endpoint_overrides/run
 #--max-instances=1
-
 #--cpu 4 --memory 4G --min-instances=1
 
 # Max set to 1 to test single-instance perf
-
-	#gcloud config set api_endpoint_overrides/run https://staging-run.sandbox.googleapis.com/
-#	gcloud alpha run deploy istiod${REV}-${PROJECT_ID}-${CLUSTER}-xds --allow-unauthenticated \
-#	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
-#        --image gcr.io/${ISTIO_PROJECT}/pilot:${TAG} \
-#       --set-env-vars=CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${ISTIO_SUFFIX},INJECT_ENABLED=false,VALIDATION_ENABLED=false \
-#        --port 15010 --cpu 4 --memory 4G --min-instances=1q
-	#gcloud config unset api_endpoint_overrides/run
-
-build/staging:
-	PROJECT_ID=costin-asm1 make build/remote
-
+#gcloud config set api_endpoint_overrides/run https://staging-run.sandbox.googleapis.com/
+#gcloud config unset api_endpoint_overrides/run
 
 staging: build/staging run_staging
 
