@@ -53,24 +53,6 @@ gob:
 	TAG=asm-gob REV=asm-gob ENVEXTRA="ASM=1," $(MAKE) _run
 	TAG=asm-gob REV=asm-gob $(MAKE) fortio
 
-canary: canary/build canary/deploy canary/test
-
-canary/build:
-	(cd ${ISTIO_GO} ; TAG=asm-canary REV=asm-canary make push.docker.cloudrun )
-
-canary/build2:
-	(cd ${ISTIO_GO} ; TAG=asm-canary REV=asm-canary make push.docker.cloudrun push.docker.proxyv2)
-
-canary/deploy:
-	TAG=asm-canary REV=asm-canary ENVEXTRA="ASM=1," $(MAKE) _run
-	TAG=asm-canary REV=oss-canary ENVEXTRA="" $(MAKE) _run
-	TAG=asm-canary REV=asmca-canary ENVEXTRA="ASM=1,CA=1," $(MAKE) _run
-
-#canary/test:
-#    TAG=asm-canary REV=asm-canary $(MAKE) fortio
-#    TAG=asm-canary REV=asmca-canary $(MAKE) fortio
-#    TAG=asm-canary REV=oss-canary $(MAKE) fortio
-
 # Common target for running
 _run: PROJECT_NUMBER=$(shell gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)")
 _run:
