@@ -1,6 +1,5 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="istio-agent local" type="GoApplicationRunConfiguration" factoryName="Go Application">
-    <module name="dmesh" />
     <working_directory value="$PROJECT_DIR$/../istio-stable/src/istio.io/istio" />
     <parameters value="proxy --discoveryAddress localhost:15012" />
     <envs>

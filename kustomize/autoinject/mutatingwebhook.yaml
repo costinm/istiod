@@ -1,3 +1,4 @@
+# 1.16: v1
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
@@ -5,6 +6,7 @@ metadata:
 webhooks:
   # If the name is 'sidecar-injector.istio.io', it will be automatically patched with K8S certificate.
   - name: sidecar-injector.istio.io
+    sideEffects: None
     clientConfig:
       service:
         # It is also possible to specify an external service, with public certificates.

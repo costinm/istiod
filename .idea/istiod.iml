@@ -6,11 +6,15 @@
     </buildTags>
   </component>
   <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$/../../eventing" />
     <content url="file://$MODULE_DIR$/../api" />
+    <content url="file://$MODULE_DIR$/../grpc" />
     <content url="file://$MODULE_DIR$/../installer" />
     <content url="file://$MODULE_DIR$/../istio" />
     <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$/../test-infra" />
     <content url="file://$MODULE_DIR$/../tools" />
+    <content url="file://$MODULE_DIR$/../../rel/asm-1.9" />
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Bundled Protobuf Distribution" level="application" />

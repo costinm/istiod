@@ -7,8 +7,9 @@
       <env name="OUTPUT_CERTS" value="./tests/testdata/certs/vm" />
       <env name="PROXY_CONFIG" value="" />
     </envs>
-    <kind value="PACKAGE" />
+    <kind value="DIRECTORY" />
     <package value="istio.io/istio/pilot/cmd/pilot-agent" />
+    <directory value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-agent" />
     <method v="2" />
   </configuration>
 </component>
