@@ -5,7 +5,7 @@
 
 ISTIO_REGION ?= us-central1
 ISTIO_PROJECT ?= wlhe-cr
-ISTIO_SA ?= 601426346923-compute@developer.gserviceaccount.com
+ISTIOD_SA ?= 601426346923-compute@developer.gserviceaccount.com
 ZONE ?= us-central1-c
 #PROJECT ?= costin-asm1
 #CLUSTER ?= big1
@@ -49,6 +49,8 @@ include clusters.mk
 # Main testing target for ASM
 all: knative/cloudrun knative/canary knative/prober
 
+build: knative/cloudrun knative/proxy
+
 gob:
 	TAG=asm-gob REV=asm-gob ENVEXTRA="ASM=1," $(MAKE) _run
 	TAG=asm-gob REV=asm-gob $(MAKE) fortio
@@ -59,7 +61,7 @@ _run:
 	gcloud alpha run deploy istiod-${PROJECT_ID}-${CLUSTER}-${REV} --allow-unauthenticated \
 	 --project ${ISTIO_PROJECT} --region ${ISTIO_REGION} --platform managed \
      --image gcr.io/${ISTIO_PROJECT}/cloudrun:${TAG} \
-     --set-env-vars=${ENVEXTRA}REV=${REV},PROJECT_NUMBER=${PROJECT_NUMBER},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${ISTIO_SUFFIX} \
+     --set-env-vars=HUB=${HUB},${ENVEXTRA}REV=${REV},PROJECT_NUMBER=${PROJECT_NUMBER},TAG=${TAG},CLUSTER=${CLUSTER},ZONE=${ZONE},PROJECT=${PROJECT_ID},ISTIOD_DOMAIN=${ISTIO_SUFFIX} \
 	 --port 8080 --concurrency 1000 --timeout 900 --cpu ${CPU} --memory ${MEM}
 
 run3: PROJECT_NUMBER=$(shell gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)")
@@ -84,6 +86,10 @@ run3:
 knative/cloudrun:
 	(cd ${ISTIO_GO} ; TAG=${TAG} HUB=${HUB} make push.docker.cloudrun)
 
+# Build the proxy in a separate hub (until wlhe repo is public)
+knative/proxy:
+	cd ${ISTIO_GO} && HUB=${PROXY_HUB} TAG=${TAG} make push.docker.proxyv2
+
 # Run just the ASM version.
 knative/canary:
 	REV=asm ENVEXTRA="ASM=1," $(MAKE) _run
@@ -93,9 +99,6 @@ knative/prober:
 	REV=asm $(MAKE) fortio
 	REV=oss $(MAKE) fortio
 
-# Build the proxy in a separate hub (until wlhe repo is public)
-knative/proxy:
-	cd ${ISTIO_GO} && HUB=${PROXY_HUB} TAG=${TAG} make push.docker.proxyv2
 
 # Restart the fortio images in PROJECT_ID / CLUSTER / REV.
 knative/test/proxy:
@@ -128,6 +131,7 @@ local/docker:
     -e ZONE=${ZONE} \
     -e REV=${REV} \
     -e ASM=1 \
+    -e XDS_ADDR=localhost:9091 \
     -e LOG_ARGS=--log_output_level=info \
     -e CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=/var/run/secrets/google/google.json \
     -e GOOGLE_APPLICATION_CREDENTIALS=/var/run/secrets/google/google.json \
@@ -192,6 +196,11 @@ push: build/remote run run_staging
 logs:
 	 gcloud logging read 'resource.type = "project" OR resource.type = "cloud_run_revision"'
 
+
+xds:
+	echo '{"node": {"id": "sidecar~1.1.1.1~debug~cluster.local"}, "typeUrl":"type.googleapis.com/envoy.config.cluster.v3.Cluster"}' | \
+		grpcurl -d @ istiod-costin-asm1-big1-asm-canary-icq63pqnqq-uc.a.run.app:443  envoy.service.discovery.v3.AggregatedDiscoveryService/StreamAggregatedResources
+
 cert:
 	echo {} | grpcurl  -import-path /work/security/proto/ -proto /work/security/proto/istioca.proto -use-reflection=false -v -d @ -H "Authorization:  Bearer $(gcloud auth print-identity-token)" -rpc-header "authorization: Bearer $(gcloud auth print-identity-token)"  istiodxds-b3lo6zbfmq-uc.a.run.app:443 istio.v1.auth.IstioCertificateService/CreateCertificate
 
@@ -209,7 +218,7 @@ test/ep:
 
 
 test/grpc:
-	echo '{"node": {"id": "sidecar~1.1.1.1~debug~cluster.local","typeUrl": "istio.io/connections"}' \
+	echo '{"node": {"id": "sidecar~1.1.1.1~debug~cluster.local"},"typeUrl": "istio.io/connections"}' \
       | grpcurl -v -d @ ${URL}:443 envoy.service.discovery.v3.AggregatedDiscoveryService/StreamAggregatedResources
 
 
@@ -217,8 +226,9 @@ test/grpc:
 local/inject:
 	curl  http://localhost:8080/inject/  -d @mutating_req.json -HContent-Type:application/json  | jq .response.patch | sed s/\"// | base64 -d | jq .
 
+test/ps: INJECT_GRPC=$(shell kubectl get mutatingwebhookconfiguration istiod-asm-managed -o json | jq -r .webhooks[0].clientConfig.url | sed s,/inject.*,, | sed s,https://,, )
 test/ps:
-	${ISTIO_GO}/out/linux_amd64/istioctl x ps --xds-address ${URL}:443
+	${ISTIO_GO}/out/linux_amd64/istioctl x ps --xds-address ${INJECT_GRPC}
 
 
 
@@ -242,7 +252,7 @@ INTERMEDIATE_CN ?= Intermediate CA
 %/token:
 	mkdir -p ${L}
 	echo '{"kind":"TokenRequest","apiVersion":"authentication.k8s.io/v1","spec":{"audiences":["istio-ca"], "expirationSeconds":2592000}}' | \
-    		kubectl create --raw /api/v1/namespaces/${L})serviceaccounts/default/token -f - | \
+    		kubectl create --raw /api/v1/namespaces/${L}serviceaccounts/default/token -f - | \
     		jq -j '.status.token' > ${L}istio-token
 	kubectl -n istio-system get secret istio-ca-secret -ojsonpath='{.data.ca-cert\.pem}' | \
       	 base64 -d > root-cert.pem
@@ -297,7 +307,7 @@ INTERMEDIATE_CN ?= Intermediate CA
 knative/project_setup:
 	gcloud projects add-iam-policy-binding \
             ${PROJECT_ID} \
-            --member="serviceAccount:${ISTIO_SA}" \
+            --member="serviceAccount:${ISTIOD_SA}" \
             --role="roles/container.admin"
 	gcloud --project ${PROJECT_ID} services enable \
         container.googleapis.com \
@@ -321,4 +331,10 @@ knative/asm_init:
       --header "Authorization: Bearer $(shell gcloud --project ${PROJECT_ID} auth print-access-token)" \
       --data '' \
     "https://meshconfig.googleapis.com/v1alpha1/projects/${PROJECT_ID}:initialize"
+
+managed/gateway:
+	helm3  -n istio-system template  manifests/charts/gateways/istio-ingress \
+        -f manifests/charts/global.yaml \
+		--set global.pilotCertProvider=system \
+		--set-string meshConfig.defaultConfig.proxyMetadata.PROXY_CONFIG='\{"discoveryAddress":"foo.bar"\}'
 

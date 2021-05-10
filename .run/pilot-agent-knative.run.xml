@@ -4,7 +4,7 @@
     <working_directory value="$PROJECT_DIR$/../istio" />
     <parameters value="proxy sidecar" />
     <envs>
-      <env name="PROXY_CONFIG" value="{&quot;discoveryAddress&quot;: &quot;sistiod-xds-dmgksid7iq-uc.a.cloud-run-qual.sandbox.google.com:443&quot;,&quot;proxyBootstrapTemplatePath&quot;: &quot;/work/tools/packaging/common/envoy_bootstrap.json&quot;} " />
+      <env name="PROXY_CONFIG" value="{&quot;discoveryAddress&quot;: &quot;istiod-costin-asm1-big1-xds-icq63pqnqq-uc.a.run.app:443&quot;,&quot;proxyBootstrapTemplatePath&quot;: &quot;/work/tools/packaging/common/envoy_bootstrap.json&quot;} " />
     </envs>
     <kind value="DIRECTORY" />
     <filePath value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-agent/main.go" />
