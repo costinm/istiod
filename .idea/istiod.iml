@@ -7,9 +7,14 @@
   </component>
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$/../api" />
+    <content url="file://$MODULE_DIR$/../certificates" />
+    <content url="file://$MODULE_DIR$/../client-go" />
     <content url="file://$MODULE_DIR$/../installer" />
     <content url="file://$MODULE_DIR$/../istio" />
+    <content url="file://$MODULE_DIR$/../istio-k8slite" />
     <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$/../pilot-load" />
+    <content url="file://$MODULE_DIR$/../service-apis" />
     <content url="file://$MODULE_DIR$/../tools" />
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

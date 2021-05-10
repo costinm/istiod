@@ -50,6 +50,9 @@ import (
 	gogojsonpb "github.com/gogo/protobuf/jsonpb"
 	golangjsonpb "github.com/golang/protobuf/jsonpb"
 	"istio.io/api/mesh/v1alpha1"
+	"istio.io/istio/pilot/pkg/model"
+	"istio.io/istio/pkg/adsc"
+
 	//"io/ioutil"
 	//"istio.io/istio/pilot/pkg/model"
 	//"istio.io/istio/pkg/adsc"
@@ -101,18 +104,30 @@ func main() {
 	agentc := istio_agent.NewAgent(&v1alpha1.ProxyConfig{
 		DiscoveryAddress: *pilotURL,
 	}, &istio_agent.AgentConfig{
-		LocalXDSAddr: ":9988",
-	}, &security.Options{
-		RotationInterval: 1 * time.Minute, // required, will refresh the workload cert
+	}, security.Options{
+		//RotationInterval: 1 * time.Minute, // required, will refresh the workload cert
 	})
 
-	agentc.Start(true, namespace.Get())
+	agentc.Start()
 
-	ok := agentc.ADSC.WaitConfigSync(10 * time.Second)
+	ads, err := adsc.New(*pilotURL, &adsc.Config{
+		Meta: model.NodeMetadata{
+			Generator: "event",
+		}.ToStruct(),
+		//CertDir:            opts.CertDir,
+		InsecureSkipVerify: true,
+		//XDSSAN:             opts.XDSSAN,
+		//GrpcOpts:           grpcOpts,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ok := ads.WaitConfigSync(10 * time.Second)
 	if !ok {
 		log.Warna("Initial config failed, will keep trying ")
 	}
-	log.Warna("Received ", len(agentc.ADSC.Received))
+	log.Warna("Received ", len(ads.Received))
 	//pod := &adsc.Config{
 	//	Workload: *proxyName,
 	//	Namespace: *namespace,
@@ -158,7 +173,7 @@ func main() {
 
 	http.HandleFunc("/dump", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		for t, v := range agentc.ADSC.Received {
+		for t, v := range ads.Received {
 			vs, err := (&golangjsonpb.Marshaler{Indent: "  "}).MarshalToString(v)
 			if err != nil {
 				vs, err = (&gogojsonpb.Marshaler{Indent: "  "}).MarshalToString(v)
@@ -171,7 +186,7 @@ func main() {
 	})
 	http.HandleFunc("/sub/", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
-		err := agentc.ADSC.Send(&discovery.DiscoveryRequest{
+		err := ads.Send(&discovery.DiscoveryRequest{
 			TypeUrl: r.URL.Path[5:]})
 		if err != nil {
 			log.Warna("Error sending ", err)
