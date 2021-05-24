@@ -1,0 +1,7 @@
+apiVersion: v1
+name: dev
+version: 0.8.0
+description: Developer env. Includes debug and build tools.
+keywords:
+  - istio-dev
+engine: gotpl

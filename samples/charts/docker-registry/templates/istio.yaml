@@ -1,0 +1,31 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Sidecar
+metadata:
+  name: default
+  namespace: kube-registry
+spec:
+  # We don't use any other service.
+  egress:
+    - hosts:
+        - "./*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: kube-registry
+  namespace: kube-registry
+spec:
+  host: kube-registry.kube-registry.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: kube-registry
+spec:
+  mtls:
+    mode: STRICT
+---

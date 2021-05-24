@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: kube-registry-v0
+  labels:
+    app: kube-registry
+    version: v0
+spec:
+  replicas: 1
+  selector:
+    app: kube-registry
+    version: v0
+  template:
+    metadata:
+      #annotations:
+        #sidecar.istio.io/interceptionMode: NONE
+        #sidecar.istio.io/proxyImage: istio/proxyv2:1.6.0
+      labels:
+        app: kube-registry
+        version: v0
+        istio.io/rev: canary
+    spec:
+      containers:
+      - name: registry
+        image: "registry:{{ .Chart.AppVersion }}"
+        env:
+        - name: REGISTRY_HTTP_ADDR
+          value: :5000
+        - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+          value: /var/lib/registry
+        volumeMounts:
+        - name: image-store
+          mountPath: /var/lib/registry
+        ports:
+        - containerPort: 5000
+          name: http-registry
+          protocol: TCP          
+      volumes:
+      - name: image-store
+      # For ephemeral registry (debugging, no persistent volume support)
+#        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: istio-registry

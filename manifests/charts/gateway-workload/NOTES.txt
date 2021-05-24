@@ -1,0 +1,22 @@
+Istio proxy workloads running in {{ .Release.Namespace }}.
+
+There is no Service or Gateway crated. Use the 'gateway-config' chart to create them, or your own
+charts or kubectl files.
+
+Service object must use the selector:
+
+  selector:
+    {{- if eq .Release.Namespace "istio-system"}}
+    istio: ingressgateway
+    {{- else }}
+    istio: {{ .Release.Namespace }}
+    {{- end }}
+
+Gateway objects must use the selector:
+
+  selector:
+    {{- if eq .Release.Namespace "istio-system"}}
+    istio: ingressgateway
+    {{- else }}
+    istio: {{ .Release.Namespace }}
+    {{- end }}
