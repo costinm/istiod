@@ -5,10 +5,10 @@ metadata:
   # Any operator or helm install of the control plane must use
   # global.operatorManageWebhooks setting to prevent overriding the
   # user specified one.
-  {{- if eq .Values.label "default "}}
+  {{- if eq .Values.channel "default "}}
   name: istio-sidecar-injector
   {{- else }}
-  name: istio-sidecar-injector-{{ .Values.label }}
+  name: istio-sidecar-injector-{{ .Values.channel }}
   {{- end}}
   labels:
     # This label will be selected by the corresponding revision, for patching
@@ -29,7 +29,7 @@ webhooks:
         # This should be a user-managed service, selecting the
         # desired revision(s)
         name: istiod-{{ .Values.revision }}
-        namespace: {{ .Values.istioNamespace }}
+        namespace: {{ .Release.Namespace }}
         # You can add /key/value options
         path: /inject{{ .Values.injectExtra }}
         port: 443
@@ -55,7 +55,7 @@ webhooks:
         scope: '*'
 
     # Selection of objects
-    {{- if eq .Values.label "default "}}
+    {{- if eq .Values.channel "default "}}
     namespaceSelector:
       matchExpressions:
       - key: istio-injection
@@ -70,7 +70,7 @@ webhooks:
       - key: istio.io/rev
         operator: In
         values:
-          - {{ .Values.label }}
+          - {{ .Values.channel }}
     {{- end }}
     objectSelector:
       matchExpressions:
@@ -91,7 +91,7 @@ webhooks:
         # This should be a user-managed service, selecting the
         # desired revision(s)
         name: istiod-{{ .Values.revision }}
-        namespace: {{ .Values.istioNamespace }}
+        namespace: {{ .Release.Namespace }}
         # You can add /key/value options
         path: /inject{{ .Values.injectExtra }}
         port: 443
@@ -116,7 +116,7 @@ webhooks:
     # labels, to allow pods to select a specific revision.
     objectSelector:
       matchExpressions:
-        {{- if eq .Values.label "default"}}
+        {{- if eq .Values.channel "default"}}
         - key: sidecar.istio.io/inject
           operator: In
           values:
@@ -128,5 +128,5 @@ webhooks:
         - key: istio.io/rev
           operator: In
           values:
-            - {{ .Values.label }}
+            - {{ .Values.channel }}
         {{- end }}

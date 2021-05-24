@@ -18,10 +18,7 @@
 channel: stable
 
 # The selected target istio revision
-revision: v1-9
-
-# Namespace where the injector is installed.
-istioNamespace: istio-system
+revision: v1-11-dev
 
 # injectExtra allows passing additional key/value pairs to the injector
 injectExtra: ""
