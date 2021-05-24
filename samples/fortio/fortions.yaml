@@ -1,0 +1,48 @@
+# Simple config for Istio: one app, isolated, static config
+#
+
+apiVersion: networking.istio.io/v1alpha3
+kind: Sidecar
+metadata:
+  name: default
+  namespace: fortio
+spec:
+
+  egress:
+    - hosts:
+        - "fortio/*"
+        - "test/*"
+---
+
+
+# Test workload entry
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: workload
+  namespace: fortio
+spec:
+  hosts:
+  - test.fortio
+
+  ports:
+  - number: 1200
+    name: foo
+    protocol: tcp
+
+  location: MESH_INTERNAL
+  resolution: STATIC
+
+  endpoints:
+  # The address is hardcoded in the node ID for testing - doesn't match the real address.
+  # This is used by fortio-app.
+  - address: 10.244.1.82
+    ports:
+      foo: 21200
+
+  # Address used by the fortio docker app
+  - address: 10.244.1.1
+    ports:
+      foo: 8080
+
+---

@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: fortio-knative
-  labels:
-    # Default: will match the default install of istio (in-place)
-    # Kustomizations of the base can add istio-rev
-    istio-injection: enabled

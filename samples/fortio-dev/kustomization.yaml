@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: fortio-dev
+
+images:
+  - name: gcr.io/istio-testing/proxyv2
+    newName: localhost:30500/proxyv2
+
+resources:
+  - ns.yaml
+  - fortio-dev-injected.yaml

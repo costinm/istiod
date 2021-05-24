@@ -40,6 +40,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -52,6 +53,7 @@ import (
 	"istio.io/api/mesh/v1alpha1"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pkg/adsc"
+	"istio.io/istio/pkg/envoy"
 
 	//"io/ioutil"
 	//"istio.io/istio/pilot/pkg/model"
@@ -103,12 +105,12 @@ func main() {
 
 	agentc := istio_agent.NewAgent(&v1alpha1.ProxyConfig{
 		DiscoveryAddress: *pilotURL,
-	}, &istio_agent.AgentConfig{
-	}, security.Options{
+	}, &istio_agent.AgentOptions{
+	}, &security.Options{
 		//RotationInterval: 1 * time.Minute, // required, will refresh the workload cert
-	})
+	}, envoy.ProxyConfig{})
 
-	agentc.Start()
+	go agentc.Run(context.Background())
 
 	ads, err := adsc.New(*pilotURL, &adsc.Config{
 		Meta: model.NodeMetadata{

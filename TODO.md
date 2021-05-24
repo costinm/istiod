@@ -1,13 +1,9 @@
 # TODO
 
-## Certificates
+## Ideas
 
-- P0: test K8S signing spiffee
-- P0: test cert chains with multiple roots - local citadel + mesh CA + k8s 
-- document the paths and env
-- local rotation for k8s kubeconfig and certificates
+[] Combined Helm + Kustomize (as post-processing)
+[] Auto-copy helm templates to istio/installer, generate helm install
+[] Minimal istio-agent, no CLI. Pass all args to forked app
+[] Generate grpc manifest automatically, use it as default
 
-## Gateway
-
-- can we support K8S port forward protocol ? Client, server ? 
-- 

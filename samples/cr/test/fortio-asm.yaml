@@ -1,0 +1,169 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fortio-asm
+  labels:
+    istio.io/rev: asm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fortio
+  namespace: fortio-asm
+  labels:
+    app: fortio
+spec:
+  ports:
+    - name: http
+      port: 8080
+  selector:
+    app: fortio
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Sidecar
+metadata:
+  name: default
+  namespace: fortio-asm
+spec:
+  egress:
+    - hosts:
+        - "./*"
+        - "fortio-oss/*"
+        - "fortio-asm/*"
+---
+# Strict auth for this namespace - this should be the default.
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: fortio-asm
+spec:
+#  selector:
+#    matchLabels:
+#      app: fortio
+  mtls:
+    mode: STRICT
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: fortios
+  namespace: fortio-asm
+spec:
+  host: fortio
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fortio-cli
+  namespace: fortio-asm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fortio-cli
+  template:
+    metadata:
+      name: fortio-cli
+      namespace: fortio
+      labels:
+        app: fortio-cli
+      annotations:
+        sidecar.istio.io/logLevel: info
+        sidecar.istio.io/debug: token:debug
+        sidecar.istio.io/proxyCPU: 10m
+    spec:
+      containers:
+        - name: app
+          image: costinm/fortio:latest
+          args:
+            - load
+            - -allow-initial-errors
+            - -t
+            - "0"
+            - -abort-on
+            - "123"
+            - -allow-initial-errors
+            - -c
+            - "1"
+            - -qps
+            - "1"
+            - http://fortio.fortio-oss.svc:8080/echo?size=5000
+          env:
+            - name: istio
+              value: asm
+          resources:
+            requests:
+              cpu: 10m
+            limits:
+              cpu: 800m
+        - name: oss
+          image: costinm/fortio:latest
+          args:
+            - load
+            - -allow-initial-errors
+            - -t
+            - "0"
+            - -abort-on
+            - "123"
+            - -allow-initial-errors
+            - -c
+            - "1"
+            - -qps
+            - "1"
+            - http://fortio.fortio-asm.svc:8080/echo?size=5000
+          env:
+            - name: istio
+              value: asm
+          resources:
+            requests:
+              cpu: 10m
+            limits:
+              cpu: 800m
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fortio
+  namespace: fortio-asm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fortio
+  template:
+    metadata:
+      labels:
+        app: fortio
+        version: v1
+      annotations:
+        sidecar.istio.io/logLevel: info
+        #sidecar.istio.io/componentLogLevel: token:debug
+        sidecar.istio.io/debug: token:debug
+        sidecar.istio.io/proxyCPU: 10m
+    spec:
+      containers:
+       -  name: app
+          image: costinm/fortio:latest
+          ports:
+            - containerPort: 8080
+            - containerPort: 8081
+            - containerPort: 8079
+          args:
+            - server
+          env:
+            - name: istio
+              value: asm
+          resources:
+            requests:
+              cpu: 10m
+              memory: "128Mi"
+            limits:
+              cpu: 1000m
+              memory: "1G"

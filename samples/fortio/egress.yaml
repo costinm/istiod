@@ -1,0 +1,153 @@
+# Egress examples from docs
+
+
+# Wildcard example - TLS proto
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: wild
+  namespace: egress-wild
+spec:
+  hosts:
+    - "*.com"
+  ports:
+    - number: 443
+      name: tls
+      protocol: TLS
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: wild
+  namespace: egress-wild
+spec:
+  hosts:
+    - "*.com"
+  tls:
+    - match:
+        - port: 443
+          sni_hosts:
+            - "*.com"
+      route:
+        - destination:
+            host: "*.com"
+            port:
+              number: 443
+
+---
+## Wildcard for domains -
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: wikipedia
+  namespace: egress-wild1
+spec:
+  hosts:
+    - "*.wikipedia.org"
+  ports:
+    - number: 443
+      name: tls
+      protocol: TLS
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: wikipedia
+  namespace: egress-wild1
+spec:
+  hosts:
+    - "*.wikipedia.org"
+  tls:
+    - match:
+        - port: 443
+          sni_hosts:
+            - "*.wikipedia.org"
+      route:
+        - destination:
+            host: "*.wikipedia.org"
+            port:
+              number: 443
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: httpbin-ext
+  namespace: egress
+spec:
+  hosts:
+    - httpbin.org
+  ports:
+    - number: 80
+      name: http
+      protocol: HTTP
+  resolution: DNS
+  location: MESH_EXTERNAL
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: google
+  namespace: egress
+spec:
+  hosts:
+    - www.google.com
+  ports:
+    - number: 443
+      name: https
+      protocol: HTTPS
+  resolution: DNS
+  location: MESH_EXTERNAL
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: httpbin-ext
+  namespace: egress
+spec:
+  hosts:
+    - httpbin.org
+  http:
+    - timeout: 3s
+      route:
+        - destination:
+            host: httpbin.org
+          weight: 100
+---
+# Can't be in same namespace with egress - pilot_conflict_outbound_listener_tcp_over_current_tcp
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: edition-cnn-com
+  namespace: egress-cnn
+spec:
+  hosts:
+    - edition.cnn.com
+  ports:
+    - number: 80
+      name: http-port
+      protocol: HTTP
+    - number: 443
+      name: https-port
+      protocol: HTTPS
+  resolution: DNS
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: edition-cnn-com
+  namespace: egress-cnn
+spec:
+  hosts:
+    - edition.cnn.com
+  tls:
+    - match:
+        - port: 443
+          sni_hosts:
+            - edition.cnn.com
+      route:
+        - destination:
+            host: edition.cnn.com
+            port:
+              number: 443
+          weight: 100
+---

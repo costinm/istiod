@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1alpha2
+kind: Issuer
+metadata:
+  name: letsencrypt
+  namespace: istio-system
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: test@istio.io
+    privateKeySecretRef:
+      name: letsencrypt
+    solvers:
+      - selector: {}
+        http01:
+          ingress:
+            class: istio

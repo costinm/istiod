@@ -46,7 +46,6 @@ alias kpo="kubectl get po --all-namespaces -o wide"
 alias dockerips="docker ps -q | xargs -n 1 docker inspect --format '{{ .NetworkSettings.IPAddress }} {{ .Name }}' | sed 's/ \// /'"
 
 alias kis='kubectl -n istio-system'
-alias kic='kubectl -n istio-control'
 alias kii='kubectl -n istio-ingress'
 
 # Also docker rm $(docker ps -a -q)
@@ -342,6 +341,13 @@ function dumpNS() {
 
 ##### End
 
+function kubeWait() {
+  NS=$1
+  D=$2
+  WAIT_TIMEOUT=${WAIT_TIMEOUT:-5s}
+  kubectl wait deployments $D -n ${ISTIO_SYSTEM_NS} --for=condition=available --timeout=${WAIT_TIMEOUT}
+
+}
 
 # Artifacts and temporary files.
 

@@ -11,13 +11,11 @@ BASE=$(shell cd .; pwd)
 GOPATH=${HOME}/go
 
 CONF ?= ${BASE}/conf
-#HUB ?= gcr.io/istio-release
+HUB ?= gcr.io/dmeshgate
 #HUB ?= costinm
-HUB ?= localhost:5000
+#HUB ?= localhost:5000
 TAG ?= latest
 
-# TODO: update when moving to istio
-#IMAGE ?= costinm/istiod
 IMAGE ?= ${HUB}/istiod
 
 CACHEDIR ?= ${TOP}/out/cache
@@ -445,6 +443,50 @@ helm3/canary:
         --set meshConfig.defaultConfig.proxyMetadata.DNS_AGENT=DNS-TLS
 
 helm3/install: helm3/base helm3/canary helm3/default
+
+#REV=v110
+REV=v1-11
+# Gateway name - same as the namespace it is instaled to
+GW=ugate
+
+helm3/new:
+	# Install istiod.
+	# Telemetry configs can be installed as a separate chart - this
+	# avoids upgrade issues for 1.4 skip-version.
+	# TODO: add telementry to docker image
+	helm -n istio-system upgrade --install istiod-${REV} ../istio/manifests/charts/istio-control/istio-discovery \
+		--set revision=${REV} \
+		--set telemetry.enabled=false
+
+	# Set it as default injection to point to ${REV}
+	helm -n istio-system upgrade --install istio-default manifests/charts/istio-label \
+		--set revision=${REV}
+	# Set it a 'prod' label to point to ${REV}
+	helm -n istio-system upgrade --install istio-prod manifests/charts/istio-label \
+		--set revision=${REV} --set label=prod
+
+	# Install 2 gateways - one in new namespace, one in istio-system
+	helm -n ${GW} upgrade --install ingress-${REV} manifests/charts/gateway \
+    		--set revision=prod
+    # No revision set - will use default injection.
+    # Name of the install based on the revision - can be any string
+	helm -n ${GW} upgrade --install ingress-default-${REV} \
+		  manifests/charts/gateway
+	# Service and Gateway object - name matches namespace.
+	helm -n ${GW} upgrade --install ${GW} manifests/charts/gateway-config
+
+	# Also install in istio-system - this time using 'prod' floating label
+	helm -n istio-system upgrade --install istio-ingressgateway manifests/charts/gateway \
+		--set revision=prod
+	helm -n istio-system upgrade --install istio-gateway-config \
+ 		manifests/charts/gateway-config
+
+
+# Install ingress using old templates, to verify migration to new template
+helm3/old-ingress:
+	helm upgrade -n istio-system --install \
+		istio-ingressgateway ../istio/manifests/charts/gateways/istio-ingress \
+		--set revision ${REV}
 
 install:
 	(cd ${ISTIO_SRC} && make helm3/install )

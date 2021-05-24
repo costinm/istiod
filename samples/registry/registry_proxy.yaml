@@ -1,0 +1,74 @@
+
+# kube-registry-proxy starts an nginx server on the node
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-registry-proxy
+  namespace: istio-system
+  labels:
+    app: kube-registry
+spec:
+  selector:
+    matchLabels:
+      app: kube-registry
+  template:
+    metadata:
+      labels:
+        app: kube-registry
+    spec:
+      containers:
+        - name: kube-registry-proxy
+          image: gcr.io/google_containers/kube-registry-proxy:0.4
+          resources:
+            limits:
+              cpu: 100m
+              memory: 50Mi
+          env:
+            - name: REGISTRY_HOST
+              value: kube-registry.istio-system.svc.cluster.local
+            - name: REGISTRY_PORT
+              value: "5000"
+          ports:
+            - name: registry
+              containerPort: 80
+              hostPort: 5000
+---
+#
+#"apiVersion": "apps/v1"
+#"kind": "DaemonSet"
+#"metadata":
+#  "labels":
+#    "app": "docker-private-registry-proxy"
+#  "name": "docker-private-registry-proxy"
+#
+#"spec":
+#  selector:
+#    matchLabels:
+#      app: docker-private-registry-proxy
+#
+#  "template":
+#    "metadata":
+#      "labels":
+#        "app": "docker-private-registry-proxy"
+#    "spec":
+#      "containers":
+#        - "args":
+#            - "tcp"
+#            - "5000"
+#            - "kube-registry.istio-system.svc.cluster.local"
+#
+#          "image": "gcr.io/google_containers/proxy-to-service:v2"
+#          "name": "proxy-tcp"
+#          "ports":
+#            - "containerPort": 5000
+#              "hostPort": 5000
+#              "name": "tcp"
+#              "protocol": "TCP"
+#
+#
+#          "resources":
+#            "limits":
+#              "cpu": "100m"
+#              "memory": "50Mi"
+#

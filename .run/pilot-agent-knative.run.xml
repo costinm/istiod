@@ -1,15 +1,15 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="pilot-agent-knative" type="GoApplicationRunConfiguration" factoryName="Go Application">
-    <module name="istiod" />
+    <module name="ws" />
     <working_directory value="$PROJECT_DIR$/../istio" />
     <parameters value="proxy sidecar" />
     <envs>
-      <env name="PROXY_CONFIG" value="{&quot;discoveryAddress&quot;: &quot;istiod-costin-asm1-big1-xds-icq63pqnqq-uc.a.run.app:443&quot;,&quot;proxyBootstrapTemplatePath&quot;: &quot;/work/tools/packaging/common/envoy_bootstrap.json&quot;} " />
+      <env name="PROXY_CONFIG" value="{&quot;discoveryAddress&quot;: &quot;istiod-costin-asm1-big1-xds-icq63pqnqq-uc.a.run.app:443&quot;,&quot;proxyBootstrapTemplatePath&quot;: &quot;./tools/packaging/common/envoy_bootstrap.json&quot; 'binary_path':'./out/linux_amd64/release/envoy'} " />
     </envs>
     <kind value="DIRECTORY" />
-    <filePath value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-agent/main.go" />
     <package value="istio.io/istio/pilot/cmd/pilot-agent" />
     <directory value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-agent" />
+    <filePath value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-agent/main.go" />
     <method v="2" />
   </configuration>
 </component>

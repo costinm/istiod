@@ -1,0 +1,45 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: shell
+spec:
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        app: shell
+    spec:
+      containers:
+        - name: kubectl
+          image: costinm/kubectl:release-1.1-latest-daily
+          command: [ "/bin/bash"]
+          args:
+            - -c
+            - >-
+
+              function curls() {
+                curl  -k -v --resolve $1:443:$ING https://$1${2:-}
+              }
+              function curl2() {
+               curl  -k -v --resolve $1:80:$ING http://$1${2:-}
+              }
+              while /bin/true; do
+                ING=$(getent hosts istio-micro-ingress.istio-micro-ingress | cut -d " " -f 1)
+
+
+                curl  -v istio-micro-ingress.istio-micro-ingress -H "Host: httpbin.example.com"
+                curl  -v istio-micro-ingress.istio-micro-ingress -H "Host: fortio.example.com"
+                curl  -v istio-micro-ingress.istio-micro-ingress -H "Host: httpbin-ingress.example.com"
+                curl  -v istio-micro-ingress.istio-micro-ingress -H "Host: httpbin-ingress2.example.com"
+                curl  -v istio-micro-ingress.istio-micro-ingress -H "Host: fortio-ingress.example.com"
+
+                curls https://httpbin.example.com
+                curls fortio.example.com
+                curls httpbin-ingress.example.com
+                curls fortio-ingress.example.com
+
+                sleep 5s
+              done
