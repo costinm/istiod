@@ -1,0 +1,28 @@
+# Gateway configurations - service, Gateway objects
+
+# Should be installed in the same namespace with the gateway
+# deployment. The name of the gateway and the service are based
+# on the namespace, except istio-system where the legacy values
+# are used
+
+# Example gateway using port 5000
+
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: gate5000
+spec:
+  selector:
+    {{- if eq .Release.Namespace "istio-system"}}
+    istio: ingressgateway
+    {{- else }}
+    istio: {{ .Release.Namespace }}
+    {{- end }}
+  servers:
+    - hosts:
+        - "./*"
+      port:
+        name: http-registry
+        number: 5000
+        protocol: HTTP
+

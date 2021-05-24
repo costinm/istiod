@@ -1,0 +1,63 @@
+apiVersion: skaffold/v2beta14
+kind: Config
+metadata:
+  name:    istiod
+
+build:
+  tagPolicy:
+    dateTime:
+      format: "t-2006-01-02_15-04"
+
+  artifacts:
+    - #image: gcr.io/dmeshgate/istiod
+      image: costinm/istiod
+      context: .
+      custom:
+        buildCommand: ../../bin/ko-build-istiod.sh ./istiod.go
+        dependencies:
+          paths:
+            - "*.go"
+            - "../../../istio/pilot/**"
+
+deploy:
+  helm:
+
+    releases:
+      - name: istiod
+        chartPath: ../../helm/istiod
+        namespace: istiod
+        #createNamespace: true
+        artifactOverrides:
+          #image: gcr.io/dmeshgate/istiod
+          image: costinm/istiod
+
+portForward:
+  - resourceType: service
+    namespace: istiod
+    resourceName: istiod
+    port: 15010
+    localPort: 14010
+
+  - resourceType: deployment
+    namespace: istiod
+    resourceName: istiod
+    port: 8080
+    localPort: 14080
+
+  - resourceType: deployment
+    namespace: istiod
+    resourceName: istiod
+    port: 14014
+    localPort: 14014
+
+  - resourceType: deployment
+    namespace: istiod
+    resourceName: istiod
+    port: 15012
+    localPort: 14012
+
+  - resourceType: deployment
+    namespace: istiod
+    resourceName: istiod
+    port: 15000
+    localPort: 14000

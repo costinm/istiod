@@ -1,0 +1,24 @@
+name: dev-istiod
+namespace: istio-system
+image: gcr.io/istio-testing/build-tools:master-2021-05-07T04-05-01
+#  costinm/istiod-dev:latest
+workdir: /work
+command: ["bash"]
+# Using the persistent volume from the dev pod
+persistentVolume:
+  enabled: false
+sync:
+  - .:/work/istiod
+  - ../istio:/work/istio
+
+remote: 11022
+forward:
+  - 11080:8080
+  - 11012:15012
+  - 11010:15010
+#  - localPort: 11081
+#    remotePort: 8080
+#    labels:
+#      istio.io/rev: v110
+#reverse:
+#  - 9000:9001

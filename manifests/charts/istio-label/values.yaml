@@ -1,0 +1,37 @@
+
+# Create mutating webhooks for Istio, using a custom label - like 'canary',
+# 'prod'.
+#
+# When installing Istio with helm or operator with the default revision,
+# you must select "global.operatorManageWebhooks=true"
+
+# Name of the stable revision.
+# If name is "default", will select:
+#  - namespaces with istio-injection: enabled, without istio.io/rev.     If the pod doesn't
+#    Pods can explicitly opts out using sidecar.istio.io/inject: "false"
+#  - Pods with sidecar.istio.io/inject: "true" and without an
+#    explicit revision
+#
+# For all other names, will select:
+#  - namespaces with istio.io/rev: NAME
+#  - pods with istio.io/rev: NAME
+label: default
+
+# The selected target istio revision
+revision: v110
+
+# Namespace where the injector is installed.
+istioNamespace: istio-system
+
+# injectExtra allows passing additional key/value pairs to the injector
+injectExtra: ""
+
+# If set, will select an external injector.
+# The injector must have proper certificates, or caBundle must be set.
+# This is not auto-patched
+injectionURL: ""
+
+# If set, allow explicit configuration of the caBundle.
+# The webhook will be configured so that Istiod does not attempt
+# to patch.
+caBundle: ""

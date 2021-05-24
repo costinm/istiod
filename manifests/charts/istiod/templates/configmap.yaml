@@ -1,0 +1,88 @@
+# Experimental overrides and config-over-XDS
+# If the config maps are mounted in the app, will not use
+# K8S but the default istiod.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istiod
+  namespace: istiod
+data:
+  istio.yaml: |-
+    # Istio configs loaded on startup
+    apiVersion: networking.istio.io/v1alpha3
+    kind: Gateway
+    metadata:
+      name: wps
+      namespace: wps
+    spec:
+      selector:
+        app: wps
+        istiod: wps
+      servers:
+        - hosts:
+            - "*"
+          port:
+            name: ssh
+            number: 5222
+            protocol: TCP
+        - hosts:
+            - "*"
+          port:
+            number: 8384
+            name: syncthing
+            protocol: TCP
+        - hosts:
+            - "*"
+          port:
+            name: http2-wps
+            number: 5228
+            protocol: TCP
+    ---
+    apiVersion: networking.istio.io/v1alpha3
+    kind: ServiceEntry
+    metadata:
+      name: bing
+      namespace: wps
+    spec:
+      hosts:
+        - bing.com
+      ports:
+        - number: 80
+          name: http-port
+          protocol: HTTP
+        - number: 443
+          name: https
+          protocol: HTTPS
+      resolution: DNS
+
+  istio2.yaml: |-
+    apiVersion: networking.istio.io/v1alpha3
+    kind: ServiceEntry
+    metadata:
+      name: istiod
+      namespace: wps
+    spec:
+      hosts:
+        - istiod.istio-system.svc
+      ports:
+        - number: 15010
+          name: http2-port
+          protocol: HTTP
+      resolution: DNS
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istiod-mesh
+  namespace: istiod
+data:
+  mesh.yaml: |-
+    #Mesh config
+
+    # If this is set, configDir option is ignored and k8s is not loaded
+    configSources:
+       #- address: xds://istiod.istio-system.svc:15010
+       - address: fs:///var/lib/istio/config
+       #- address: k8s://
+       - address: xds://istiod.istio-system.svc:15010/

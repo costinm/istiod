@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kube-registry
+  labels:
+#    istio.io/rev: none
+    istio-injection: enabled
+---

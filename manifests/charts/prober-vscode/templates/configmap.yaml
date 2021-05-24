@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: codeenv
+  namespace: dev
+data:
+  # PUID, PGID, TZ, SUDO_PASSWORD, PROXY_DOMAIN
+
+  PASSWORD: "123456789"
+  SUDO_PASSWORD: "123456789"

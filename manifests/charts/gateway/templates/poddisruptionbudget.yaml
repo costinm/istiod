@@ -1,0 +1,15 @@
+{{- if .Values.minAvailable }}
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  minAvailable: {{ .Values.minAvailable }}
+  selector:
+    matchLabels:
+      istio: {{ .Release.Namespace}}-{{ .Release.Name }}
+{{ if .Values.labels}}
+{{ .Values.labels | toYaml | trim | indent 6 }}
+{{- end }}
+{{- end }}

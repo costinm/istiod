@@ -1,0 +1,74 @@
+Simplified istio deployment. Will install only a deployment and
+associated Autoscale and PodDisruptionBudget. An dedicated
+ServiceAccount is created only if imagePullSecrets is set.
+
+The installed deployment will have the "istio: NAMESPACE" label,
+with the exception if istio-system where "istio: ingressgateway" label
+is set.
+
+It is recommended to install gateways in separate namespaces,
+one per namespace - this chart enforces this by its naming.
+
+A Service with the appropriate selector needs to be created by
+user, as well as the Gateway object. A separate chart provide
+example on how to do this. Typically the user will have one
+install with the Service and configs, and multiple versions of
+the gateway deployment while upgrading.
+
+
+Changes compared with istio/manifests/charts/istio-ingress:
+
+- "customService" is set, the Service should be deployed as a separate
+install. Recommended to deploy Service at the same time
+with the Gateway objects, so the ports are in sync. In future
+we expect Service object to be automatically update to match the
+ports.
+
+- flattened and simplified options - the chart is intended for one
+gateway deployment and nothing else. This is preparing for the
+automatic creation of deployments, based on K8S Gateway configs.
+
+- name of the install (Release.Name) is used as name for all generated
+  objects.
+
+- only injected deployment supported.
+
+- removed role and automatic creation of a service account.
+  Instead, using SDS for getting secrets. A 'serviceAccount' option
+  added, defaulting to "default" service account in the namespace.
+
+# Migration from old charts
+
+There is no migration - the new chart has different naming and
+does not interfere with the old charts. User will simply install
+the new chart in separate namespaces.
+
+A separate chart and install should be used to configure the Service
+object and Gateway/K8S Gateway. Once the new service is tested, if
+user wants to migrate from the istio-system gateway, the DNS will
+be updated with the new LB IP, and the istio-system gateway can
+be removed.
+
+It is also possible to install this chart in istio-system. In this
+case, the install will have the istio:ingressgateway label and will
+be selected by the old gateway service. User should NOT delete the old
+gateway install, to avoid losing the LB IP and traffic. Instead they
+can just remove the old deployment.
+
+# istio-system migration
+
+To replace the existing default deployment, use:
+
+```
+kubectl -n istio-system annotate poddisruptionbudget istio-ingressgateway app.kubernetes.io/managed-by=Helm
+kubectl -n istio-system annotate poddisruptionbudget istio-ingressgateway meta.helm.sh/release-name=istio-ingressgateway
+kubectl -n istio-system annotate poddisruptionbudget istio-ingressgateway meta.helm.sh/release-namespace=istio-system
+kubectl -n istio-system label poddisruptionbudget istio-ingressgateway app.kubernetes.io/managed-by=Helm
+kubectl -n istio-system annotate hpa istio-ingressgateway app.kubernetes.io/managed-by=Helm
+kubectl -n istio-system annotate hpa istio-ingressgateway meta.helm.sh/release-name=istio-ingressgateway
+kubectl -n istio-system label hpa istio-ingressgateway app.kubernetes.io/managed-by=Helm
+kubectl -n istio-system annotate deploy istio-ingressgateway app.kubernetes.io/managed-by=Helm
+kubectl -n istio-system annotate deploy istio-ingressgateway meta.helm.sh/release-name=istio-ingressgateway
+kubectl -n istio-system label deploy istio-ingressgateway app.kubernetes.io/managed-by=Helm
+
+```

@@ -1,0 +1,132 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  # The name will override the 'default' installed by the chart.
+  # Any operator or helm install of the control plane must use
+  # global.operatorManageWebhooks setting to prevent overriding the
+  # user specified one.
+  {{- if eq .Values.label "default "}}
+  name: istio-sidecar-injector
+  {{- else }}
+  name: istio-sidecar-injector-{{ .Values.label }}
+  {{- end}}
+  labels:
+    # This label will be selected by the corresponding revision, for patching
+    istio.io/rev: {{ .Values.revision }}
+
+webhooks:
+  - admissionReviewVersions:
+      - v1
+      - v1beta1
+    # Will be injected with a caBundle
+    # Alternatively, to select an external istiod with real certs
+    # use ...
+    clientConfig:
+      {{- if .Values.injectionURL }}
+      url: {{ .Values.injectionURL }}
+      {{- else }}
+      service:
+        # This should be a user-managed service, selecting the
+        # desired revision(s)
+        name: istiod-{{ .Values.revision }}
+        namespace: {{ .Values.istioNamespace }}
+        # You can add /key/value options
+        path: /inject{{ .Values.injectExtra }}
+        port: 443
+      {{- if .Values.caBundle }}
+      caBundle: {{ .Values.caBundle }}
+      {{- end }}
+      {{- end }}
+    name: rev.namespace.sidecar-injector.istio.io
+    matchPolicy: Equivalent
+    failurePolicy: Fail
+    reinvocationPolicy: Never
+    sideEffects: None
+    timeoutSeconds: 10
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+        resources:
+          - pods
+        scope: '*'
+
+    # Selection of objects
+    {{- if eq .Values.label "default "}}
+    namespaceSelector:
+      matchExpressions:
+      - key: istio-injection
+        operator: In
+        values:
+        - enabled
+      - key: istio.io/rev
+        operator: DoesNotExist
+    {{- else }}
+    namespaceSelector:
+      matchExpressions:
+      - key: istio.io/rev
+        operator: In
+        values:
+          - {{ .Values.label }}
+    {{- end }}
+    objectSelector:
+      matchExpressions:
+      - key: sidecar.istio.io/inject
+        operator: NotIn
+        values:
+        - "false"
+        - "disabled"
+
+  - admissionReviewVersions:
+      - v1
+      - v1beta1
+    # Will be injected with a caBundle
+    # Alternatively, to select an external istiod with real certs
+    # use ...
+    clientConfig:
+      service:
+        # This should be a user-managed service, selecting the
+        # desired revision(s)
+        name: istiod-{{ .Values.revision }}
+        namespace: {{ .Values.istioNamespace }}
+        # You can add /key/value options
+        path: /inject{{ .Values.injectExtra }}
+        port: 443
+    name: rev.object.sidecar-injector.istio.io
+    matchPolicy: Equivalent
+    failurePolicy: Fail
+    reinvocationPolicy: Never
+    sideEffects: None
+    timeoutSeconds: 10
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+        resources:
+          - pods
+        scope: '*'
+
+    # Selection of objects - this overrides namespace
+    # labels, to allow pods to select a specific revision.
+    objectSelector:
+      matchExpressions:
+        {{- if eq .Values.label "default"}}
+        - key: sidecar.istio.io/inject
+          operator: In
+          values:
+            - "true"
+            - "enabled"
+        - key: istio.io/rev
+          operator: DoesNotExist
+        {{- else }}
+        - key: istio.io/rev
+          operator: In
+          values:
+            - {{ .Values.label }}
+        {{- end }}
