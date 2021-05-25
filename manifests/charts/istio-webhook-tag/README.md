@@ -1,32 +1,47 @@
 # Istio Channel
 
-This chart installs MutatingWebhooks for Istio injection using 
-stable 'channel' labels. This is the helm implementation equivalent of 
-the 'istioctl tag' command described in [Flexible Revisions Labels/Revision Tags](https://docs.google.com/document/d/13IGuJg8swtLdNGW5cpF7ZdVkgge8voNp9DWBD93Wb1Q/edit#heading=h.xw1gqgyqs5b)
-proposal.
+This chart installs MutatingWebhooks for Istio injection, providing the helm
+equivalent of 'istioctl x revision tag set' command described in
+[Flexible Revisions Labels/Revision Tags](https://docs.google.com/document/d/13IGuJg8swtLdNGW5cpF7ZdVkgge8voNp9DWBD93Wb1Q/edit#heading=h.xw1gqgyqs5b).
 
 
-Creating a tag 'stable', pointing to the default istiod install:
+Example for creating a tag 'stable', pointing to the default istiod install:
 
 ```shell
 
-helm -n istio-system upgrade --install istio-webhook-stable manifets/charts/istio-webhook-tag --set tag=stable 
+helm -n istio-system upgrade --install istio-webhook-stable manifets/charts/istio-webhook-tag \
+  --set tag=stable
 
 ```
 
-Creating a tag 'canary', pointing to the v1.11-dev istiod install:
+Creating a tag 'canary', pointing to the v1-10 istiod install:
 
 ```shell
 
-helm -n istio-system upgrade --install istiod-v1-11-dev ../istio/manifests/charts/istio-control/istio-discovery --set revision=v1-11-dev 
+helm -n istio-system upgrade --install istiod-v1-10 ../istio/manifests/charts/istio-control/istio-discovery \
+  --set revision=v1-10
  
-helm -n istio-system upgrade --install istio-webhook-canary manifests/charts/istio-webhook-tag --set channel=canary --set revision=v1-11-dev
+helm -n istio-system upgrade --install istio-webhook-canary manifests/charts/istio-webhook-tag \
+  --set tag=canary --set revision=v1-10
 
 ```
 
-For each channel, you should use namespace or workload label "istio.io/rev=CHANNEL" to activate injection
-for the entire namespace or specific pods. The pod label has priority over namespace, so in a namespace
-with label 'istio.io/rev=stable', a pod with the label 'istio.io/rev=canary' will use the canary version.
+After the 'canary' is tested, users can point 'stable' to the new revision:
+
+```shell
+
+helm -n istio-system upgrade --install istio-webhook-stable manifets/charts/istio-webhook-tag \
+  --set tag=stable --set revision=v1-10
+
+```
+
+
+This chart can also be used as a basic for customizing the labeling and selection. For example,
+this chart adds an additional namespace key, "istio.io/tag", which behaves in the same way with 
+istio.io/rev, but allows workloads to override. 
+
+For backward compatibility reasons, if the 'istio.io/rev' key is used on a namespace, it will
+take precendence over Pods with a different 'istio.io/rev'
 
 
 # Backward-compatibility mode
@@ -55,7 +70,16 @@ kubectl  label mutatingwebhookconfiguration istio-sidecar-injector app.kubernete
 
 
 helm upgrade --install istio-webhook-default manifests/charts/istio-webhook-tag \
-  --set tag=default --set revision=v1-10
+  --set enableIstioInjection=true --set revision=v1-10
 
 ```
 
+It is also possible to provide 'install all workloads by default' mode, where any workload
+or namespace not explicitly labeled will be injected:
+
+```shell
+
+helm upgrade --install istio-webhook-default manifests/charts/istio-webhook-tag \
+  --set enableNamespacesByDefault=true --set revision=v1-10
+
+```

@@ -32,3 +32,11 @@ injectionURL: ""
 # The webhook will be configured so that Istiod does not attempt
 # to patch.
 caBundle: ""
+
+# If set, the revision will be used for namespaces with 'istio-injection=enabled' and
+# workloads with sidecar.istio.io/inject=true.
+enableIstioInjection: false
+
+# If set, the revision will be used as default for all workloads, unless they
+# have 'istio-injection', istio.io/rev or istio.io/tag
+enableNamespacesByDefault: false

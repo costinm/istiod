@@ -35,11 +35,14 @@ a unique prefix to each. */}}
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  # The name will override the 'default' installed by the chart.
-  # Any operator or helm install of the control plane must use
+  # Singleton - only for backward compatible or 'all namespaces'.
+  # This is the same name that istioctl is using, so the object must be 'migrated'
+  # first, see the README file.
+  #
+  # Any future 'default' (not revisioned) istioctl or helm install of the control plane must use
   # global.operatorManageWebhooks setting to prevent overriding the
   # user specified one.
-  {{- if eq .Values.tag "default"}}
+  {{- if or .Values.enableIstioInjection .Values.enableNamespacesByDefault }}
   name: istio-sidecar-injector
   {{- else }}
   name: istio-revision-tag-{{ .Values.tag }}
@@ -50,7 +53,61 @@ metadata:
     istio.io/rev: {{ .Values.revision }}
     istio.io/tag: {{ .Values.tag }}
 webhooks:
-{{- if not (eq .Values.tag "default") }}
+{{- if .Values.enableNamespacesByDefault}}
+
+{{- include "core" (mergeOverwrite (deepCopy .) (dict "Prefix" "auto.") ) }}
+  # This doesn't support excluding namespaces - but Istiod injector may configure an exclude list.
+  namespaceSelector:
+    matchExpressions:
+      - key: istio-injection
+        operator: DoesNotExist
+      - key: istio.io/rev
+        operator: DoesNotExist
+      # This is a new tag added in this chart.
+      - key: istio.io/tag
+        operator: DoesNotExist
+  objectSelector:
+    matchExpressions:
+      - key: sidecar.istio.io/inject
+        operator: DoesNotExist
+      - key: istio.io/rev
+        operator: DoesNotExist
+
+{{- else if .Values.enableIstioInjection }}
+
+    # Default/legacy injection, compat mode
+{{- include "core" (mergeOverwrite (deepCopy .) (dict "Prefix" "namespace.") ) }}
+  namespaceSelector:
+    matchExpressions:
+    - key: istio-injection
+      operator: In
+      values:
+      - enabled
+  objectSelector:
+    matchExpressions:
+    - key: sidecar.istio.io/inject
+      operator: NotIn
+      values:
+      - "false"
+
+{{- include "core" (mergeOverwrite (deepCopy .) (dict "Prefix" "object.") ) }}
+  # If namespace has either selector, it will be used. istio.io/rev can't override
+  namespaceSelector:
+    matchExpressions:
+      - key: istio.io/rev
+        operator: DoesNotExist
+      - key: istio-injection
+        operator: DoesNotExist
+  objectSelector:
+    matchExpressions:
+      - key: sidecar.istio.io/inject
+        operator: In
+        values:
+          - "true"
+      - key: istio.io/rev
+        operator: DoesNotExist
+
+{{ else }}
 
 {{- include "core" (mergeOverwrite (deepCopy .) (dict "Prefix" "rev.namespace.") ) }}
   # Selection of objects
@@ -94,6 +151,7 @@ webhooks:
       operator: NotIn
       values:
       - "false"
+      - disabled
     - key: istio.io/rev
       operator: DoesNotExist
 
@@ -111,64 +169,11 @@ webhooks:
         operator: NotIn
         values:
           - "false"
+          - disabled
       - key: istio.io/rev
         operator: In
         values:
           - {{ .Values.tag }}
-
-{{- else if .Values.enableNamespacesByDefault}}
-
-{{- include "core" (mergeOverwrite (deepCopy .) (dict "Prefix" "auto.") ) }}
-  # This doesn't support excluding namespaces - but Istiod injector may configure an exclude list.
-  namespaceSelector:
-    matchExpressions:
-      - key: istio-injection
-        operator: DoesNotExist
-      - key: istio.io/rev
-        operator: DoesNotExist
-      - key: istio.io/tag
-        operator: DoesNotExist
-  objectSelector:
-    matchExpressions:
-      - key: sidecar.istio.io/inject
-        operator: DoesNotExist
-      - key: istio.io/rev
-        operator: DoesNotExist
-
-
-{{- else }}
-
-    # Default/legacy injection, compat mode
-{{- include "core" (mergeOverwrite (deepCopy .) (dict "Prefix" "namespace.") ) }}
-  namespaceSelector:
-    matchExpressions:
-    - key: istio-injection
-      operator: In
-      values:
-      - enabled
-  objectSelector:
-    matchExpressions:
-    - key: sidecar.istio.io/inject
-      operator: NotIn
-      values:
-      - "false"
-
-{{- include "core" (mergeOverwrite (deepCopy .) (dict "Prefix" "object.") ) }}
-  # If namespace has either selector, it will be used. istio.io/rev can't override
-  namespaceSelector:
-    matchExpressions:
-      - key: istio.io/rev
-        operator: DoesNotExist
-      - key: istio-injection
-        operator: DoesNotExist
-  objectSelector:
-    matchExpressions:
-      - key: sidecar.istio.io/inject
-        operator: In
-        values:
-          - "true"
-      - key: istio.io/rev
-        operator: DoesNotExist
 
 {{- end }}
 

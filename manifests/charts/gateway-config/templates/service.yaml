@@ -53,11 +53,4 @@ spec:
       targetPort: 8443
       name: https
       protocol: TCP
-    # Additional ports
-    - port: 5000
-      name: http2-registry
-      protocol: TCP
-    - port: 6000
-      name: grpc-test
-      protocol: TCP
 ---

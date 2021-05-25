@@ -1,88 +1,98 @@
-# Experimental overrides and config-over-XDS
-# If the config maps are mounted in the app, will not use
-# K8S but the default istiod.
+{{- define "mesh" }}
+    # The trust domain corresponds to the trust root of a system.
+    # Refer to https://github.com/spiffe/spiffe/blob/master/standards/SPIFFE-ID.md#21-trust-domain
+    trustDomain: "cluster.local"
+
+    # The namespace to treat as the administrative root namespace for Istio configuration.
+    # When processing a leaf namespace Istio will search for declarations in that namespace first
+    # and if none are found it will search in the root namespace. Any matching declaration found in the root namespace
+    # is processed as if it were declared in the leaf namespace.
+    rootNamespace: {{ .Values.meshConfig.rootNamespace | default .Values.global.istioNamespace }}
+
+    defaultConfig:
+      {{- if .Values.global.meshID }}
+      meshId: {{ .Values.global.meshID }}
+      {{- end }}
+      tracing:
+      {{- if eq .Values.global.proxy.tracer "lightstep" }}
+        lightstep:
+          # Address of the LightStep Satellite pool
+          address: {{ .Values.global.tracer.lightstep.address }}
+          # Access Token used to communicate with the Satellite pool
+          accessToken: {{ .Values.global.tracer.lightstep.accessToken }}
+      {{- else if eq .Values.global.proxy.tracer "zipkin" }}
+        zipkin:
+          # Address of the Zipkin collector
+          address: {{ .Values.global.tracer.zipkin.address | default (print "zipkin." .Values.global.istioNamespace ":9411") }}
+      {{- else if eq .Values.global.proxy.tracer "datadog" }}
+        datadog:
+          # Address of the Datadog Agent
+          address: {{ .Values.global.tracer.datadog.address | default "$(HOST_IP):8126" }}
+      {{- else if eq .Values.global.proxy.tracer "stackdriver" }}
+        stackdriver:
+          # enables trace output to stdout.
+        {{- if $.Values.global.tracer.stackdriver.debug }}
+          debug: {{ $.Values.global.tracer.stackdriver.debug }}
+        {{- end }}
+        {{- if $.Values.global.tracer.stackdriver.maxNumberOfAttributes }}
+          # The global default max number of attributes per span.
+          maxNumberOfAttributes: {{ $.Values.global.tracer.stackdriver.maxNumberOfAttributes | default "200" }}
+        {{- end }}
+        {{- if $.Values.global.tracer.stackdriver.maxNumberOfAnnotations }}
+          # The global default max number of annotation events per span.
+          maxNumberOfAnnotations: {{ $.Values.global.tracer.stackdriver.maxNumberOfAnnotations | default "200" }}
+        {{- end }}
+        {{- if $.Values.global.tracer.stackdriver.maxNumberOfMessageEvents }}
+          # The global default max number of message events per span.
+          maxNumberOfMessageEvents: {{ $.Values.global.tracer.stackdriver.maxNumberOfMessageEvents | default "200" }}
+        {{- end }}
+      {{- else if eq .Values.global.proxy.tracer "openCensusAgent" }}
+      {{/* Fill in openCensusAgent configuration from meshConfig so it isn't overwritten below */}}
+{{ toYaml $.Values.meshConfig.defaultConfig.tracing | indent 8 }}
+      {{- end }}
+      {{- if .Values.global.remotePilotAddress }}
+      {{- if .Values.pilot.enabled }}
+      discoveryAddress: {{ printf "istiod-remote.%s.svc" .Release.Namespace }}:15012
+      {{- else }}
+      discoveryAddress: {{ printf "istiod.%s.svc" .Release.Namespace }}:15012
+      {{- end }}
+      {{- else }}
+      discoveryAddress: istiod{{- if not (eq .Values.revision "") }}-{{ .Values.revision }}{{- end }}.{{.Release.Namespace}}.svc:15012
+      {{- end }}
+{{- end }}
+
+{{/* We take the mesh config above, defined with individual values.yaml, and merge with .Values.meshConfig */}}
+{{/* The intent here is that meshConfig.foo becomes the API, rather than re-inventing the API in values.yaml */}}
+{{- $originalMesh := include "mesh" . | fromYaml }}
+{{- $mesh := mergeOverwrite $originalMesh .Values.meshConfig }}
+
+{{- if .Values.pilot.configMap }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: istiod
-  namespace: istiod
+  name: istio{{- if not (eq .Values.revision "") }}-{{ .Values.revision }}{{- end }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    istio.io/rev: {{ .Values.revision | default "default" }}
+    install.operator.istio.io/owning-resource: {{ .Values.ownerName | default "unknown" }}
+    operator.istio.io/component: "Pilot"
+    release: {{ .Release.Name }}
 data:
-  istio.yaml: |-
-    # Istio configs loaded on startup
-    apiVersion: networking.istio.io/v1alpha3
-    kind: Gateway
-    metadata:
-      name: wps
-      namespace: wps
-    spec:
-      selector:
-        app: wps
-        istiod: wps
-      servers:
-        - hosts:
-            - "*"
-          port:
-            name: ssh
-            number: 5222
-            protocol: TCP
-        - hosts:
-            - "*"
-          port:
-            number: 8384
-            name: syncthing
-            protocol: TCP
-        - hosts:
-            - "*"
-          port:
-            name: http2-wps
-            number: 5228
-            protocol: TCP
-    ---
-    apiVersion: networking.istio.io/v1alpha3
-    kind: ServiceEntry
-    metadata:
-      name: bing
-      namespace: wps
-    spec:
-      hosts:
-        - bing.com
-      ports:
-        - number: 80
-          name: http-port
-          protocol: HTTP
-        - number: 443
-          name: https
-          protocol: HTTPS
-      resolution: DNS
 
-  istio2.yaml: |-
-    apiVersion: networking.istio.io/v1alpha3
-    kind: ServiceEntry
-    metadata:
-      name: istiod
-      namespace: wps
-    spec:
-      hosts:
-        - istiod.istio-system.svc
-      ports:
-        - number: 15010
-          name: http2-port
-          protocol: HTTP
-      resolution: DNS
+  # Configuration file for the mesh networks to be used by the Split Horizon EDS.
+  meshNetworks: |-
+  {{- if .Values.global.meshNetworks }}
+    networks:
+{{ toYaml .Values.global.meshNetworks | trim | indent 6 }}
+  {{- else }}
+    networks: {}
+  {{- end }}
 
+  mesh: |-
+{{- if .Values.meshConfig }}
+{{ $mesh | toYaml | indent 4 }}
+{{- else }}
+{{- include "mesh" . }}
+{{- end }}
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: istiod-mesh
-  namespace: istiod
-data:
-  mesh.yaml: |-
-    #Mesh config
-
-    # If this is set, configDir option is ignored and k8s is not loaded
-    configSources:
-       #- address: xds://istiod.istio-system.svc:15010
-       - address: fs:///var/lib/istio/config
-       #- address: k8s://
-       - address: xds://istiod.istio-system.svc:15010/
+{{- end }}

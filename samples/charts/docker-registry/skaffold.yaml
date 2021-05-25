@@ -3,10 +3,15 @@ kind: Config
 metadata:
   name: kube-registry
 deploy:
-  kubectl:
-    manifests:
-      - ns.yaml
-      - charts/*.yaml
+  helm:
+    releases:
+      - name: kube-registry
+        chartPath: .
+        namespace: kube-registry
+        #createNamespace: true
+#        artifactOverrides:
+#          #image: gcr.io/dmeshgate/istiod
+#          image: costinm/istiod
 
 portForward:
   - resourceType: replicationcontroller
@@ -14,12 +19,6 @@ portForward:
     resourceName: kube-registry-v0
     port: 5000
     localPort: 5000
-
-  - resourceType: replicationcontroller
-    namespace: kube-registry
-    resourceName: kube-registry-v0
-    port: 5001
-    localPort: 5002
 
   # This should not work - it's mtls
   - resourceType: service

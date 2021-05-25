@@ -125,6 +125,8 @@ tag: latest
 # A gateway with this mode ensures that pilot generates an additional
 # set of clusters for internal services but without Istio mTLS, to
 # enable cross cluster routing.
+#
+# Setting this mode to sni-dnat adds the clusters required for AUTO_PASSTHROUGH
 routerMode: standard
 
 # Specify pod scheduling arch(amd64, ppc64le, s390x) and weight as follows:

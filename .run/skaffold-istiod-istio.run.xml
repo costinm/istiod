@@ -10,11 +10,11 @@
         <option value="CUSTOM" />
       </set>
     </option>
-    <option name="cleanupDeployments" value="false" />
+    <option name="cleanupDeployments" value="true" />
     <option name="deployToCurrentContext" value="true" />
     <option name="deployToMinikube" value="false" />
     <option name="envVariables" />
-    <option name="imageRepositoryOverride" value="costinm/istiod" />
+    <option name="imageRepositoryOverride" />
     <option name="kubernetesContext" />
     <option name="mappings">
       <list />
@@ -27,7 +27,7 @@
     <option name="skaffoldConfigurationFilePath" value="$PROJECT_DIR$/../istiod/cmd/istiod/skaffold.yaml" />
     <option name="skaffoldNamespace" />
     <option name="skaffoldProfile" />
-    <option name="statusCheck" value="false" />
+    <option name="statusCheck" value="true" />
     <option name="verbosity" value="WARN" />
     <method v="2" />
   </configuration>

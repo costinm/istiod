@@ -29,6 +29,9 @@ NS=fortio
 
 IP ?= $(shell hostname --ip-address)
 
+# Namespace used for testing
+NAMESPACE ?= ugate
+
 # Set to "-it --rm" to run the docker images in foreground, for testing.
 # Default is to set the images as daemon.
 # Set to "run -it --rm " for debugging
@@ -49,8 +52,6 @@ build/istio-agent:
 
 run/istiod:
 	cd ${ISTIO_SRC} && ${BINDIR}/pilot-discovery discovery
-
-NAMESPACE ?= default
 
 # Fetch bootstrap token and root cert
 # John's script:
@@ -118,61 +119,6 @@ push-docker:
 #    	--plugins="authz" \
 #        --configDir /var/lib/istio/istio --registries=MCP \
 #        --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
-
-
-# Example using pilot with MCP source. Replaced by istiod-vm
-#
-## A second Pilot instance, but using Galley config. Second pilot has a different config ( based on the local tests)
-#pilot-galley:
-#	yq m conf/pilot/mesh.yaml conf/pilot/mesh-galley.yaml > conf/pilot/gen-mesh-galley.yaml
-#	yq w -i conf/pilot/gen-mesh-galley.yaml configSources[0].address ${IP}:9901
-#	docker stop pilot-galley || true
-#	docker ${DOCKER_START} --name=pilot-galley  \
-#		-p 127.0.0.1:16080:8080 \
-#		-p 0.0.0.0:16010:15010 \
-#		-p 127.0.0.1:16014:15014 \
-#		-p 127.0.0.1:16876:9876 \
-#        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
-#		-v ${PWD}/conf/istio:/var/lib/istio/istio \
-#		-e PILOT_ENABLE_PROTOCOL_SNIFFING=true \
-#	 ${HUB}/pilot:${TAG} \
-#    	 discovery --meshConfig /var/lib/istio/pilot/gen-mesh-galley.yaml \
-#    	--secureGrpcAddr="" \
-#    	--plugins="authz" \
-#        --registries=MCP \
-#        --networksConfig /var/lib/istio/pilot/meshNetworks.yaml
-
-# Example of starting galley from the microservice, using file source. Replaced by istiod-vm
-#
-## Start galley, using a local directory as config source.
-## Passing kubeconfig instead of configPath will use K8S server, file must be included in the galley directory or mounted.
-#galley:
-#	docker stop galley || true
-#	docker ${DOCKER_START} --name=galley  \
-#		-p 0.0.0.0:9901:9901 \
-#		-p 127.0.0.1:15015:15015 \
-#		-p 127.0.0.1:15877:9877 \
-#        -v ${PWD}/conf/pilot:/var/lib/istio/pilot \
-#        -v ${PWD}/conf/galley:/var/lib/istio/galley \
-#		-v ${PWD}/conf/istio/test:/var/lib/istio/istio \
-#	 ${HUB}/galley:${TAG} \
-#    	 server -c /var/lib/istio/galley/galley.yaml \
-#    	    --meshConfigFile /var/lib/istio/pilot/mesh.yaml \
-#			--configPath /var/lib/istio/istio
-
-# Example of local pilot, using files for config. Replaced by istiod-vm
-#
-## Same as pilot, but running on local machine. Easy to attach a debugger/step.
-##
-#run-local-pilot:
-#	#kill -9 $(shell cat ${LOG_DIR}/pilot.pid) | true
-#	PILOT_ENABLE_PROTOCOL_SNIFFING=true \
-#	 ${GOPATH}/bin/pilot-discovery discovery \
-#        --meshConfig conf/pilot/mesh.yaml \
-#    	--plugins="authz" \
-#        --configDir conf/istio --registries=MCP \
-#        --networksConfig test/simple/meshNetworks.yaml # & echo $$! > ${LOG_DIR}/pilot.pid
-
 
 # Start a local gateway, running in docker. Uses upstream envoy
 #
@@ -299,10 +245,6 @@ sidecar-test:
 
 # https://storage.googleapis.com/istio-release/releases/1.3.0-rc.0/deb/istio-sidecar.deb
 
-gateway-shell:
-	# apk add curl, ...
-	docker exec -it gateway sh
-
 # Simpler build for the components we need for testing.
 # For real use the official docker images should be used.
 build:
@@ -325,21 +267,6 @@ cacerts: conf/ca/ca-cert.pem
         -host spiffe://cluster.local/ns/istio-system/sa/istio-pilot-service-account
 
 KUBECONFIG ?= ${HOME}/.kube/config
-
-# Run citadel locally, provisioning a specific K8S cluster.
-#
-citadel: cacerts
-	${BINDIR}/istio_ca  \
-      --self-signed-ca=false \
-      --root-cert=conf/ca/ca-cert.pem \
-      --signing-cert conf/ca/ca-cert.pem --signing-key=conf/ca/ca-key.pem \
-      --trust-domain=cluster.local \
-      --grpc-port=8060 \
-      --citadel-storage-namespace=istio-system \
-      --kube-config ${KUBECONFIG}
-
-start-local-kind:
-	kind start cluster --name local
 
 K3S_OPT?=-it --rm
 
@@ -374,32 +301,8 @@ k3s:
 k3s-shell:
 	docker exec -it k3s /bin/sh
 
-#
-# --build-arg - for ARG
-# --digest-file=/dev/termination-log -> will be picked by k8s
-# --insecure-registry for local running registries
-# --reproducible: strip timestamps
-# --single-snapshot
-# --tarPath - save image as tar, no upload
-# --verbosity=debug
-#
-# For gcr:
-#-v $HOME/.config/gcloud:/root/.config/gcloud \
-#
-kaniko-build:
-	mkdir -p ${CACHEDIR} # Used to cache base images
-	docker run \
-		-v ${HOME}/.docker/config.json:/kaniko/.docker/config.json:ro \
-		-v `pwd`:/workspace \
-		-v ${CACHEDIR}:/cache \
-		gcr.io/kaniko-project/executor:latest \
-		--dockerfile ./Dockerfile --destination ${IMAGE} --context dir:///workspace/ \
-		--cache=true
-
-
 build-image:
 	docker build -f tools/build_img/Dockerfile -t costinm/istiod-build:latest .
-
 
 knative-cluster:
 	kubectl apply --selector knative.dev/crd-install=true \
@@ -446,62 +349,77 @@ helm3/install: helm3/base helm3/canary helm3/default
 
 #REV=v110
 REV=v1-11
-# Gateway name - same as the namespace it is instaled to
-GW=ugate
+# Gateway name - same as the namespace it is instaled.
+GW=istio-gw-default
 
-helm3/new:
-	# Install istiod.
-	# Telemetry configs can be installed as a separate chart - this
-	# avoids upgrade issues for 1.4 skip-version.
-	# TODO: add telementry to docker image
-	helm -n istio-system upgrade --install istiod-${REV} ../istio/manifests/charts/istio-control/istio-discovery \
-		--set revision=${REV} \
-		--set telemetry.enabled=false
+# Deployment with SNI routing enabled.
+# The one in istio-system is not.
+deploy/gw-sni:
+	helm -n istio-gw-sni upgrade --install ingress-default-${REV} \
+		  manifests/charts/gateway-workload \
+		  --set routerMode=sni-dnat
 
-	# Set it as default injection to point to ${REV}
-	helm -n istio-system upgrade --install istio-default manifests/charts/istio-label \
-		--set revision=${REV}
-	# Set it a 'prod' label to point to ${REV}
-	helm -n istio-system upgrade --install istio-prod manifests/charts/istio-label \
-		--set revision=${REV} --set label=prod
+deploy/gw-hostport:
+	helm upgrade -n istio-gw-hostport --install istio-gw-hostport \
+		manifests/charts/gateway-hostport \
+		--set routerMode=sni-dnat --set revision=canary
+	helm upgrade -n istio-gw-hostport --install istio-gw-hostport-config samples/charts/gateway-hostport
 
-	# Install 2 gateways - one in new namespace, one in istio-system
-	helm -n ${GW} upgrade --install ingress-${REV} manifests/charts/gateway \
-    		--set revision=prod
+# 2 deployments, one using default and one using canary
+deploy/gw-ugate:
     # No revision set - will use default injection.
     # Name of the install based on the revision - can be any string
 	helm -n ${GW} upgrade --install ingress-default-${REV} \
-		  manifests/charts/gateway
+		  manifests/charts/gateway-workload
+	helm -n ${GW} upgrade --install ingress-${REV} manifests/charts/gateway-workload \
+    		--set revision=canary
 	# Service and Gateway object - name matches namespace.
 	helm -n ${GW} upgrade --install ${GW} manifests/charts/gateway-config
 
-	# Also install in istio-system - this time using 'prod' floating label
+deploy/gw-istio-system:
 	helm -n istio-system upgrade --install istio-ingressgateway manifests/charts/gateway \
 		--set revision=prod
 	helm -n istio-system upgrade --install istio-gateway-config \
  		manifests/charts/gateway-config
 
-
 # Install ingress using old templates, to verify migration to new template
-helm3/old-ingress:
+deploy/old-ingress:
 	helm upgrade -n istio-system --install \
 		istio-ingressgateway ../istio/manifests/charts/gateways/istio-ingress \
-		--set revision ${REV}
+		--set revision=prod
+
+# A single version of Istiod
+deploy/istiod:
+	# Install istiod.
+	# Telemetry configs can be installed as a separate chart - this
+	# avoids upgrade issues for 1.4 skip-version.
+	# TODO: add telementry to docker image
+	helm -n istio-system upgrade --install istiod-${REV} ../istio/manifests/charts/istio-control/istio-discovery \
+		--set revision=${REV}
+	#--set telemetry.enabled=false
+
+# Install 'prod', 'canary' and default, all pointing to REV
+deploy/webhooks:
+	# Set it as default injection to point to ${REV}
+	helm -n istio-system upgrade --install istio-webhook-default manifests/charts/istio-webhook-tag \
+		--set revision=${REV} --set enableIstioInjection=true
+	helm -n istio-system upgrade --install istio-webhook-prod manifests/charts/istio-webhook-tag \
+		--set revision=${REV} --set label=prod
+	helm -n istio-system upgrade --install istio-webhook-canary manifests/charts/istio-webhook-tag \
+		--set revision=${REV} --set label=canary
+
+# Install Istio with helm only, using the sample charts
+deploy/all: deploy/istiod deploy/webhooks deploy/gw-istio-system \
+		deploy/gw-sni deploy/gw-ugate
+
 
 install:
-	(cd ${ISTIO_SRC} && make helm3/install )
 	kubectl apply -k test/fortio
 	kubectl apply -k test/certmanager
 
 
-helm3/test/uninstall:
-	helm3 delete -n istio-system istio-16 || true
-	helm3 delete -n istio-system istio-canary || true
-	helm3 delete istio-base || true
+uninstall/crd:
 	kubectl delete crd -l release=istio || true
-
-update:
-	kubectl apply -k test/fortio-dev
 
 #####################################################3
 # Building

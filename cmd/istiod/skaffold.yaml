@@ -21,7 +21,6 @@ build:
 
 deploy:
   helm:
-
     releases:
       - name: istiod
         chartPath: ../../helm/istiod

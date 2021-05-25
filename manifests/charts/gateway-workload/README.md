@@ -1,17 +1,15 @@
-Simplified istio gateway deployment, using safer, recommended practices.
+Simplified istio gateway deployment, to be used as-is or as a base for your own charts.
 
-This chart can be used as-is or as a base for your own charts.
+Will only install only the Istio proxy workloads and associated Autoscale and PodDisruptionBudget. 
 
-Will only install only the Istio proxy workloads and
-associated Autoscale and PodDisruptionBudget. 
+It is strongly recommended to not install gateways in istio-system - this chart allows it
+for very special cases where it is not possible to migrate the IP address.
 
-It is recommended to install gateways in separate namespaces,
-one per namespace - this chart enforces this by its naming. You can have multiple 
-deployments of the gateway chart in a namespace.
+A Service and Gateway configs with the appropriate selector needs to be
+created by user.  The installed deployment can be selected using "istio: NAMESPACE" label.
 
-The installed deployment can be selected using "istio: NAMESPACE" label.
-A Service and Gateway configs with the appropriate selector needs to be 
-created by user. 
+This deployment uses SDS by default - no Secret or Volume mounts, and is optimized for 
+simplicity and to be used as a base to be extended by a user's own charts.
 
 # Options
 
@@ -33,11 +31,10 @@ install. It is recommended to maintain the Service and Gateway objects in the
 same chart and independent of the actual workload, so the ports are in sync. 
 
 - flattened and simplified options - the chart is intended for one
-gateway deployment and nothing else. This is preparing for the
-automatic creation of deployments, based on K8S Gateway configs.
+gateway deployment and nothing else.
 
 - name of the install (Release.Name) is used as name for all generated
-  objects.
+  objects, there is no overlap with other installs.
 
 - only injected deployment supported.
 
@@ -52,7 +49,6 @@ installed in a separate namespace and has simplified config.
 
 User will install the new chart in separate namespaces, create the Service/Gateway configs,
 test and switch the DNS to the new Service. 
-
 
 
 # istio-system migration
