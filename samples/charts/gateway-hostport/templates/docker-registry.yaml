@@ -1,0 +1,59 @@
+# Because of how host matches in vhost and gate, create one
+# gateway per port.
+# Ports must match deployment's hostPorts
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: gate5000
+spec:
+  selector:
+    istio: {{ .Release.Namespace }}
+  servers:
+    - hosts:
+        - "./*"
+      port:
+        name: http-registry
+        number: 5000
+        protocol: HTTP
+# TCP will avoid localhost:5000 http problems, but no info
+#        protocol: TCP
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: registry2
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - {{ .Release.Namespace}}/gate5000
+  #  tcp:
+  #    - match:
+  #        - port: 5000
+  #      route:
+  #        - destination:
+  #            host: kube-registry.kube-registry.svc.cluster.local
+  #            port:
+  #              number: 5000
+
+  http:
+    - match:
+        # Not sufficient: someone can connect to host IP and use Host header
+        - authority:
+            exact: "localhost:5000"
+      route:
+        # ISTIO_MUTUAL, no auto. Registry can check the identity.
+        - destination:
+            host: kube-registry.kube-registry.svc.cluster.local
+            port:
+              number: 5000
+---
+{{/*apiVersion: networking.istio.io/v1alpha3*/}}
+{{/*kind: DestinationRule*/}}
+{{/*metadata:*/}}
+{{/*  name: kube-registry*/}}
+{{/*spec:*/}}
+{{/*  host: kube-registry.kube-registry.svc.cluster.local*/}}
+{{/*  trafficPolicy:*/}}
+{{/*    tls:*/}}
+{{/*      mode: ISTIO_MUTUAL*/}}

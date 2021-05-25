@@ -1,0 +1,20 @@
+
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: {{ .Release.Namespace }}-http
+spec:
+  selector:
+    {{- if eq .Release.Namespace "istio-system"}}
+    istio: ingressgateway
+    {{- else }}
+    istio: {{ .Release.Namespace }}
+    {{- end }}
+  servers:
+    - hosts:
+        - "./*"
+      port:
+        name: http
+        number: 80
+        protocol: HTTP
+

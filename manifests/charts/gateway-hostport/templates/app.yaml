@@ -1,0 +1,68 @@
+# Simplified Istio gateway, running on Node with
+# hostPort configs.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: istio-gateway
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        # Collect prom metrics
+        prometheus.io/port: "15090"
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/stats/prometheus"
+        # Select the template for gateway injection
+        inject.istio.io/templates: "gateway"
+        sidecar.istio.io/inject: "true"
+      labels:
+        # Standard k8s tags
+        app.kubernetes.io/name: istio-gateway
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        # Select the injector
+        istio.io/rev: {{ .Values.revision }}
+        # Used for gateway selection
+        istio: {{ .Release.Namespace }}
+
+    spec:
+      containers:
+      - name: istio-proxy
+        image: auto
+        env:
+        # Save the workload secret to file
+        - name: OUTPUT_CERTS
+          value: /etc/istio/proxy/
+
+        # Gateway can be used for SNI routing
+        # sni-dnat adds the clusters required for AUTO_PASSTHROUGH mode
+        - name: ISTIO_META_ROUTER_MODE
+          value: "sni-dnat"
+
+        ports:
+        # Creates on each host a port forwarder:
+        # -A CNI-DN-78555e74edb8054e88910 -p tcp -m tcp --dport 5000 -j DNAT --to-destination 10.48.0.156:5000
+        - containerPort: 15021
+          name: status-port
+          protocol: TCP
+          hostPort: 15021
+        - containerPort: 5000
+          name: docker
+          protocol: TCP
+          hostPort: 5000
+        - containerPort: 15443
+          name: https
+          protocol: TCP
+          hostPort: 8443
+        - containerPort: 15080
+          name: http
+          protocol: TCP
+          hostPort: 80
+        - containerPort: 15444
+          name: https-root
+          protocol: TCP
+          hostPort: 443
+---

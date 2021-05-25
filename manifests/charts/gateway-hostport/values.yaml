@@ -1,0 +1,10 @@
+# Istio revision to use. Setting to 'canary' to get
+# the latest.
+revision: canary
+
+
+ports:
+  - containerPort: 5000
+    name: docker
+    protocol: TCP
+    hostPort: 5000
