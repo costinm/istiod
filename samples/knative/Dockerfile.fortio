@@ -1,0 +1,14 @@
+ARG BASE=gcr.io/dmeshgate/proxybase:latest
+#### Fortio - used for the tests
+FROM fortio/fortio:latest AS fortio
+
+###############################################################################
+### Container for testing for Istio VM deb files, in ubuntu container
+## Will include hyperistio (the minimal, non-k8s version), fortio for testing, other tools needed for debugging.
+## Will install envoy from the official release .deb ( but not using the systemd unit for start )
+FROM ${BASE}
+
+COPY --from=fortio /usr/share/fortio /usr/share/fortio
+COPY --from=fortio /usr/bin/fortio /usr/bin/fortio
+
+ENTRYPOINT /usr/local/bin/run.sh /usr/bin/fortio server -http-port 8082

@@ -1,0 +1,7 @@
+email: test@istio.io
+
+# If set, configure a DNS issuer.
+# Requires a secret named 'clouddns-dns01-solver-svc-acct' containing
+# a 'key.json', and corresponding IAM permisions.
+#
+# dnsProject: dmeshgate

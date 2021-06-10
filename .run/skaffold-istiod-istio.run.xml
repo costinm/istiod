@@ -10,7 +10,7 @@
         <option value="CUSTOM" />
       </set>
     </option>
-    <option name="cleanupDeployments" value="true" />
+    <option name="cleanupDeployments" value="false" />
     <option name="deployToCurrentContext" value="true" />
     <option name="deployToMinikube" value="false" />
     <option name="envVariables" />

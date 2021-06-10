@@ -1,0 +1,15 @@
+{{- range $index, $d := .Values.domains }}
+apiVersion: cert-manager.io/v1alpha3
+kind: Certificate
+metadata:
+  name: ingress-cert-{{ $d.name }}
+  namespace: istio-system
+spec:
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt
+  secretName: cert-{{ $d.name }}
+  commonName: {{ $d.domain }}
+  dnsNames:
+    - {{ $d.domain }}
+{{ end }}

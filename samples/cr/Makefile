@@ -231,7 +231,6 @@ test/ps:
 	${ISTIO_GO}/out/linux_amd64/istioctl x ps --xds-address ${INJECT_GRPC}
 
 
-
 # 8 core -
 # 4 core - 2 sec
 # 2 core - 9 sec
@@ -240,69 +239,6 @@ test/ps:
 
 testrun:
 	kubectl run -n httpbin shell --rm -i --tty --image ubuntu -- bash
-
-CA_ADDR ?= istiod-${PROJECT_ID}-${CLUSTER}${ISTIO_SUFFIX}:443
-SERVICE_ACCOUNT ?= default
-INTERMEDIATE_KEYSZ ?= 4096
-INTERMEDIATE_ORG ?= Istio
-INTERMEDIATE_CN ?= Intermediate CA
-
-# Get a token from the project
-%/token: L=$(dir $@)
-%/token:
-	mkdir -p ${L}
-	echo '{"kind":"TokenRequest","apiVersion":"authentication.k8s.io/v1","spec":{"audiences":["istio-ca"], "expirationSeconds":2592000}}' | \
-    		kubectl create --raw /api/v1/namespaces/${L}serviceaccounts/default/token -f - | \
-    		jq -j '.status.token' > ${L}istio-token
-	kubectl -n istio-system get secret istio-ca-secret -ojsonpath='{.data.ca-cert\.pem}' | \
-      	 base64 -d > root-cert.pem
-
-# Get a cert from the CA, using the token. Alternative to downloading the root CA and generating the cert locally.
-%/token-cert: L=$(dir $@)
-%/token-cert: %/workload.csr %/token  %/key.pem
-	echo -n '{"csr": "' >$(dir $@)/csr-escaped
-	cat  $< | awk -F'\\n' '{printf "%s\\n",$$0} END {print "\"}"}'  >> $(dir $@)/csr-escaped
-	cat $(dir $@)csr-escaped | grpcurl  -import-path . \
-        -proto ./istioca.proto -use-reflection=false \
-         -d @ -H "Authorization:  Bearer $(shell cat $(dir $@)istio-token )" \
-         ${CA_ADDR} istio.v1.auth.IstioCertificateService/CreateCertificate > $(dir $@)/cert.json
-	cat default/cert.json |jq .certChain[0] | sed 's/\\n/\n/g' | sed 's/"//' > $(dir $@)/workload-cert.pem
-	cat default/cert.json |jq .certChain[1] | sed 's/\\n/\n/g' | sed 's/"//' > $(dir $@)/root-cert.pem
-
-%/workload.csr: L=$(dir $@)
-%/workload.csr: %/key.pem %/workload.conf
-	@echo "generating $@"
-	@openssl req -new -config $(L)/workload.conf -key $< -out $@
-
-%/key.pem:
-	@echo "generating $@"
-	@mkdir -p $(dir $@)
-	@openssl genrsa -out $@ 4096
-
-%/workload.conf: L=$(dir $@)
-%/workload.conf:
-	@echo "[ req ]" > $@
-	@echo "encrypt_key = no" >> $@
-	@echo "prompt = no" >> $@
-	@echo "utf8 = yes" >> $@
-	@echo "default_md = sha256" >> $@
-	@echo "default_bits = $(INTERMEDIATE_KEYSZ)" >> $@
-	@echo "req_extensions = req_ext" >> $@
-	@echo "x509_extensions = req_ext" >> $@
-	@echo "distinguished_name = req_dn" >> $@
-	@echo "[ req_ext ]" >> $@
-	@echo "subjectKeyIdentifier = hash" >> $@
-	@echo "basicConstraints = critical, CA:false" >> $@
-	@echo "keyUsage = digitalSignature, keyEncipherment" >> $@
-	@echo "extendedKeyUsage = serverAuth, clientAuth" >> $@
-	@echo "subjectAltName=@san" >> $@
-	@echo "[ san ]" >> $@
-	@echo "URI.1 = spiffe://cluster.local/ns/$(L)sa/$(SERVICE_ACCOUNT)" >> $@
-	@echo "DNS.1 = $(SERVICE_ACCOUNT).$(L:/=).svc.cluster.local" >> $@
-	@echo "[ req_dn ]" >> $@
-	@echo "O = $(INTERMEDIATE_ORG)" >> $@
-	@echo "CN = $(INTERMEDIATE_CN)" >> $@
-	@echo "L = $(L:/=)" >> $@
 
 knative/project_setup:
 	gcloud projects add-iam-policy-binding \

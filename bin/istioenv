@@ -54,8 +54,14 @@ alias kis103='kubectl -n pilot103'
 alias kt='kubectl -n test'
 alias kga='kubectl get --all-namespaces'
 
+# Requires GWIP to be set
+function sni_curl() {
+  local D=$1
+  shift
+  echo curl -vvv -k  --resolve $D:15443:${GWIP} https://$D:15443$*
+  curl -vvv -k  --resolve $D:15443:${GWIP}  https://$D:15443$*
 
-
+}
 
 ######################################3
 ## Logs and exec
@@ -321,8 +327,10 @@ function getIstioToken() {
     POD=$(kubectl --namespace=$NS get -l $L pod -o=jsonpath='{.items[0].metadata.name}')
 
     mkdir -p var/run/secrets/tokens
-    kubectl -n $NS exec $POD -- cat /var/run/secrets/tokens/istio-token >  var/run/secrets/tokens/istio-token
-    kubectl -n $NS exec $POD -- cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt >  var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    mkdir -p var/run/secrets/kubernetes.io/serviceaccount
+    kubectl -n $NS exec -c istio-proxy $POD -- cat /var/run/secrets/kubernetes.io/serviceaccount/token >  var/run/secrets/kubernetes.io/serviceaccount/token
+    kubectl -n $NS exec -c istio-proxy $POD -- cat /var/run/secrets/tokens/istio-token >  var/run/secrets/tokens/istio-token
+    #kubectl -n $NS exec -c istio-proxy $POD -- cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt >  var/run/secrets/kubernetes.io/serviceaccount/ca.crt
 
 }
 

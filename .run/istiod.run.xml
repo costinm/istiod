@@ -2,7 +2,7 @@
   <configuration default="false" name="istiod" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="ws" />
     <working_directory value="$PROJECT_DIR$/../istiod" />
-    <parameters value="discovery" />
+    <parameters value="discovery --secureGRPCAddr=&quot;&quot;" />
     <envs>
       <env name="VALIDATION_WEBHOOK_CONFIG_NAME" value="" />
       <env name="INJECTION_WEBHOOK_CONFIG_NAME" value="" />

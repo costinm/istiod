@@ -1,0 +1,15 @@
+apiVersion: skaffold/v2beta16
+kind: Config
+metadata:
+  name: istio-ingressgateway
+portForward:
+- resourceType: deployment
+  resourceName: gate-canary
+  namespace: istio-system
+  port: 15000
+  localPort: 12100
+- resourceType: service
+  resourceName: istio-ingressgateway
+  namespace: istio-system
+  port: 80
+  localPort: 12180

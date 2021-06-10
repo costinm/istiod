@@ -7,7 +7,7 @@ metadata:
   name: gate5000
 spec:
   selector:
-    istio: {{ .Release.Namespace }}
+    istio: {{ .Values.istioGateway }}
   servers:
     - hosts:
         - "./*"
@@ -26,16 +26,7 @@ spec:
   hosts:
     - "*"
   gateways:
-    - {{ .Release.Namespace}}/gate5000
-  #  tcp:
-  #    - match:
-  #        - port: 5000
-  #      route:
-  #        - destination:
-  #            host: kube-registry.kube-registry.svc.cluster.local
-  #            port:
-  #              number: 5000
-
+    - gate5000
   http:
     - match:
         # Not sufficient: someone can connect to host IP and use Host header
@@ -47,13 +38,12 @@ spec:
             host: kube-registry.kube-registry.svc.cluster.local
             port:
               number: 5000
----
-{{/*apiVersion: networking.istio.io/v1alpha3*/}}
-{{/*kind: DestinationRule*/}}
-{{/*metadata:*/}}
-{{/*  name: kube-registry*/}}
-{{/*spec:*/}}
-{{/*  host: kube-registry.kube-registry.svc.cluster.local*/}}
-{{/*  trafficPolicy:*/}}
-{{/*    tls:*/}}
-{{/*      mode: ISTIO_MUTUAL*/}}
+  # Not used:
+  #  tcp:
+  #    - match:
+  #        - port: 5000
+  #      route:
+  #        - destination:
+  #            host: kube-registry.kube-registry.svc.cluster.local
+  #            port:
+  #              number: 5000

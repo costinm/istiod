@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="pilot-agent-big1" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="ws" />
+    <working_directory value="$PROJECT_DIR$/../istio" />
+    <parameters value="proxy sidecar" />
+    <envs>
+      <env name="PROXY_CONFIG" value="{&quot;discoveryAddress&quot;: &quot;k.webinf.info:443&quot;,&quot;proxyBootstrapTemplatePath&quot;: &quot;./tools/packaging/common/envoy_bootstrap.json&quot;,&quot;binary_path&quot;:&quot;./out/linux_amd64/release/envoy&quot;} " />
+      <env name="ISTIO_META_DNS_CAPTURE" value="true" />
+    </envs>
+    <kind value="DIRECTORY" />
+    <package value="istio.io/istio/pilot/cmd/pilot-agent" />
+    <directory value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-agent" />
+    <filePath value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-agent/main.go" />
+    <method v="2" />
+  </configuration>
+</component>

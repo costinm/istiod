@@ -16,7 +16,7 @@ spec:
         app: fortio-pp
       annotations:
         sidecar.istio.io/logLevel: info
-        sidecar.istio.io/debug: token:debug
+        sidecar.istio.io/componentLogLevel: token:debug
         sidecar.istio.io/proxyImage: gcr.io/wlhe-cr/proxyv2:asm
         sidecar.istio.io/proxyCPU: 10m
         sidecar.istio.io/proxyMemory: 200m

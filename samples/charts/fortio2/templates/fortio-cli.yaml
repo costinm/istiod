@@ -1,0 +1,83 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cli-fortio
+spec:
+  selector:
+    matchLabels:
+      app: cli-fortio
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/proxyCPU: "10m"
+      labels:
+        app: cli-fortio
+        version: v1
+        istio.io/rev: canary
+    spec:
+      containers:
+      - name: fortio
+        image: costinm/fortio:latest
+        imagePullPolicy: Always
+        args:
+          - load
+          - -allow-initial-errors
+          - -t
+          - "0"
+          - -abort-on
+          - "123"
+          - -allow-initial-errors
+          - -c
+          - "30"
+          - -qps
+          - "1000"
+          - http://fortio:8080/echo?size=5000
+        resources:
+          requests:
+            cpu: 10m
+          limits:
+            cpu: 800m
+#      - name: knative
+#        image: costinm/fortio:latest
+#        imagePullPolicy: Always
+#        args:
+#          - load
+#          - -t
+#          - "0"
+#          - -abort-on
+#          - "123"
+#          - -allow-initial-errors
+#          - -c
+#          - "10"
+#          - -qps
+#          - "10"
+#          - http://helloworld-go.fortio.svc.cluster.local:8080/echo?size=5000
+#        resources:
+#          requests:
+#            cpu: 10m
+#          limits:
+#            cpu: 800m
+#      - name: knativeing
+#        image: costinm/fortio:latest
+#        imagePullPolicy: Always
+#        args:
+#          - load
+#          - -t
+#          - "0"
+#          - -abort-on
+#          - "123"
+#          - -allow-initial-errors
+#          - -c
+#          - "10"
+#          - -H
+#          - "Host:helloworld-go.fortio.example.com"
+#          - -qps
+#          - "10"
+#          - http://104.198.146.216/
+#        resources:
+#          requests:
+#            cpu: 10m
+#          limits:
+#            cpu: 800m

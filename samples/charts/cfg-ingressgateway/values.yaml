@@ -1,0 +1,34 @@
+# Main domain - will be used in rules.
+# This chart is intended for 1 main domain with certificate.
+#
+domain: k.webinf.info
+cert: "istio-ingressgateway-certs"
+
+domains:
+  - domain: prom.svc.i.webinf.info
+    name: prom
+  - domain: fortio.svc.i.webinf.info
+    name: fortio
+  # Short name and dest - will generate cert, gateway and default route
+  - name: httpbin
+    domain: httpbin.svc.i.webinf.info
+    serviceName: httpbin.httpbin.svc.cluster.local
+    port: 8000
+
+
+# Secret name for the certificate holding istiod certificate
+# If not set, pass-through mode is enabled
+#istiodCert: ""
+istiodCert: "istio-ingressgateway-certs"
+
+# Hostname for istiod.
+#istiodHost: ""
+istiodHost: k.webinf.info
+
+selector: ingressgateway
+revision: v1-11
+
+# WIP: The gateway will split traffic based on URL or headers
+istiodTags:
+  canary: v1-11
+  prod: v1-10

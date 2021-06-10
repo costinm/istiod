@@ -2,14 +2,10 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
-  name: {{ .Release.Namespace }}-http
+  name: {{ .Release.Name }}-http
 spec:
   selector:
-    {{- if eq .Release.Namespace "istio-system"}}
-    istio: ingressgateway
-    {{- else }}
-    istio: {{ .Release.Namespace }}
-    {{- end }}
+    istio: {{ .Release.Name }}
   servers:
     - hosts:
         - "./*"

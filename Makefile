@@ -320,67 +320,55 @@ okteto:
 	#go run github.com/okteto/okteto up
 	/ws/istio-stable/bin/okteto up
 
-helm3/base-helm:
-    # Base install with helm3 works only for a fresh cluster - in many cases
-    # we want to upgrade. Helm3 would complain about existing resources
-	helm3 template istio-base  ${ISTIO_SRC}/manifests/charts/base > kustomize/base/gen.yaml
-
-helm3/base-template:
-	kubectl create ns istio-system || true
-	helm3 template istio-base ${ISTIO_SRC}/manifests/charts/base | kubectl apply -f -
-
-helm3/default:
-	helm3 template -i -n istio-system istio-16  ${ISTIO_SRC}/manifests/istio-control/istio-discovery \
-		--set global.tag=${TAG} --set global.hub=${HUB} \
-		-f ${ISTIO_SRC}/manifests/global.yaml \
-		 --set meshConfig.defaultConfig.proxyMetadata.DNS_CAPTURE="" \
-		 --set meshConfig.defaultConfig.proxyMetadata.DNS_AGENT=""
-
-
-helm3/canary:
-	helm3 upgrade -i -n istio-system istio-canary  ${ISTIO_SRC}/manifests/istio-control/istio-discovery \
-		-f ${ISTIO_SRC}/manifests/global.yaml  \
-		--set global.tag=${TAG} --set global.hub=${HUB} \
-        --set revision=canary \
-        --set meshConfig.defaultConfig.proxyMetadata.DNS_CAPTURE=ALL \
-        --set meshConfig.defaultConfig.proxyMetadata.DNS_AGENT=DNS-TLS
-
-helm3/install: helm3/base helm3/canary helm3/default
-
 #REV=v110
 REV=v1-11
 # Gateway name - same as the namespace it is instaled.
 GW=istio-gw-default
 
-# Deployment with SNI routing enabled.
-# The one in istio-system is not.
-deploy/gw-sni:
-	helm -n istio-gw-sni upgrade --install ingress-default-${REV} \
-		  manifests/charts/gateway-workload \
-		  --set routerMode=sni-dnat
-
 deploy/gw-hostport:
 	helm upgrade -n istio-gw-hostport --install istio-gw-hostport \
-		manifests/charts/gateway-hostport \
+		samples/charts/gateway-hostport \
 		--set routerMode=sni-dnat --set revision=canary
-	helm upgrade -n istio-gw-hostport --install istio-gw-hostport-config samples/charts/gateway-hostport
 
 # 2 deployments, one using default and one using canary
-deploy/gw-ugate:
+# In the istio-gate namespace
+deploy/gw-istio-gate:
     # No revision set - will use default injection.
     # Name of the install based on the revision - can be any string
-	helm -n ${GW} upgrade --install ingress-default-${REV} \
-		  manifests/charts/gateway-workload
-	helm -n ${GW} upgrade --install ingress-${REV} manifests/charts/gateway-workload \
+	helm upgrade --install -n istio-gate \
+		  gate-default \
+		  manifests/charts/gate \
+		  --set routerMode=sni-dnat
+
+	helm  upgrade --install -n istio-gate \
+			gate-canary \
+			manifests/charts/gate \
+     		  --set routerMode=sni-dnat \
     		--set revision=canary
+
+# Configure istio-gate with the default config
+deploy/gw-istio-gate-cfg-default:
 	# Service and Gateway object - name matches namespace.
-	helm -n ${GW} upgrade --install ${GW} manifests/charts/gateway-config
+	helm upgrade --install -n istio-gate \
+		istio-gate manifests/charts/gateway-config
+
+# Configure istio-gate with custom config
+deploy/gw-istio-gate-cfg-sample:
+	# Service and Gateway object - name matches namespace.
+	helm upgrade --install -n istio-gate \
+		istio-gate samples/charts/istio-gate
 
 deploy/gw-istio-system:
-	helm -n istio-system upgrade --install istio-ingressgateway manifests/charts/gateway \
-		--set revision=prod
-	helm -n istio-system upgrade --install istio-gateway-config \
- 		manifests/charts/gateway-config
+	helm -n istio-system upgrade --install \
+		gate-canary manifests/charts/gate \
+		--set revision=canary --set routerMode=sni-dnat
+	# Default config - just 80 and 443
+	#	helm -n istio-system upgrade --install istio-ingressgateway \
+	# 		manifests/charts/gateway-config
+
+deploy/gw-cfg-istio-system:
+	helm -n istio-system upgrade --install istio-ingressgateway \
+ 		samples/charts/cfg-ingressgateway
 
 # Install ingress using old templates, to verify migration to new template
 deploy/old-ingress:
@@ -395,8 +383,9 @@ deploy/istiod:
 	# avoids upgrade issues for 1.4 skip-version.
 	# TODO: add telementry to docker image
 	helm -n istio-system upgrade --install istiod-${REV} ../istio/manifests/charts/istio-control/istio-discovery \
-		--set revision=${REV}
-	#--set telemetry.enabled=false
+		--set revision=${REV} \
+		--set telemetry.enabled=false \
+		--set meshConfig.accessLogFile=/dev/stdout
 
 # Install 'prod', 'canary' and default, all pointing to REV
 deploy/webhooks:
@@ -404,16 +393,19 @@ deploy/webhooks:
 	helm -n istio-system upgrade --install istio-webhook-default manifests/charts/istio-webhook-tag \
 		--set revision=${REV} --set enableIstioInjection=true
 	helm -n istio-system upgrade --install istio-webhook-prod manifests/charts/istio-webhook-tag \
-		--set revision=${REV} --set label=prod
+		--set revision=${REV} --set tag=prod
 	helm -n istio-system upgrade --install istio-webhook-canary manifests/charts/istio-webhook-tag \
-		--set revision=${REV} --set label=canary
+		--set revision=${REV} --set tag=canary
+
+deploy/k8s-registry:
+	helm -n kube-registry upgrade --install kube-registry samples/charts/docker-registry
 
 # Install Istio with helm only, using the sample charts
 deploy/all: deploy/istiod deploy/webhooks deploy/gw-istio-system \
 		deploy/gw-sni deploy/gw-ugate
 
 
-install:
+install/apps:
 	kubectl apply -k test/fortio
 	kubectl apply -k test/certmanager
 
@@ -491,3 +483,41 @@ events-watch:
 #   PUSH_IMAGE=true
 skaffold.istiod:
 	docker tag costinm/pilot:latest ${IMAGE}
+
+
+REPO?=gcr.io/dmeshgate
+SINGLE_IMAGE?=${REPO}/proxybase:latest
+FORTIO_IMAGE?=${REPO}/fortio:latest
+
+single/docker:
+	(cd samples/knative ; docker build . -f Dockerfile -t ${SINGLE_IMAGE})
+	(cd samples/knative ; docker build . -f Dockerfile.fortio -t ${FORTIO_IMAGE})
+
+single/push:
+	docker push ${SINGLE_IMAGE}
+
+single/run:
+	cat ${PWD}/var/run/secrets/kubernetes.io/serviceaccount/token
+	#docker cp var/run/secrets/kubernetes.io/serviceaccount/token proxybase:/var/run/secrets/kubernetes.io/serviceaccount/token
+	docker run -it --name fortio --rm \
+		-e JWT=$(shell cat ./var/run/secrets/kubernetes.io/serviceaccount/token ) \
+		${FORTIO_IMAGE}
+
+single/deploy:
+	gcloud alpha run deploy proxybase --sandbox=minivm  --platform managed --project dmeshgate \
+ 		--region us-central1 --image ${SINGLE_IMAGE} --command /usr/local/bin/run.sh \
+ 		 --allow-unauthenticated --use-http2 \
+ 		 --set-env-vars="SSH_AUTH=$(shell cat ~/.ssh/id_ecdsa.pub)" \
+		--set-env-vars="JWT=$(shell cat ./var/run/secrets/kubernetes.io/serviceaccount/token)"
+
+single/token: SECRET_NAME=$(shell kubectl get sa default -n httpbin -o jsonpath='{.secrets[].name}')
+single/token: TOKEN=$(shell kubectl get secret ${SECRET_NAME} -n httpbin -o jsonpath="{.data['token']}")
+single/token:
+	mkdir -p ./var/run/secrets/kubernetes.io/serviceaccount/
+	echo ${TOKEN} |  base64 --decode > ./var/run/secrets/kubernetes.io/serviceaccount/token
+
+single/all: single/docker single/push single/deploy
+
+single/ssh:
+	 ssh -v  -o StrictHostKeyChecking=no -o ProxyCommand='hbone https://proxybase-yydsuf6tpq-uc.a.run.app:443/dm/127.0.0.1:22'  \
+     		root@proxybase

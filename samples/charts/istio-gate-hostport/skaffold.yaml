@@ -1,0 +1,26 @@
+apiVersion: skaffold/v2beta16
+kind: Config
+metadata:
+  name: istio-gw-hostport
+deploy:
+  helm:
+    releases:
+    - name: istio-gw-hostport
+      chartPath: .
+      namespace: istio-gw-hostport
+portForward:
+- resourceType: daemonset
+  resourceName: istio-gw-hostport
+  namespace: istio-gw-hostport
+  port: 15000
+  localPort: 12000
+- resourceType: replicationcontroller
+  resourceName: kube-registry-v0
+  namespace: kube-registry
+  port: 5000
+  localPort: 5000
+- resourceType: service
+  resourceName: kube-registry
+  namespace: kube-registry
+  port: 5000
+  localPort: 5001

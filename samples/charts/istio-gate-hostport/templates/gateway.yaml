@@ -1,0 +1,39 @@
+---
+# This is really :443 on the host
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: https
+spec:
+  selector:
+    istio: {{ .Release.Namespace }}
+  servers:
+    - hosts:
+        - "./*"
+      port:
+        name: https
+        number: 15443
+        # Must have TLS config
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: httpscert
+{{/*        privateKey: /etc/istio/proxy/key.pem*/}}
+{{/*        serverCertificate: /etc/istio/proxy/cert-chain.pem*/}}
+{{/*        caCertificates: /etc/istio/proxy/root-cert.pem*/}}
+---
+# :80 on the host
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: http
+spec:
+  selector:
+    istio: {{ .Release.Namespace }}
+  servers:
+    - hosts:
+        - "./*"
+      port:
+        name: http
+        number: 15080
+        protocol: HTTP

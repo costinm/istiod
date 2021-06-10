@@ -13,17 +13,19 @@ deploy:
 #          #image: gcr.io/dmeshgate/istiod
 #          image: costinm/istiod
 
-portForward:
-  - resourceType: replicationcontroller
-    namespace: kube-registry
-    resourceName: kube-registry-v0
-    port: 5000
-    localPort: 5000
-
-  # This should not work - it's mtls
-  - resourceType: service
-    namespace: kube-registry
-    resourceName: kube-registry
-    port: 5000
-    localPort: 5001
+# Port forwarded by the hostport chart, which
+# is used more frequently
+#portForward:
+#  - resourceType: replicationcontroller
+#    namespace: kube-registry
+#    resourceName: kube-registry-v0
+#    port: 5000
+#    localPort: 5000
+#
+#  # This should not work - it's mtls
+#  - resourceType: service
+#    namespace: kube-registry
+#    resourceName: kube-registry
+#    port: 5000
+#    localPort: 5001
 

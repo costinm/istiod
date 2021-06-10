@@ -1,0 +1,76 @@
+{{ if .Values.istiodCert }}
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: istiod-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        name: https
+        number: 443
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        # use a valid credential here
+        credentialName: {{ .Values.istiodCert }}
+      hosts:
+      - "*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: istiod-vs
+spec:
+  hosts:
+  # use a valid gateway host and domain for istiod
+  - {{ .Values.istiodHost }}
+  gateways:
+  - istiod-gateway
+  http:
+  - match:
+    -  uri:
+        prefix: /inject/
+    route:
+    - destination:
+        host: istiod-{{ .Values.revision }}.istio-system.svc.cluster.local
+        port:
+          number: 443
+  - match:
+    -  uri:
+        prefix: /envoy.service.discovery.v3.AggregatedDiscoveryService
+    route:
+    - destination:
+        host: istiod-{{ .Values.revision }}.istio-system.svc.cluster.local
+        port:
+          number: 15012
+  - match:
+      -  uri:
+           prefix: /istio.v1.auth.IstioCertificateService/
+    route:
+      - destination:
+          host: istiod-{{ .Values.revision }}.istio-system.svc.cluster.local
+          port:
+            number: 15012
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: istiod-dr
+spec:
+  host: istiod-{{ .Values.revision }}.istio-system.svc.cluster.local
+  trafficPolicy:
+    portLevelSettings:
+    - port:
+        number: 15012
+      tls:
+        mode: SIMPLE
+      connectionPool:
+        http:
+          h2UpgradePolicy: UPGRADE        
+    - port:
+        number: 443
+      tls:
+        mode: SIMPLE
+{{ end }}

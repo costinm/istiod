@@ -1,0 +1,10 @@
+apiVersion: skaffold/v2beta16
+kind: Config
+metadata:
+  name: istiod-min
+deploy:
+  helm:
+    releases:
+    - name: istiod-min
+      chartPath: .
+      namespace: istio-system

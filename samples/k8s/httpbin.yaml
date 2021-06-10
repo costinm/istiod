@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: httpbin
+  namespace: httpbin
   labels:
     app: httpbin
 spec:
@@ -15,6 +16,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  namespace: httpbin
   name: httpbin
   annotations:
     sidecar.istio.io/debug: debug
@@ -28,6 +30,7 @@ spec:
       labels:
         app: httpbin
         version: v1
+        istio.io/rev: canary
     spec:
       containers:
       - image: docker.io/kennethreitz/httpbin
