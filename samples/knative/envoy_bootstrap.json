@@ -391,7 +391,7 @@
                               ]
                             },
                             "route": {
-                              "cluster": "cluster_1",
+                              "cluster": "local_tcp_22",
                               "upgrade_configs": [
                                 {
                                   "upgrade_type": "CONNECT",

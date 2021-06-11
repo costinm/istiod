@@ -10,6 +10,8 @@ TOP=$(shell cd ${BASE}/../../..; pwd)
 BASE=$(shell cd .; pwd)
 GOPATH=${HOME}/go
 
+-include .local.mk
+
 CONF ?= ${BASE}/conf
 HUB ?= gcr.io/dmeshgate
 #HUB ?= costinm
@@ -484,40 +486,5 @@ events-watch:
 skaffold.istiod:
 	docker tag costinm/pilot:latest ${IMAGE}
 
+include samples/knative/Makefile
 
-REPO?=gcr.io/dmeshgate
-SINGLE_IMAGE?=${REPO}/proxybase:latest
-FORTIO_IMAGE?=${REPO}/fortio:latest
-
-single/docker:
-	(cd samples/knative ; docker build . -f Dockerfile -t ${SINGLE_IMAGE})
-	(cd samples/knative ; docker build . -f Dockerfile.fortio -t ${FORTIO_IMAGE})
-
-single/push:
-	docker push ${SINGLE_IMAGE}
-
-single/run:
-	cat ${PWD}/var/run/secrets/kubernetes.io/serviceaccount/token
-	#docker cp var/run/secrets/kubernetes.io/serviceaccount/token proxybase:/var/run/secrets/kubernetes.io/serviceaccount/token
-	docker run -it --name fortio --rm \
-		-e JWT=$(shell cat ./var/run/secrets/kubernetes.io/serviceaccount/token ) \
-		${FORTIO_IMAGE}
-
-single/deploy:
-	gcloud alpha run deploy proxybase --sandbox=minivm  --platform managed --project dmeshgate \
- 		--region us-central1 --image ${SINGLE_IMAGE} --command /usr/local/bin/run.sh \
- 		 --allow-unauthenticated --use-http2 \
- 		 --set-env-vars="SSH_AUTH=$(shell cat ~/.ssh/id_ecdsa.pub)" \
-		--set-env-vars="JWT=$(shell cat ./var/run/secrets/kubernetes.io/serviceaccount/token)"
-
-single/token: SECRET_NAME=$(shell kubectl get sa default -n httpbin -o jsonpath='{.secrets[].name}')
-single/token: TOKEN=$(shell kubectl get secret ${SECRET_NAME} -n httpbin -o jsonpath="{.data['token']}")
-single/token:
-	mkdir -p ./var/run/secrets/kubernetes.io/serviceaccount/
-	echo ${TOKEN} |  base64 --decode > ./var/run/secrets/kubernetes.io/serviceaccount/token
-
-single/all: single/docker single/push single/deploy
-
-single/ssh:
-	 ssh -v  -o StrictHostKeyChecking=no -o ProxyCommand='hbone https://proxybase-yydsuf6tpq-uc.a.run.app:443/dm/127.0.0.1:22'  \
-     		root@proxybase

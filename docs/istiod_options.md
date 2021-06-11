@@ -33,6 +33,9 @@ export INJECTION_WEBHOOK_CONFIG_NAME=
  
  # Authenticate, even for plaintext 
  export XDS_AUTH_PLAINTEXT=true
+
+INJECT_ENABLED= - disable sidecar injection 
+ # 
 ```
 
 

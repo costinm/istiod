@@ -4,10 +4,14 @@
 # This includes tools to help debug and even source code to make changes.
 # It includes a sshd server, to allow access even without kube.
 
-set -x
+
+cd /
+env
+echo Starting $*
+
 
 #export PROXY_CONFIG="{"discoveryAddress": "istiod-costin-asm1-big1-xds-icq63pqnqq-uc.a.run.app:443","proxyBootstrapTemplatePath": "./tools/packaging/common/envoy_bootstrap.json" 'binary_path':'./out/linux_amd64/release/envoy'}"
-export PROXY_CONFIG='{"discoveryAddress": "k.webinf.info:443"}'
+export PROXY_CONFIG='{"discoveryAddress": "'${ISTIOD}'"}'
 
 mkdir -p /var/run/secrets/kubernetes.io/serviceaccount
 echo $JWT > /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -21,13 +25,20 @@ export JWT_POLICY=first-party-jwt
 # TODO: should be default
 export PILOT_CERT_PROVIDER=istiod
 
-export POD_NAME=httpbin1
-export POD_NAMESPACE=httpbin
-export TRUST_DOMAIN=cluster.local
+export POD_NAME=${POD_NAME:-httpbin1}
+export POD_NAMESPACE=${POD_NAMESPACE:-httpbin}
+export TRUST_DOMAIN=${TRUST_DOMAIN:-cluster.local}
 
 function start_agent() {
-  pilot-agent proxy sidecar  --domain httpbin.svc.cluster.local &
-   #--proxyLogLevel=info --proxyComponentLogLevel=misc:info --log_output_level=default:debug &
+  #pilot-agent istio-iptables
+  pilot-agent proxy sidecar  --domain ${POD_NAME}.svc.cluster.local &
+  # TODO: wait for ready before returning
+   #--proxyLogLevel=info --proxyComponentLogLevel=misc:info --log_output_level=default:debug
+}
+
+function start_gw() {
+  pilot-agent proxy router --domain ${POD_NAME}.svc.cluster.local
+   #--proxyLogLevel=info --proxyComponentLogLevel=misc:info --log_output_level=default:debug
 }
 
 function start_ssh() {
@@ -69,16 +80,15 @@ function start_ssh() {
 
 start_ssh
 
-cd /
-env
-
-start_agent
 
 # Debug entrypoint, while ingress is implemented.
 export PORT=8080
 export BASE_PORT=14000
 /usr/local/bin/ugate &
 
-echo $*
-$*
-
+if [[ -z "$*" ]] ; then
+  start_gw
+else
+  start_agent
+  $*
+fi
