@@ -1,0 +1,18 @@
+ARG BASE=gcr.io/dmeshgate/proxybase:latest
+
+FROM docker.io/networkstatic/iperf3 AS app
+
+###############################################################################
+### Container for testing for Istio VM deb files, in ubuntu container
+## Will include hyperistio (the minimal, non-k8s version), fortio for testing, other tools needed for debugging.
+## Will install envoy from the official release .deb ( but not using the systemd unit for start )
+FROM ${BASE}
+
+COPY --from=app /usr/bin/iperf3 /usr/bin/iperf3
+
+COPY run.sh /usr/local/bin/run.sh
+# Replace bootstrap
+COPY envoy_bootstrap.json /var/lib/istio/envoy/envoy_bootstrap_tmpl.json
+
+ENTRYPOINT ["/usr/local/bin/run.sh"]
+CMD ["/usr/bin/iperf3", "-s"]

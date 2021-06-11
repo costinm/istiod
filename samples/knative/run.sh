@@ -25,7 +25,7 @@ export JWT_POLICY=first-party-jwt
 # TODO: should be default
 export PILOT_CERT_PROVIDER=istiod
 
-export POD_NAME=${POD_NAME:-httpbin1}
+export POD_NAME=${POD_NAME:-unset}
 export POD_NAMESPACE=${POD_NAMESPACE:-httpbin}
 export TRUST_DOMAIN=${TRUST_DOMAIN:-cluster.local}
 
