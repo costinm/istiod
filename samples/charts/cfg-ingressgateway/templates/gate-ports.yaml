@@ -1,0 +1,20 @@
+# Gateways for TCP ports
+
+{{- range $index, $d := .Values.ports }}
+
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: gate-{{ $d.number }}
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - hosts:
+        - "./*"
+      port:
+        name: {{ $d.name }}
+        number: {{ $d.number }}
+        protocol: {{ $d.protocol }}
+
+{{ end }}

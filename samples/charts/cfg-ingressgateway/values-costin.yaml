@@ -1,0 +1,51 @@
+# Single/primary domain. A DNS entry must exist, pointing to
+# the service or host node.
+#
+domain: k.webinf.info
+cert: "istio-ingressgateway-certs"
+
+# Simple setup for a wildcard domain with subdomains for each
+# name.
+# For each subdomain it is possible to override:
+# - serviceName - default is the subdomain name
+# - namespace - same default
+# - port - default 8080
+#
+# Gateway, VirtualService, Certificate will be created.
+wildcardDomain: svc.i.webinf.info
+subdomains:
+  # All defaults
+  - name: fortio
+  # Short name and dest - will generate cert, gateway and default route
+  - name: httpbin
+    domain: httpbin.svc.i.webinf.info
+    namespace: httpbin
+    serviceName: httpbin
+    port: 8000
+  # Installed from marketplace
+  - name: prom
+    namespace: mon
+    serviceName: prometheus-1-prometheus
+    port: 9090
+  - name: grafana
+    namespace: mon
+    serviceName: prometheus-1-grafana
+    port: 80
+
+
+# Secret name for the certificate holding istiod certificate
+# If not set, pass-through mode is enabled
+#istiodCert: ""
+istiodCert: "istio-ingressgateway-certs"
+
+# Hostname for istiod.
+#istiodHost: ""
+istiodHost: k.webinf.info
+
+selector: ingressgateway
+revision: canary
+
+ports:
+  - name: http-registry
+    number: 5000
+    protocol: HTTP

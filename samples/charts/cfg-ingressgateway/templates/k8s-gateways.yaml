@@ -1,0 +1,73 @@
+# For testing, using port 6000 and 6443.
+
+  {{- range $index, $d := .Values.subdomains }}
+
+
+apiVersion: networking.x-k8s.io/v1alpha1
+kind: Gateway
+metadata:
+  name: http-{{ $d.name }}
+spec:
+  gatewayClassName: istio
+  listeners:
+    - port: 8002
+      {{ if $d.domain }}
+      hostname: "{{ $d.domain }}"
+      {{ else }}
+      hostname: "{{ $d.name }}.{{ $.Values.wildcardDomain }}"
+      {{ end }}
+      protocol: HTTP
+      routes:
+        kind: HTTPRoute
+        namespaces:
+          selector:
+            matchLabels:
+              # Before 1.21 / NamespaceDefaultLabelName - must be
+              # set manually on the namespace
+              kubernetes.io/metadata.name: {{ $d.name }}
+          from: Selector
+        selector:
+          matchLabels:
+            domain: fortio
+{{/*        namespaces:*/}}
+{{/*          from: Selector*/}}
+{{/*          selector:*/}}
+{{/*            matchLabels:*/}}
+{{/*              # Before 1.21 / NamespaceDefaultLabelName - must be*/}}
+{{/*              # set manually on the namespace*/}}
+{{/*              kubernetes.io/metadata.name: {{ $d.name }}*/}}
+---
+apiVersion: networking.x-k8s.io/v1alpha1
+kind: Gateway
+metadata:
+  name: https-{{ $d.name }}
+spec:
+  gatewayClassName: istio
+  listeners:
+    - port: 8003
+      {{ if $d.domain }}
+      hostname: "{{ $d.domain }}"
+      {{ else }}
+      hostname: "{{ $d.name }}.{{ $.Values.wildcardDomain }}"
+      {{ end }}
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRef:
+          kind: Secret
+          group: core
+          name: cert-{{ $d.name }}
+      routes:
+        kind: HTTPRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              # Before 1.21 / NamespaceDefaultLabelName - must be
+              # set manually on the namespace
+              kubernetes.io/metadata.name: {{ $d.name }}
+{{/*
+          https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/*/}}
+---
+
+  {{ end }}

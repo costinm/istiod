@@ -1,12 +1,13 @@
 apiVersion: v1
-name: fortio
-version: 1.1.0
-tillerVersion: ">=2.7.2"
-description: Helm chart for fortio deployment
+name: probe-fortio
+version: 1.0.0
+tillerVersion: ">=3.0.0"
+description: Fortio prober
 keywords:
   - istio
-  - fortio
+  - ingressgateway
+  - gateways
 sources:
   - http://github.com/istio/istio
 engine: gotpl
-icon: https://istio.io/favicons/android-192x192.png
+icon: https://istio.io/latest/favicons/android-192x192.png

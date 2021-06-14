@@ -1,4 +1,4 @@
-{{- range $index, $d := .Values.domains }}
+{{- range $index, $d := .Values.subdomains }}
 apiVersion: cert-manager.io/v1alpha3
 kind: Certificate
 metadata:
@@ -9,7 +9,25 @@ spec:
     kind: ClusterIssuer
     name: letsencrypt
   secretName: cert-{{ $d.name }}
-  commonName: {{ $d.domain }}
+  commonName: {{ $d.name }}.{{ $.Values.wildcardDomain}}
   dnsNames:
-    - {{ $d.domain }}
+    - {{ $d.name }}.{{ $.Values.wildcardDomain }}
+---
 {{ end }}
+
+# Certificate for the main domain
+apiVersion: cert-manager.io/v1alpha3
+kind: Certificate
+metadata:
+  name: ingress-certs-ingressgateway
+  namespace: istio-system
+spec:
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt
+  secretName: cert-istio-ingressgateway
+  commonName: {{ .Values.domain}}
+  dnsNames:
+    - {{ .Values.domain }}
+
+

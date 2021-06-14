@@ -1,0 +1,89 @@
+# Test k8s 'same namespace'
+# The Secret for HTTPS would also be in this namespace - i.e.
+# self-contained.
+
+# The main issue is access control - how to prevent claiming
+# not-owned domains.
+# (external/istio) GW would need some form of ACL.
+
+apiVersion: networking.x-k8s.io/v1alpha1
+kind: Gateway
+metadata:
+  name: http-fortio-ns
+spec:
+  gatewayClassName: istio
+  listeners:
+    - port: 8002
+      hostname: fortio-ns.svc.i.webinf.info
+      protocol: HTTP
+      routes:
+        kind: HTTPRoute
+        namespaces:
+          from: Same
+        selector:
+          matchLabels:
+            domain: fortio-ns
+
+---
+kind: HTTPRoute
+apiVersion: networking.x-k8s.io/v1alpha1
+metadata:
+  name: fortio-ns
+  labels:
+    app: fortio
+    domain: fortio-ns
+spec:
+  # No hostnames in the namespace - can be mapped to multiple
+  # domains, by multiple gateways.
+  gateways:
+    allow: SameNamespace
+  hostnames:
+    - "*"
+  rules:
+    - forwardTo:
+        - serviceName: fortio
+          port: 8080
+
+---
+# Until GW is started automatically, create one:
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-ingressgateway
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
+      protocol: TCP
+      appProtocol: http
+    - port: 8002
+      name: http-k8s
+      protocol: TCP
+  selector:
+    istio: ingressgateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istio-ingressgateway
+spec:
+  selector:
+    matchLabels:
+      istio: ingressgateway
+  template:
+    metadata:
+      annotations:
+        # Select the gateway injection template (rather than the default sidecar template)
+        inject.istio.io/templates: gateway
+      labels:
+        # Set a unique label for the gateway. This is required to ensure Gateways can select this workload
+        istio: ingressgateway
+        # Enable gateway injection. If connecting to a revisioned control plane, replace with "istio.io/rev: revision-name"
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+      - name: istio-proxy
+        image: auto # The image will automatically update each time the pod starts.
+

@@ -3,12 +3,11 @@ kind: Sidecar
 metadata:
   name: default
   namespace: {{ .Release.Namespace }}
-  labels:
-    release: {{ .Release.Name }}
 spec:
+
   egress:
     - hosts:
+        - "fortio/*"
+        - "test/*"
         - "./*"
-        - "{{ .Values.global.telemetryNamespace }}/*"
-        - "{{ .Values.global.policyNamespace }}/*"
-        - httpbin/*
+        - "httpbin/*"

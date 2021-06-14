@@ -1,34 +1,25 @@
-# Main domain - will be used in rules.
-# This chart is intended for 1 main domain with certificate.
+# Single/primary domain. A DNS entry must exist, pointing to
+# the service or host node.
+domain: ""
+cert: ""
+
+# Simple setup for a wildcard domain with subdomains for each
+# name.
+# For each subdomain it is possible to override:
+# - serviceName - default is the subdomain name
+# - namespace - same default
+# - port - default 8080
 #
-domain: k.webinf.info
-cert: "istio-ingressgateway-certs"
+# Gateway, VirtualService, Certificate will be created.
+wildcardDomain: ""
+subdomains: []
+#  - name: httpbin
+#    domain: httpbin.svc.i.webinf.info
+#    namespace: httpbin
+#    serviceName: httpbin
+#    port: 8000
 
-domains:
-  - domain: prom.svc.i.webinf.info
-    name: prom
-  - domain: fortio.svc.i.webinf.info
-    name: fortio
-  # Short name and dest - will generate cert, gateway and default route
-  - name: httpbin
-    domain: httpbin.svc.i.webinf.info
-    serviceName: httpbin.httpbin.svc.cluster.local
-    port: 8000
-
-
-# Secret name for the certificate holding istiod certificate
-# If not set, pass-through mode is enabled
-#istiodCert: ""
-istiodCert: "istio-ingressgateway-certs"
-
-# Hostname for istiod.
-#istiodHost: ""
-istiodHost: k.webinf.info
 
 selector: ingressgateway
-revision: v1-11
+revision: canary
 
-# WIP: The gateway will split traffic based on URL or headers
-istiodTags:
-  canary: v1-11
-  prod: v1-10

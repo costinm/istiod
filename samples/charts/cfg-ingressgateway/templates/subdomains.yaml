@@ -1,0 +1,75 @@
+
+{{- range $index, $d := .Values.subdomains }}
+
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: {{ $d.name }}-http
+spec:
+  selector:
+    istio: {{ $.Values.selector }}
+  servers:
+    - hosts:
+        {{ if $d.domain }}
+        - "{{ $d.domain }}"
+        {{ else }}
+        - "{{ $d.name }}.{{ $.Values.wildcardDomain }}"
+        {{ end }}
+      port:
+        name: http
+        number: 8080
+        protocol: HTTP
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: {{ $d.name }}-https
+spec:
+  selector:
+    istio: {{ $.Values.selector }}
+  servers:
+    - hosts:
+        {{ if $d.domain }}
+        - "{{ $d.domain }}"
+        {{ else }}
+        - "{{ $d.name }}.{{ $.Values.wildcardDomain }}"
+        {{ end }}
+      port:
+        name: https
+        number: 8443
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: cert-{{ $d.name }}
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: {{ $d.name }}
+spec:
+  hosts:
+    {{ if $d.domain }}
+    - "{{ $d.domain }}"
+    {{ else }}
+    - "{{ $d.name }}.{{ $.Values.wildcardDomain }}"
+    {{ end }}
+  gateways:
+    - {{ $d.name }}-http
+    - {{ $d.name }}-https
+  http:
+    - route:
+        - destination:
+            {{ if $d.namespace }}
+            host: {{ $d.serviceName }}.{{ $d.namespace }}.svc.cluster.local
+            {{ else }}
+            host: {{ $d.name }}.{{ $d.name }}.svc.cluster.local
+            {{ end }}
+            port:
+              {{ if $d.port }}
+              number: {{ $d.port }}
+              {{ else }}
+              number: 8080
+              {{ end }}
+---
+
+{{ end }}

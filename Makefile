@@ -322,37 +322,10 @@ okteto:
 	#go run github.com/okteto/okteto up
 	/ws/istio-stable/bin/okteto up
 
-#REV=v110
-REV=v1-11
-# Gateway name - same as the namespace it is instaled.
-GW=istio-gw-default
+CHARTS=./manifests/charts
+ISTIO_CHARTS=../istio/manifests/charts
+include manifests/Makefile
 
-deploy/gw-hostport:
-	helm upgrade -n istio-gw-hostport --install istio-gw-hostport \
-		samples/charts/gateway-hostport \
-		--set routerMode=sni-dnat --set revision=canary
-
-# 2 deployments, one using default and one using canary
-# In the istio-gate namespace
-deploy/gw-istio-gate:
-    # No revision set - will use default injection.
-    # Name of the install based on the revision - can be any string
-	helm upgrade --install -n istio-gate \
-		  gate-default \
-		  manifests/charts/gate \
-		  --set routerMode=sni-dnat
-
-	helm  upgrade --install -n istio-gate \
-			gate-canary \
-			manifests/charts/gate \
-     		  --set routerMode=sni-dnat \
-    		--set revision=canary
-
-# Configure istio-gate with the default config
-deploy/gw-istio-gate-cfg-default:
-	# Service and Gateway object - name matches namespace.
-	helm upgrade --install -n istio-gate \
-		istio-gate manifests/charts/gateway-config
 
 # Configure istio-gate with custom config
 deploy/gw-istio-gate-cfg-sample:
@@ -360,51 +333,18 @@ deploy/gw-istio-gate-cfg-sample:
 	helm upgrade --install -n istio-gate \
 		istio-gate samples/charts/istio-gate
 
-deploy/gw-istio-system:
-	helm -n istio-system upgrade --install \
-		gate-canary manifests/charts/gate \
-		--set revision=canary --set routerMode=sni-dnat
-	# Default config - just 80 and 443
-	#	helm -n istio-system upgrade --install istio-ingressgateway \
-	# 		manifests/charts/gateway-config
-
-deploy/gw-cfg-istio-system:
-	helm -n istio-system upgrade --install istio-ingressgateway \
- 		samples/charts/cfg-ingressgateway
+USERCHARTS=./samples/charts
+include samples/Makefile
 
 # Install ingress using old templates, to verify migration to new template
 deploy/old-ingress:
 	helm upgrade -n istio-system --install \
-		istio-ingressgateway ../istio/manifests/charts/gateways/istio-ingress \
+		istio-ingressgateway ${ISTIO_CHARTS}/gateways/istio-ingress \
 		--set revision=prod
 
-# A single version of Istiod
-deploy/istiod:
-	# Install istiod.
-	# Telemetry configs can be installed as a separate chart - this
-	# avoids upgrade issues for 1.4 skip-version.
-	# TODO: add telementry to docker image
-	helm -n istio-system upgrade --install istiod-${REV} ../istio/manifests/charts/istio-control/istio-discovery \
-		--set revision=${REV} \
-		--set telemetry.enabled=false \
-		--set meshConfig.accessLogFile=/dev/stdout
-
-# Install 'prod', 'canary' and default, all pointing to REV
-deploy/webhooks:
-	# Set it as default injection to point to ${REV}
-	helm -n istio-system upgrade --install istio-webhook-default manifests/charts/istio-webhook-tag \
-		--set revision=${REV} --set enableIstioInjection=true
-	helm -n istio-system upgrade --install istio-webhook-prod manifests/charts/istio-webhook-tag \
-		--set revision=${REV} --set tag=prod
-	helm -n istio-system upgrade --install istio-webhook-canary manifests/charts/istio-webhook-tag \
-		--set revision=${REV} --set tag=canary
 
 deploy/k8s-registry:
 	helm -n kube-registry upgrade --install kube-registry samples/charts/docker-registry
-
-# Install Istio with helm only, using the sample charts
-deploy/all: deploy/istiod deploy/webhooks deploy/gw-istio-system \
-		deploy/gw-sni deploy/gw-ugate
 
 
 install/apps:

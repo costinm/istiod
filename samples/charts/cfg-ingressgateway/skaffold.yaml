@@ -2,6 +2,17 @@ apiVersion: skaffold/v2beta16
 kind: Config
 metadata:
   name: istio-ingressgateway
+
+#deploy:
+#  helm:
+#    releases:
+#    - name: istio-gate-config-all
+#      chartPath: .
+#      namespace: istio-system
+#    - name: istio-gate-config-all
+#      chartPath: .
+#      namespace: istio-gate
+
 portForward:
 - resourceType: deployment
   resourceName: gate-canary
@@ -13,3 +24,18 @@ portForward:
   namespace: istio-system
   port: 80
   localPort: 12180
+#- resourceType: daemonset
+#  resourceName: istio-gw-hostport
+#  namespace: istio-gw-hostport
+#  port: 15000
+#  localPort: 12000
+#- resourceType: replicationcontroller
+#  resourceName: kube-registry-v0
+#  namespace: kube-registry
+#  port: 5000
+#  localPort: 5000
+#- resourceType: service
+#  resourceName: kube-registry
+#  namespace: kube-registry
+#  port: 5000
+#  localPort: 5001

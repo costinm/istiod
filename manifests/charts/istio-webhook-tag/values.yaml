@@ -40,3 +40,9 @@ enableIstioInjection: false
 # If set, the revision will be used as default for all workloads, unless they
 # have 'istio-injection', istio.io/rev or istio.io/tag
 enableNamespacesByDefault: false
+
+# TODO: Example customization: workloads with this tag will be injected
+# and use the specified revision. This is a user-specified tag, and
+# will take priority over istio-defined types.
+#userTag:
+#  appType: canary

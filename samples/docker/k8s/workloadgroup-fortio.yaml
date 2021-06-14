@@ -1,0 +1,12 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: WorkloadGroup
+metadata:
+  name: fortio-cr
+  namespace: fortio
+spec:
+  metadata:
+    labels:
+      app: fortio-cr
+  template:
+    serviceAccount: default
+    #network: cr

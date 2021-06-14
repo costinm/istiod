@@ -1,0 +1,37 @@
+
+---
+# Strict auth for this namespace - this should be the default.
+{{/*apiVersion: authentication.istio.io/v1alpha1*/}}
+{{/*kind: Policy*/}}
+{{/*metadata:*/}}
+{{/*  name: default*/}}
+{{/*spec:*/}}
+{{/*  peers:*/}}
+{{/*    - mtls: {}*/}}
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: fortio
+spec:
+  selector:
+    matchLabels:
+      app: fortio
+  mtls:
+    mode: STRICT
+
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: fortio
+spec:
+  host: fortio
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+      #client_certificate: /etc/certs/cert-chain.pem
+      #private_key: /etc/certs/key.pem
+      #ca_certificates: /etc/certs/root-cert.pem
+      #subject_alt_names:
+      #- spiffe://cluster.local/ns/test/sa/default

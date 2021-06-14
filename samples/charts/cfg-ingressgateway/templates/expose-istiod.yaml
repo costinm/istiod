@@ -1,3 +1,4 @@
+# Exposing istiod without a DNS cert, with mTLS e2e connection.
 {{ if not .Values.istiodCert }}
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway

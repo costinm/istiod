@@ -1,0 +1,24 @@
+kind: HTTPRoute
+apiVersion: networking.x-k8s.io/v1alpha1
+metadata:
+  name: fortio
+  labels:
+    app: fortio
+    domain: fortio
+spec:
+  # No hostnames in the namespace - can be mapped to multiple
+  # domains, by multiple gateways.
+  gateways:
+    # SameNamespace doesn't make sense for Istio - service should be
+    # in different namespace.
+    # For 'managed'/external gateways - it works fine, implies the
+    # domain is controlled by the namespace.
+    allow: All
+  hostnames:
+    - "*"
+    #- fortio.svc.i.webinf.info
+  rules:
+
+    - forwardTo:
+        - serviceName: fortio
+          port: 8080
