@@ -426,5 +426,5 @@ events-watch:
 skaffold.istiod:
 	docker tag costinm/pilot:latest ${IMAGE}
 
-include samples/knative/Makefile
+include samples/docker/Makefile
 
