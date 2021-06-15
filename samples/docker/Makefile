@@ -6,7 +6,7 @@ PROJECT?=dmeshgate
 CR_SUFFIX=-yydsuf6tpq-uc.a.run.app
 
 ISTIOD?=$(shell cd ../..; pwd)
-BASE=${ISTIOD}/samples/knative
+BASE=${ISTIOD}/samples/docker
 
 NS=fortio
 
@@ -94,7 +94,7 @@ single/deploy-fortio:
 	#--command "/usr/local/bin/run.sh" --args "/usr/bin/fortio,server,-http-port=8082" \
     #--command /usr/local/bin/run.sh
 	gcloud alpha run deploy fortio  --platform managed --project ${PROJECT} \
-		 --vpc-connector serverlesscon \
+		 --vpc-connector serverlesscon  \
 		 --sandbox=minivm \
 		 --port 15009 \
     	 --region us-central1 --image ${FORTIO_IMAGE} \
@@ -142,6 +142,7 @@ single/local-ssh-fortio:
  		-o ProxyCommand='hbone http://127.0.0.1:9999/_hbone/22'  \
      		root@proxybase
 
+
 single/setupcon-sharedvpc:
 	gcloud services enable vpcaccess.googleapis.com
 
@@ -149,16 +150,18 @@ single/setupcon-sharedvpc:
 	gcloud compute networks vpc-access connectors create serverlesscon \
     --region REGION \
     --subnet SUBNET \
-    # If you are not using Shared VPC, omit the following line.
     --subnet-project HOST_PROJECT_ID \
-    # Optional: specify minimum and maximum instance values between 2 and 10, default is 2 min, 10 max.
     --min-instances 2 \
     --max-instances 10 \
-    # Optional: specify machine type, default is e2-micro
-    --machine-type f1-micro
 
 	#
 	gcloud compute networks vpc-access connectors create CONNECTOR_NAME \
 	--network VPC_NETWORK \
 	--region REGION \
 	--range IP_RANGE
+
+single/sandbox:
+	gcloud config set api_endpoint_overrides/run https://staging-run.sandbox.googleapis.com/
+
+single/sandbox-off:
+	gcloud config set api_endpoint_overrides/run https://run.googleapis.com/
