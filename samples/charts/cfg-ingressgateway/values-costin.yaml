@@ -43,7 +43,7 @@ istiodCert: "istio-ingressgateway-certs"
 istiodHost: k.webinf.info
 
 selector: ingressgateway
-revision: canary
+revision: v1-11
 
 ports:
   - name: http-registry

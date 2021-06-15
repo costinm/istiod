@@ -21,5 +21,5 @@ subdomains: []
 
 
 selector: ingressgateway
-revision: canary
+revision: v1-11
 
