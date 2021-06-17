@@ -1,0 +1,25 @@
+  {{ if .Values.dnsProject}}
+apiVersion: cert-manager.io/v1alpha2
+kind: Issuer
+metadata:
+  name: acme-dns
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # This will register an issuer with LetsEncrypt.  Replace
+    # with your admin email address.
+    email: {{ .Values.email }}
+    privateKeySecretRef:
+      name: letsencrypt
+    solvers:
+      - dns01:
+          clouddns:
+            # Set this to your GCP project-id
+            project: {{ .Values.dnsProject }}
+            # Set this to the secret that we publish our service account key
+            # in the previous step.
+            serviceAccountSecretRef:
+              name: clouddns-dns01-solver-svc-acct
+              key: key.json
+---
+  {{ end}}

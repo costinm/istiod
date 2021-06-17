@@ -25,41 +25,44 @@ export JWT_POLICY=first-party-jwt
 # TODO: should be default
 export PILOT_CERT_PROVIDER=istiod
 
+# TODO: app=fortio, pod name derived using some unique id
 export POD_NAME=${POD_NAME:-unset}
 export POD_NAMESPACE=${POD_NAMESPACE:-httpbin}
 export TRUST_DOMAIN=${TRUST_DOMAIN:-cluster.local}
 
+export ISTIO_META_DNS_CAPTURE=true
+
+# Metadata
+
 function start_agent() {
+  cat > /etc/istio/pod/labels << EOF
+app="$POD_NAME"
+security.istio.io/tlsMode="istio"
+version=v1
+EOF
   #pilot-agent istio-iptables
-  pilot-agent proxy sidecar  --domain ${POD_NAME}.svc.cluster.local &
+  pilot-agent proxy sidecar  --domain ${POD_NAMESPACE}.svc.cluster.local &
   # TODO: wait for ready before returning
    #--proxyLogLevel=info --proxyComponentLogLevel=misc:info --log_output_level=default:debug
 }
 
 function start_gw() {
-  pilot-agent proxy router --domain ${POD_NAME}.svc.cluster.local
+  cat > /etc/istio/pod/labels << EOF
+istio="ingressgateway"
+version=v1
+EOF
+  pilot-agent proxy router --domain ${POD_NAMESPACE}.svc.cluster.local
    #--proxyLogLevel=info --proxyComponentLogLevel=misc:info --log_output_level=default:debug
 }
 
 function start_ssh() {
-  # Check if host keys are present, else create them
   # /etc dir may be RO, use var/run
 
-  mkdir -p /run/ssh /run/sshd
-
-  # TODO: custom call to get a cert for SSH.
+  # TODO: custom call to get a cert for SSH from istiod
   # File will exist in k8s if a secret is mounted
-#  if ! test -f /run/ssh/ssh_host_rsa_key; then
-#      ssh-keygen -q -f /run/ssh/ssh_host_rsa_key -N '' -t rsa
-#  fi
-
   if ! test -f /run/ssh/ssh_host_ecdsa_key; then
       ssh-keygen -q -f /run/ssh/ssh_host_ecdsa_key -N '' -t ecdsa
   fi
-
-#  if ! test -f /var/run/ssh/ssh_host_ed25519_key; then
-#      ssh-keygen -q -f /var/run/ssh/ssh_host_ed25519_key -N '' -t ed25519
-#  fi
 
   # TODO: support certificates for client auth
   if ! test -f /run/ssh/authorized_keys; then
@@ -81,8 +84,7 @@ function start_ssh() {
 start_ssh
 
 
-# Debug entrypoint, while ingress is implemented.
-export PORT=8080
+# Debug entrypoint (reverse H2)
 export BASE_PORT=14000
 /usr/local/bin/ugate &
 

@@ -17,16 +17,16 @@ spec:
         credentialName: {{ .Values.cert }}
       hosts:
       - "istiod.{{ .Values.wildcardDomain }}"
-    - port:
-        name: https
-        number: 15012
-        protocol: HTTPS
-      tls:
-        mode: MUTUAL
-        # use a valid credential here
-        credentialName: {{ .Values.cert }}
-      hosts:
-        - "istiod.{{ .Values.wildcardDomain }}"
+{{/*    - port:*/}}
+{{/*        name: https*/}}
+{{/*        number: 15012*/}}
+{{/*        protocol: HTTPS*/}}
+{{/*      tls:*/}}
+{{/*        mode: MUTUAL*/}}
+{{/*        # use a valid credential here*/}}
+{{/*        credentialName: {{ .Values.cert }}*/}}
+{{/*      hosts:*/}}
+{{/*        - "istiod.{{ .Values.wildcardDomain }}"*/}}
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService

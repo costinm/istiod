@@ -10,7 +10,7 @@ convert-root:
 
 # Install cert manager
 cm-install: 
-	kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v0.15.0/cert-manager.yaml
+	kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.3.1/cert-manager.yaml
 	kubectl -n istio-system apply -f istio-issuer.yaml
 
 # Follow KNative setup
