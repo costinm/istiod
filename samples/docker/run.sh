@@ -29,6 +29,12 @@ export POD_NAME=${POD_NAME:-unset}
 export POD_NAMESPACE=${POD_NAMESPACE:-httpbin}
 export TRUST_DOMAIN=${TRUST_DOMAIN:-cluster.local}
 
+# Capture DNS
+export ISTIO_META_DNS_CAPTURE=true
+
+# Get bootstrap from pilot, can be patched with EnvoyFilter
+export BOOTSTRAP_XDS_AGENT=true
+
 function start_agent() {
   #pilot-agent istio-iptables
   pilot-agent proxy sidecar  --domain ${POD_NAME}.svc.cluster.local &
