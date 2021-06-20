@@ -11,7 +11,7 @@ USERCHARTS?=./charts
 DOMAIN?=k.webinf.info
 SUBDOMAIN?=svc.i.webinf.info
 
-deploy/samples: deploy/fortio deploy/httpbin deploy/iperf3 deploy/gw-cfg-istio-system
+deploy/samples: deploy/fortio  deploy/gw-cfg-istio-system
 
 debug/configz:
 	curl -H "Authorization: Bearer $(cat ./var/run/secrets/kubernetes.io/serviceaccount/token)"  istiod-debug.svc.i.webinf.info:8002/debug/configz

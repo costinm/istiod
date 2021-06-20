@@ -1,3 +1,7 @@
+ISTIOD?=$(shell cd ../..; pwd)
+-include ${ISTIOD}/.local.mk
+
+
 #REPO ?= costinm
 REPO?=gcr.io/dmeshgate
 SINGLE_IMAGE?=${REPO}/proxybase:latest
@@ -5,8 +9,11 @@ FORTIO_IMAGE?=${REPO}/fortio:latest
 PROJECT?=dmeshgate
 CR_SUFFIX=-yydsuf6tpq-uc.a.run.app
 
-ISTIOD?=$(shell cd ../..; pwd)
+SUBDOMAIN?=svc.i.webinf.info
+ISTIOD_URL?=istiod.${SUBDOMAIN}:443
+
 BASE=${ISTIOD}/samples/docker
+
 
 NS=fortio
 
@@ -44,7 +51,7 @@ single/token:
 # Common CLI args
 COMMON_DOCKER=-e JWT="$(shell cat ./var/run/secrets/kubernetes.io/serviceaccount/token )" \
               -e POD_NAMESPACE=${NS} \
-              -e ISTIOD=k.webinf.info:443 \
+              -e ISTIOD=${ISTIOD_URL} \
               -e SSH_AUTH="$(shell cat ~/.ssh/id_ecdsa.pub)" \
 
 
@@ -59,7 +66,7 @@ single/run-base:
 		-p 9998:8080 -p 9997:15009\
 		-e JWT="$(shell cat ./var/run/secrets/kubernetes.io/serviceaccount/token )" \
 		-e POD_NAMESPACE=${NS} \
-		-e ISTIOD=k.webinf.info:443 \
+		-e ISTIOD=${ISTIOD_URL} \
 		-e SSH_AUTH="$(shell cat ~/.ssh/id_ecdsa.pub)" \
 		${SINGLE_IMAGE}
 
@@ -83,7 +90,7 @@ single/deploy: single/deploy-fortio
 COMMON_CR=--platform managed --project ${PROJECT} \
           		 --sandbox=minivm \
          --allow-unauthenticated \
- 		 --set-env-vars="ISTIOD=k.webinf.info:443" \
+ 		 --set-env-vars="ISTIOD=${ISTIOD_URL}" \
           		 --use-http2 \
           		  --port 15009 \
          --set-env-vars="SSH_AUTH=$(shell cat ~/.ssh/id_ecdsa.pub)" \
@@ -102,7 +109,7 @@ single/deploy-fortio:
  		 --use-http2 \
  		 --set-env-vars="POD_NAMESPACE=fortio" \
  		 --set-env-vars="POD_NAME=fortiod" \
- 		 --set-env-vars="ISTIOD=k.webinf.info:443" \
+ 		 --set-env-vars="ISTIOD=${ISTIOD_URL}" \
          --set-env-vars="SSH_AUTH=$(shell cat ~/.ssh/id_ecdsa.pub)" \
 		 --set-env-vars="JWT=$(shell cat ./var/run/secrets/kubernetes.io/serviceaccount/token)"
 

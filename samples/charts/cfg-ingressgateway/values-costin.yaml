@@ -2,7 +2,7 @@
 # the service or host node.
 #
 domain: k.webinf.info
-cert: "istio-ingressgateway-certs"
+cert: "cert-istio-ingressgateway"
 
 # Simple setup for a wildcard domain with subdomains for each
 # name.
@@ -36,7 +36,7 @@ subdomains:
 # Secret name for the certificate holding istiod certificate
 # If not set, pass-through mode is enabled
 #istiodCert: ""
-istiodCert: "istio-ingressgateway-certs"
+#istiodCert: "cert-istio-ingressgateway"
 
 # Hostname for istiod.
 #istiodHost: ""

@@ -70,7 +70,7 @@ deploy/gw-istio-system:
 deploy/gate-lb-service:
 	# Service name matches namespace - it is best to keep each LB and Service
     # separated.
-	kubectl apply -f ${CHARTS}/../gateway-class.yaml
+	#kubectl apply -f ${CHARTS}/../../gateway-class.yaml
 	helm upgrade --install \
         -n istio-gate \
 		istio-gate \
@@ -110,3 +110,5 @@ deploy/gw-hostport:
 		${CHARTS}/gate-hostport \
 		--set routerMode=sni-dnat --set revision=canary
 
+deploy/crds:
+	kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v0.3.0" | kubectl apply -f -

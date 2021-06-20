@@ -53,6 +53,7 @@ RUN useradd -u 1000 -U -d /work -s /bin/bash app && \
 RUN mkdir -p /etc/certs && \
     mkdir -p /run/ssh && \
     mkdir -p /etc/istio/proxy && \
+    mkdir -p /etc/istio/pod && \
     mkdir -p /etc/istio/config && \
     mkdir -p /var/lib/istio/envoy && \
     mkdir -p /var/lib/istio/config && \
