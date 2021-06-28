@@ -2,8 +2,9 @@ ISTIOD?=$(shell cd ../..; pwd)
 -include ${ISTIOD}/.local.mk
 
 
-#REPO ?= costinm
+
 REPO?=gcr.io/dmeshgate
+
 SINGLE_IMAGE?=${REPO}/proxybase:latest
 FORTIO_IMAGE?=${REPO}/fortio:latest
 PROJECT?=dmeshgate

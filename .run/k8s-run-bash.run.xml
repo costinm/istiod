@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="k8s-run-bash" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="ws" />
+    <working_directory value="$PROJECT_DIR$/../istiod/cmd/k8s-run" />
+    <parameters value="/bin/bash -i" />
+    <envs>
+      <env name="XDS_ADDR" value="k.webinf.info:443" />
+    </envs>
+    <kind value="PACKAGE" />
+    <package value="github.com/costinm/istiod/cmd/k8s-run" />
+    <directory value="$PROJECT_DIR$/../api" />
+    <filePath value="$PROJECT_DIR$/../istiod/cmd/k8s-run/k8s-run.go" />
+    <method v="2" />
+  </configuration>
+</component>

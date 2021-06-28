@@ -1,0 +1,29 @@
+# Allows a KSA to impersonate a user account that has additional permissions
+#
+# [USER_ACCOUNT] is an email, either USER_EMAIL_ADDRESS or GCPSA_EMAIL_ADDRESS
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ${NAMESPACE}-impersonate
+rules:
+  - apiGroups:
+      - ""
+    resourceNames:
+      - ${USER_ACCOUNT}
+    resources:
+      - users
+    verbs:
+      - impersonate
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ${NAMESPACE}-impersonate
+roleRef:
+  kind: ClusterRole
+  name: ${NAMESPACE}-impersonate
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: ${NAMESPACE}

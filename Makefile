@@ -41,6 +41,10 @@ DOCKER_START ?= run -d
 
 BINDIR=${OUT}/linux_amd64
 
+build/k8s-run: export KO_DOCKER_REPO=${HUB}/k8s-run
+build/k8s-run:
+	cd cmd/k8s-run && ko publish --bare . -t latest
+
 build/istiod:
 	cd ${ISTIO_SRC} && CGO_ENABLED=0 \
 	go build -a -ldflags '-extldflags "-static"' -o ${BINDIR}/pilot-discovery ./pilot/cmd/pilot-discovery
@@ -359,7 +363,7 @@ uninstall/crd:
 # Building
 #export TAG=latest
 export HUB2 ?= costinm
-export HUB=localhost:30500
+#export HUB=localhost:30500
 #export BUILD_WITH_CONTAINER=0
 
 # Create docker images - no push needed.

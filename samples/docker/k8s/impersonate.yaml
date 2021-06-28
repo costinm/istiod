@@ -1,0 +1,33 @@
+# Allows a user to impersonate a KSA
+# This assumes the GSA has permission to access K8S (as a user), and will behave like
+# a KSA via impersonation.
+
+# Using "Impersonate-User: "
+#
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ${NAMESPACE}-impersonate
+rules:
+  - apiGroups:
+      - ""
+    resourceNames:
+      - ${USER_ACCOUNT}
+    resources:
+      - serviceaccounts
+    verbs:
+      - impersonate
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ${NAMESPACE}-impersonate
+roleRef:
+  kind: ClusterRole
+  name: ${NAMESPACE}-impersonate
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: ${NAMESPACE}

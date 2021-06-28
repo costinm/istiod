@@ -4,13 +4,13 @@ go 1.16
 
 replace github.com/costinm/istiod/k8s => ../../k8s
 
-replace github.com/costinm/istiod/ssh => ../../ssh
-
 require (
+	github.com/costinm/cert-ssh/ssh v0.0.0-20210628224517-765c848d80b7 // indirect
+	github.com/costinm/cert-ssh/sshca v0.0.0-20210628220432-a23b998ca61c // indirect
+	//github.com/costinm/cert-ssh/ssh latest
+	//github.com/costinm/cert-ssh/sshca latest
 	github.com/costinm/istiod/k8s v0.0.0-00010101000000-000000000000
-	github.com/costinm/istiod/ssh v0.0.0-00010101000000-000000000000
-	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e
-	k8s.io/api v0.21.2
 	k8s.io/apimachinery v0.21.2
 	k8s.io/client-go v0.21.2
+
 )
