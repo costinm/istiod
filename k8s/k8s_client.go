@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog"
 )
 

@@ -1,5 +1,6 @@
-ARG BASE=gcr.io/dmeshgate/proxybase:latest
-#### Fortio - used for the tests
+# Example for running fortio using kube-run, in CloudRun or a docker image.
+
+ARG BASE=gcr.io/dmeshgate/k8s-run:latest
 FROM fortio/fortio:latest AS fortio
 
 ###############################################################################
@@ -11,10 +12,9 @@ FROM ${BASE}
 COPY --from=fortio /usr/share/fortio /usr/share/fortio
 COPY --from=fortio /usr/bin/fortio /usr/bin/fortio
 
-COPY run.sh /usr/local/bin/run.sh
 # Replace bootstrap
-COPY envoy_bootstrap.json /var/lib/istio/envoy/envoy_bootstrap_tmpl.json
+#COPY envoy_bootstrap.json /var/lib/istio/envoy/envoy_bootstrap_tmpl.json
+RUN chown -R 1337 /etc/certs /etc/istio /var/lib/istio
 
-
-ENTRYPOINT ["/usr/local/bin/run.sh"]
+ENTRYPOINT ["/ko-app/k8s-run"]
 CMD ["/usr/bin/fortio", "server", "-http-port=8082"]

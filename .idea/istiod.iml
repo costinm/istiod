@@ -6,10 +6,9 @@
     </buildTags>
   </component>
   <component name="NewModuleRootManager">
-    <content url="file://$MODULE_DIR$/../../eventing" />
-    <content url="file://$MODULE_DIR$/../../istio-master/src/istio.io/cr-sample" />
     <content url="file://$MODULE_DIR$/../../istio-stable/src/istio.io/istiod" />
     <content url="file://$MODULE_DIR$/../api" />
+    <content url="file://$MODULE_DIR$/../cert-ssh" />
     <content url="file://$MODULE_DIR$/../grpc" />
     <content url="file://$MODULE_DIR$/../installer" />
     <content url="file://$MODULE_DIR$/../istio" />

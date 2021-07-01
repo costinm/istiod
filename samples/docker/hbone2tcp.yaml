@@ -28,6 +28,7 @@ static_resources:
                 cluster: target_cluster
       listenerFiltersTimeout: 0.100s
       continueOnListenerFiltersTimeout: true
+
     - address:
         socket_address:
           address: 0.0.0.0
