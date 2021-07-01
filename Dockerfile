@@ -1,7 +1,7 @@
 ###############################################################################
 #### Run the build on alpine - istiod doesn't need more.
 # Main docker images for istiod will be distroless and alpine.
-FROM golang:1.13-alpine AS build-base
+FROM golang:1.16-alpine AS build-base
 
 WORKDIR /ws
 ENV GO111MODULE=on

@@ -1,5 +1,10 @@
 # TODO
 
+Bugs
+
+- DNS interception uses raw - investigate why, use altrnative whitebox mode
+- stdout 
+
 ## Agent 
 
 [] If custom root ca not found, use system. Remove the option - env is enough. (both xds and ca)
