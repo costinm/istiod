@@ -1,5 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="kubesquash" type="GoRemoteDebugConfigurationType" factoryName="Go Remote" port="1235">
-    <method v="2" />
-  </configuration>
-</component>

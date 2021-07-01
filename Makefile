@@ -41,9 +41,6 @@ DOCKER_START ?= run -d
 
 BINDIR=${OUT}/linux_amd64
 
-build/k8s-run: export KO_DOCKER_REPO=${HUB}/k8s-run
-build/k8s-run:
-	cd cmd/k8s-run && ko publish --bare . -t latest
 
 build/istiod:
 	cd ${ISTIO_SRC} && CGO_ENABLED=0 \
@@ -309,6 +306,9 @@ k3s-shell:
 
 build-image:
 	docker build -f tools/build_img/Dockerfile -t costinm/istiod-build:latest .
+
+deps/ko:
+	go mod init tmp; GOFLAGS= go get github.com/google/ko@v0.8.3
 
 knative-cluster:
 	kubectl apply --selector knative.dev/crd-install=true \

@@ -21,9 +21,15 @@ replace github.com/evanphx/json-patch => github.com/evanphx/json-patch v0.0.0-20
 //replace istio.io/istio => /ws/istio-stable/src/istio.io/istio
 
 require (
+	github.com/Azure/azure-sdk-for-go v42.3.0+incompatible // indirect
+	github.com/Azure/go-autorest/autorest/validation v0.2.0 // indirect
 	github.com/envoyproxy/go-control-plane v0.9.9-0.20210408202003-cde9fa27f1d4
+	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.1
+	github.com/google/ko v0.8.3 // indirect
+	github.com/vdemeester/k8s-pkg-credentialprovider v1.17.4 // indirect
+	gonum.org/v1/netlib v0.0.0-20190331212654-76723241ea4e // indirect
 	istio.io/api v0.0.0-20210507141635-02def630fd33
 	istio.io/istio v0.0.0-20210201153422-44ad5ee0c4a1
 	istio.io/pkg v0.0.0-20210405163638-bd457cbec517

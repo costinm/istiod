@@ -42,11 +42,13 @@ func InitToken(client *kubernetes.Clientset, ns string, ksa string, audience str
 	}
 
 	lastSlash := strings.LastIndex(s2, "/")
-	err = os.MkdirAll(s2[:lastSlash], 0700)
+	err = os.MkdirAll(s2[:lastSlash], 0755)
 	if err != nil {
 		log.Println("Error creating dir", ns, ksa, s2[:lastSlash])
 	}
-	err = ioutil.WriteFile(s2, []byte(ts.Status.Token), 0700)
+	// Save the token, readable by app. Little value to have istio token as different user,
+	// for this separate container/sandbox is needed.
+	err = ioutil.WriteFile(s2, []byte(ts.Status.Token), 0644)
 	if err != nil {
 		log.Println("Error creating ", ns, ksa, audience, s2, err)
 		return err

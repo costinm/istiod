@@ -1,3 +1,28 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fortio-cr
+  namespace: fortio
+spec:
+  ports:
+    - name: http
+      port: 8080
+  selector:
+    app: fortio-cr
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: fortio-cr
+  namespace: fortio
+spec:
+  selector:
+    matchLabels:
+      app: fortio-cr
+  mtls:
+    mode: STRICT
+---
 apiVersion: networking.istio.io/v1alpha3
 kind: WorkloadGroup
 metadata:
