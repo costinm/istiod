@@ -23,6 +23,10 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"k8s.io/client-go/rest"
+
+	// Required for k8s client to link in the authenticator
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+
 )
 
 // TODO: if project/location not specified, get from local metadata server.
