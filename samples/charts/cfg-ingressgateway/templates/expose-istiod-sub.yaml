@@ -1,4 +1,19 @@
 {{ if .Values.wildcardDomain }}
+apiVersion: cert-manager.io/v1alpha3
+kind: Certificate
+metadata:
+  name: ingress-cert-istiod
+  namespace: istio-system
+spec:
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt
+  secretName: cert-istiod
+  commonName: istiod.{{ $.Values.wildcardDomain}}
+  dnsNames:
+    - istiod.{{ $.Values.wildcardDomain }}
+---
+
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
@@ -9,24 +24,13 @@ spec:
   servers:
     - port:
         name: https
-        number: 443
+        number: 8443
         protocol: HTTPS
       tls:
         mode: SIMPLE
-        # use a valid credential here
-        credentialName: {{ .Values.cert }}
+        credentialName: cert-istiod
       hosts:
       - "istiod.{{ .Values.wildcardDomain }}"
-{{/*    - port:*/}}
-{{/*        name: https*/}}
-{{/*        number: 15012*/}}
-{{/*        protocol: HTTPS*/}}
-{{/*      tls:*/}}
-{{/*        mode: MUTUAL*/}}
-{{/*        # use a valid credential here*/}}
-{{/*        credentialName: {{ .Values.cert }}*/}}
-{{/*      hosts:*/}}
-{{/*        - "istiod.{{ .Values.wildcardDomain }}"*/}}
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService

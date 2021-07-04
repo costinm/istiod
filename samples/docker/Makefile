@@ -26,6 +26,11 @@ NS=fortio
 # Build the base and test docker images
 docker: docker-base docker-fortio docker-iperf3
 
+patch-fortio:
+	(cd ${BASE} ; docker build . -f Dockerfile.patch \
+       --build-arg BASE=fortio/fortio:latest -t ${REPO}/istio-fortio:latest)
+
+
 # Base image, based on Istio proxyv2 with few additional commands
 docker-base:
 	docker pull gcr.io/istio-testing/proxyv2:latest

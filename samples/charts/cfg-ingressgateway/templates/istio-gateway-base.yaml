@@ -10,7 +10,7 @@ spec:
         - "./*"
       port:
         name: http
-        number: 80
+        number: 8080
         protocol: HTTP
 ---
 {{ if eq .Release.Namespace "istio-system"}}
@@ -27,43 +27,8 @@ spec:
         - "*"
       port:
         name: http
-        number: 80
+        number: 8080
         protocol: HTTP
 
 {{ end }}
 ---
-{{/*apiVersion: networking.istio.io/v1alpha3*/}}
-{{/*kind: Gateway*/}}
-{{/*metadata:*/}}
-{{/*  name: {{ .Values.selector }}-http8080*/}}
-{{/*spec:*/}}
-{{/*  selector:*/}}
-{{/*    istio: {{ .Release.Name }}*/}}
-{{/*  servers:*/}}
-{{/*    - hosts:*/}}
-{{/*        - "./*"*/}}
-{{/*      port:*/}}
-{{/*        name: http*/}}
-{{/*        number: 8080*/}}
-{{/*        protocol: HTTP*/}}
-
----
-
-{{/*apiVersion: networking.istio.io/v1alpha3*/}}
-{{/*kind: Gateway*/}}
-{{/*metadata:*/}}
-{{/*  name: {{ .Release.Name }}-https*/}}
-{{/*spec:*/}}
-{{/*  selector:*/}}
-{{/*    istio: {{ .Values.selector }}*/}}
-{{/*  servers:*/}}
-{{/*    - hosts:*/}}
-{{/*        - "./*"*/}}
-{{/*      port:*/}}
-{{/*        name: https*/}}
-{{/*        number: 443*/}}
-{{/*        protocol: HTTPS*/}}
-{{/*      tls:*/}}
-{{/*        mode: SIMPLE*/}}
-{{/*        credentialName: istio-ingressgateway-certs*/}}
-

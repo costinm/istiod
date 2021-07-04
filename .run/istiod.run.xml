@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="istiod" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="ws" />
-    <working_directory value="$PROJECT_DIR$/../istiod" />
+    <working_directory value="$PROJECT_DIR$/../istio" />
     <parameters value="discovery --secureGRPCAddr=&quot;&quot;" />
     <envs>
       <env name="VALIDATION_WEBHOOK_CONFIG_NAME" value="" />
