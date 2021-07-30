@@ -6,13 +6,16 @@ REV?=v1-11
 # Base directory for the charts.
 CHARTS?=./charts
 ISTIO_CHARTS?=../../istio/manifests/charts
+PROJECT_ID?=wlhe-cr
 
-helm/all: deploy/namespaces deploy/gate-lb-service \
+helm/all: deploy/namespaces \
+		  deploy/gate-lb-service \
 		  deploy/istiod deploy/webhooks-canary \
 		  deploy/gw-istio-system \
 		  deploy/gw-istio-gate \
 		  deploy/gw-hostport
 
+# Create the namespaces used
 deploy/namespaces:
 	@kubectl create ns istio-system || true
 	@kubectl create ns istio-gate || true
@@ -31,9 +34,15 @@ deploy/istiod:
         ${ISTIO_CHARTS}/istio-control/istio-discovery \
 		--set revision=${REV} \
 		--set telemetry.enabled=true \
-		--set meshConfig.accessLogFile=/dev/stdout \
-		--set values.pilot.env.PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION=true \
-		--set values.pilot.env.PILOT_ENABLE_WORKLOAD_ENTRY_HEALTHCHECKS=true
+		--set meshConfig.trustDomain="${PROJECT_ID}.svc.id.goog" \
+		--set global.sds.token.aud="${PROJECT_ID}.svc.id.goog" \
+		--set pilot.env.TOKEN_AUDIENCES="{${PROJECT_ID}.svc.id.goog,istio-ca}" \
+		--set meshConfig.proxyHttpPort=15080 \
+        --set meshConfig.accessLogFile=/dev/stdout \
+        --set pilot.replicaCount=1 \
+        --set pilot.autoscaleEnabled=false \
+		--set pilot.env.PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION=true \
+		--set pilot.env.PILOT_ENABLE_WORKLOAD_ENTRY_HEALTHCHECKS=true
 
 deploy/webhooks-canary:
 	helm upgrade --install \

@@ -62,8 +62,8 @@ spec:
         fsGroup: 1337
       containers:
         - name: discovery
-{{- if contains "/" .Values.pilot.image }}
-          image: "{{ .Values.pilot.image }}"
+{{- if contains "/" .Values.image }}
+          image: "{{ .Values.image }}"
 {{- else }}
           image: "{{ .Values.pilot.hub | default .Values.global.hub }}/{{ .Values.pilot.image | default "pilot" }}:{{ .Values.pilot.tag | default .Values.global.tag }}"
 {{- end }}

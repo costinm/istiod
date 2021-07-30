@@ -2,9 +2,32 @@ apiVersion: skaffold/v2beta16
 kind: Config
 metadata:
   name: istiod-min
+build:
+  artifacts:
+    - #image: gcr.io/costin-istio/istiod
+      image: pilot-discovery
+      context: ../../../../istio
+      custom:
+        buildCommand: KO_CONFIG_PATH=../istiod ../istiod/bin/ko-build-istiod.sh ./pilot/cmd/pilot-discovery/
+
+        dependencies:
+          paths:
+            - ../../../../istio/pilot/**
+
 deploy:
   helm:
     releases:
+    - name: istiod-conf
+      chartPath: ../istiod-config
+      namespace: istio-system
+      setValues:
+        revision: min
+      artifactOverrides:
+        image: pilot-discovery
     - name: istiod-min
       chartPath: .
       namespace: istio-system
+      setValues:
+        revision: min
+      artifactOverrides:
+        image: pilot-discovery
