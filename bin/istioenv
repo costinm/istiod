@@ -936,3 +936,10 @@ function fwd-grafana() {
     fwdApp grafana 3000
 }
 
+function node_exec() {
+  local NAME=$1
+  shift
+  local PID=$(docker inspect ${NAME} --format '{{ .State.Pid }}')
+
+  nsenter -t 4215 -n $*
+}
