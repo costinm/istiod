@@ -34,6 +34,12 @@ function istioEnvSet() {
   export BUILD_WITH_CONTAINER=0
 }
 
+function kns() {
+
+  kubectl config set-context --current --namespace=$1
+  # View with: kubectl config view  --minify -o jsonpath={.contexts[0].context.namespace}
+
+}
 
 alias kwatch="kubectl get events --all-namespaces -w"
 alias kall="kubectl get all --all-namespaces -o wide"

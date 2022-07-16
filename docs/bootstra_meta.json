@@ -1,0 +1,71 @@
+{
+  "metadata": {
+    "APP_CONTAINERS": "fortio",
+    "CLOUDRUN_ADDR": "asm-istio-asm-managed-us-central1-c-gi62l2xfca-uc.a.run.app:443",
+    "CLUSTER_ID": "cn-wlhe-cr-us-central1-c-istio",
+    "INSTANCE_IPS": "10.4.6.101",
+    "INTERCEPTION_MODE": "REDIRECT",
+    "ISTIO_PROXY_SHA": "istio-proxy:47b2fa6bb4779b999557bc218a93bd0d7aba89a3",
+    "ISTIO_VERSION": "1.10.4-asm.9",
+    "LABELS": {
+      "app": "fortio",
+      "istio.io/rev": "asm-managed",
+      "pod-template-hash": "8489f86746",
+      "security.istio.io/tlsMode": "istio",
+      "service.istio.io/canonical-name": "fortio",
+      "service.istio.io/canonical-revision": "v1",
+      "version": "v1"
+    },
+    "MESH_ID": "proj-601426346923",
+    "NAME": "fortio-8489f86746-mwdxg",
+    "NAMESPACE": "fortio",
+    "OWNER": "kubernetes://apis/apps/v1/namespaces/fortio/deployments/fortio",
+    "PILOT_SAN": [
+      "meshconfig.googleapis.com"
+    ],
+    "PLATFORM_METADATA": {
+      "gcp_gce_instance_id": "5392159893763453352",
+      "gcp_gke_cluster_name": "istio",
+      "gcp_gke_cluster_url": "https://container.googleapis.com/v1/projects/wlhe-cr/locations/us-central1-c/clusters/istio",
+      "gcp_location": "us-central1-c",
+      "gcp_project": "wlhe-cr",
+      "gcp_project_number": "601426346923"
+    },
+    "POD_PORTS": "[{\"name\":\"http\",\"containerPort\":8080,\"protocol\":\"TCP\"},{\"name\":\"grpc\",\"containerPort\":8081,\"protocol\":\"TCP\"},{\"containerPort\":8079,\"protocol\":\"TCP\"}]",
+    "PROV_CERT": "/etc/ssl/certs/ca-certificates.crt",
+    "PROXY_CONFIG": {
+      "binaryPath": "/usr/local/bin/envoy",
+      "caCertificatesPem": [
+        "-----BEGIN CERTIFICATE-----\nMIIC3jCCAcagAwIBAgIRAK3I6YHgx+j5ckHi6+BDyMkwDQYJKoZIhvcNAQELBQAw\nGDEWMBQGA1UEChMNY2x1c3Rlci5sb2NhbDAeFw0yMDA3MTcwMjE2NDBaFw0zMDA3\nMTUwMjE2NDBaMBgxFjAUBgNVBAoTDWNsdXN0ZXIubG9jYWwwggEiMA0GCSqGSIb3\nDQEBAQUAA4IBDwAwggEKAoIBAQDCIo8244qrVBzNoJ0rQj/6RwQ4HJgcQRgRiZlV\nVKZNx0MfdstuAqjLsi3f+DWLFIVT4nSDjJWbwmcYkX4sxjq3/6bA6hJEhkLEHsup\ny1mYdnhe3N2amlwjccDF21ZIPkRVrqT5z4IfErqYcM3jOGjv9Hh5MIBK9HD++bFA\nti8CuyAMPVDDXfCZci2dQJB2l5ZgVVn4C0uLQu8ZMqHWJV4rYerml9MTZ66ZwzAl\nu0GuBv5Xwbda+3NFHBAuMtYuHo6XbSFZfWf4MZ9/PQuDsFJdVR8ZL4A1LxFue3CC\nOxKWPFR7gYHOcfJWZYIToBXWTjBczuR3FFhSbh3gmygu14U1AgMBAAGjIzAhMA4G\nA1UdDwEB/wQEAwICBDAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IB\nAQBwObS6p3xfObRDVRsEDD2UbLKza2ercHRjeLPC1IUKIhrsfeYOq7XDj8nKopvv\nevv5dzxDuoxonD7ctpV4YWbedIf1GB/isNa4nAL6yfr6AW2i3B2fJUxUXIBGy4zs\nstNDZXZJrUbPvQRNJlwO2l61yxqkS2Tqeu0FxybaFo+0fp8bhmtztcKahhjGwyQG\nuZDaxN+B8FIM9fU2dS+eYFnzS1KVWX3c/xee4P7ADQzspLU3PgiLPtXUgs/GzehR\n1sC+bVNjf1dxSLeoP1QmAlOcG5ALqMnZtPEg0wP9lVb8VYKKAbp9CLaOcUl48opy\ncGOX6DSbbE+j7GR6r3dJspfP\n-----END CERTIFICATE-----\n"
+      ],
+      "concurrency": 2,
+      "configPath": "./etc/istio/proxy",
+      "controlPlaneAuthPolicy": "MUTUAL_TLS",
+      "discoveryAddress": "meshconfig.googleapis.com:443",
+      "drainDuration": "45s",
+      "meshId": "proj-601426346923",
+      "parentShutdownDuration": "60s",
+      "proxyAdminPort": 15000,
+      "proxyMetadata": {
+        "CA_ROOT_CA": "/etc/ssl/certs/ca-certificates.crt",
+        "ISTIO_META_CLOUDRUN_ADDR": "asm-istio-asm-managed-us-central1-c-gi62l2xfca-uc.a.run.app:443",
+        "OUTPUT_CERTS": "/etc/istio/proxy",
+        "PROXY_CONFIG_XDS_AGENT": "true",
+        "TRUST_DOMAIN": "wlhe-cr.svc.id.goog",
+        "XDS_AUTH_PROVIDER": "gcp",
+        "XDS_ROOT_CA": "/etc/ssl/certs/ca-certificates.crt"
+      },
+      "serviceCluster": "fortio.fortio",
+      "statNameLength": 189,
+      "statusPort": 15020,
+      "terminationDrainDuration": "5s",
+      "tracing": {}
+    },
+    "PROXY_VIA_AGENT": true,
+    "SERVICE_ACCOUNT": "default",
+    "STS_PORT": "15463",
+    "WORKLOAD_NAME": "fortio",
+    "sidecar.istio.io/privileged": "true",
+    "sidecar.istio.io/proxyCPU": "10m"
+  }
+}

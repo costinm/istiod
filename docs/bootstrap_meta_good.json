@@ -1,0 +1,71 @@
+
+/*
+  Cludrun missing:
+  - APP_CONTAINERS: fortio
+  - labes/istio.io/rev: asm-managed
+  - labels/pod-template-hash
+  - service.istio.io/canonical-revision
+  - OWNER: kubernetes://apis/apps/v1/namespaces/fortio/workloadinstance/fortio
+  - POD_PORTS: [ name, containerPort, protocol ....]
+  - SERVICE_ACCOUNT: default
+  - WORKLOAD_NAME: fortio
+  -
+
+  Not needed:
+  INTERCEPTION_MODE: REDIRECT
+*/
+
+{
+  "metadata": {
+    "CLOUDRUN_ADDR": "asm-istio-asm-managed-us-central1-c-gi62l2xfca-uc.a.run.app:443",
+    "CLUSTER_ID": "cn-wlhe-cr-us-central1-c-istio",
+    "DNS_CAPTURE": "true",
+    "ENVOY_PROMETHEUS_PORT": 15090,
+    "ENVOY_STATUS_PORT": 15021,
+    "INSTANCE_IPS": "169.254.8.1,169.254.8.130,169.254.1.2,fddf:3978:feb1:d745::c001,fe80::4000:a9ff:fefe:102",
+    "ISTIO_PROXY_SHA": "istio-proxy:74393cf764c167b545f32eb895314e624186e5b6",
+    "ISTIO_VERSION": "1.12-dev",
+    "LABELS": {
+      "app": "fortio-cr",
+      "environment": "cloud-run-mesh",
+      "security.istio.io/tlsMode": "istio",
+      "service.istio.io/canonical-name": "fortio-cr",
+      "version": "v1"
+    },
+    "MESH_ID": "proj-601426346923",
+    "NAME": "fortio-cr-00021-cab-00bf4bf0",
+    "NAMESPACE": "fortio",
+    "PILOT_SAN": [
+      "meshconfig.googleapis.com"
+    ],
+    "PLATFORM_METADATA": {
+      "gcp_gce_instance_id": "00bf4bf02d2abf4c3d8641b86ac9b4bfe81290472042f832c370a5158c6288d280adac76c3fe1d65d67d984a7df1bacf089fb357bbd4f5888549c67c27",
+      "gcp_gke_cluster_name": "istio",
+      "gcp_gke_cluster_url": "https://container.googleapis.com/v1/projects/wlhe-cr/locations/us-central1-c/clusters/istio",
+      "gcp_location": "us-central1-c",
+      "gcp_project": "wlhe-cr",
+      "gcp_project_number": "601426346923"
+    },
+    "PROV_CERT": "/etc/ssl/certs/ca-certificates.crt",
+    "PROXY_CONFIG": {
+      "binaryPath": "/usr/local/bin/envoy",
+      "concurrency": 2,
+      "configPath": "./etc/istio/proxy",
+      "controlPlaneAuthPolicy": "MUTUAL_TLS",
+      "discoveryAddress": "meshconfig.googleapis.com:443",
+      "drainDuration": "45s",
+      "parentShutdownDuration": "60s",
+      "proxyAdminPort": 15000,
+      "serviceCluster": "fortio-cr.fortio",
+      "statNameLength": 189,
+      "statusPort": 15020,
+      "terminationDrainDuration": "5s",
+      "tracing": {
+        "zipkin": {
+          "address": "zipkin.istio-system:9411"
+        }
+      }
+    },
+    "STS_PORT": "15463"
+  }
+}

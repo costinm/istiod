@@ -37,6 +37,8 @@ replace github.com/imdario/mergo => github.com/imdario/mergo v0.3.5
 replace istio.io/istio => ../../../istio
 
 require (
+	github.com/go-kit/kit v0.10.0 // indirect
+	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
 	istio.io/istio v0.0.0-20210515053258-c8debb3e023c
-	istio.io/pkg v0.0.0-20210405163638-bd457cbec517
+	istio.io/pkg v0.0.0-20220304033655-a60c3e9a3583
 )
