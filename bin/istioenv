@@ -9,18 +9,16 @@ source <(kubectl completion bash)
 
 # gcloud config set container/use_application_default_credentials false
 
+alias k9s="docker run --rm -it -v /home/costin/.kube/config:/root/.kube/config quay.io/derailed/k9s"
+
 # Allow setting some common per user env.
 if [ -f $HOME/.istio.rc ]; then
     source $HOME/.istio.rc
 fi
 
-# Recent changes in istio make - sources in /work, no longer using normal hierarchy
-#
-# TARGET_OUT is defined in istio/out/.env
-# set by common/scripts/setup_env.sh
-
-export ISTIO_SRC=/work
-export ISTIOD_SRC=${HOME}/istio-stable/src/istio.io/istiod
+export SRC_DIR=${SRC_DIR:-/ws/istio.io}
+export ISTIO_SRC=${ISTIO_SRC:-${SRC_DIR}/istio}
+export ISTIOD_SRC=${ISTIOD_SRC:-${SRC_DIR}/istiod}
 export BINDIR=${ISTIO_SRC}/out/linux_amd64/release
 export LOG_DIR=${BINDIR}/logs
 export PATH=${BINDIR}:${PATH}
@@ -34,11 +32,16 @@ function istioEnvSet() {
   export BUILD_WITH_CONTAINER=0
 }
 
+aliast testgrpc="go test -tags=integ ./tests/integration/pilot/ -v -run TestTraffic/virtualservice/shifting-80/proxyless-grpc --istio.test.nocleanup"
 
 alias kwatch="kubectl get events --all-namespaces -w"
 alias kall="kubectl get all --all-namespaces -o wide"
 alias kpo="kubectl get po --all-namespaces -o wide"
+alias kpow="kubectl get pods --watch --output-watch-events -A"
+alias krbac="kubectl auth can-i --list"
+# --as user
 
+# kubect get -raw - see curl
 
 # List the IPs at docker level, from a node.
 # In minikube this is the pod range, like 172.17.0.x
@@ -942,4 +945,39 @@ function node_exec() {
   local PID=$(docker inspect ${NAME} --format '{{ .State.Pid }}')
 
   nsenter -t 4215 -n $*
+}
+
+#RESOURCES="configmap secret daemonset deployment service hpa"
+
+function kdumpContext() {
+  local CONTEXT=$1
+
+  local NAMESPACES=$(kubectl --context ${CONTEXT} get ns -o jsonpath="{.items[*].metadata.name}")
+  local RESOURCES=$(kubectl --context ${CONTEXT} api-resources --namespaced -o name | tr "\n" " ")
+
+      dir="${CONTEXT}/"
+      mkdir -p "${dir}"
+  kubectl --context ${CONTEXT} get crds -o yaml > ${CONTEXT}/crds.yaml
+
+  #for ns in ${NAMESPACES};do
+    for resource in ${RESOURCES};do
+      #rsrcs=$(kubectl --context ${CONTEXT} -A get -o json ${resource}|jq '.items[].metadata.name'|sed "s/\"//g")
+      #for r in ${rsrcs};do
+      #  dir="${CONTEXT}/${ns}/${resource}"
+      #  mkdir -p "${dir}"
+      #  kubectl --context ${CONTEXT} -n ${ns} get -o yaml ${resource} ${r} > "${dir}/${r}.yaml"
+      #done
+      echo kubectl --context ${CONTEXT} get -A -o yaml ${resource}
+      kubectl --context ${CONTEXT} get -A -o yaml ${resource} > "${dir}/${resource}.yaml" || true
+    done
+  #done
+
+}
+
+function kdumpAll() {
+  CONTEXTS=$(kubectl config get-contexts -o name)
+
+  for c in ${CONTEXTS}; do
+    time kdumpContext $c
+  done
 }
