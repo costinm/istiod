@@ -2,13 +2,12 @@
   <configuration default="false" name="istiod" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="istiod" />
     <working_directory value="$PROJECT_DIR$/../istio" />
-    <parameters value="discovery --secureGRPCAddr=&quot;&quot;" />
+    <parameters value="discovery " />
     <envs>
       <env name="VALIDATION_WEBHOOK_CONFIG_NAME" value="" />
       <env name="INJECTION_WEBHOOK_CONFIG_NAME" value="" />
-      <env name="XDS_AUTH" value="false" />
+      <env name="XDS_AUTH" value="true" />
       <env name="PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION" value="true" />
-      <env name="REVISION" value="grpc" />
     </envs>
     <kind value="DIRECTORY" />
     <directory value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-discovery" />
