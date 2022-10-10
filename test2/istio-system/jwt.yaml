@@ -1,0 +1,20 @@
+apiVersion: authentication.istio.io/v1alpha1
+kind: Policy
+metadata:
+  name: ingressgateway
+  namespace: istio-system
+spec:
+  targets:
+  - name: istio-ingressgateway
+  origins:
+  - jwt:
+      issuer: "https://securetoken.google.com"
+      jwksUri: "https://www.googleapis.com/oauth2/v1/certs"
+      audiences:
+      - "productpage"
+      jwt_headers:
+      - "x-goog-iap-jwt-assertion"
+      trigger_rules:
+      - excluded_paths:
+        - exact: /health_check
+  principalBinding: USE_ORIGIN
