@@ -1,0 +1,106 @@
+# This configuration terminates a CONNECT request and sends the CONNECT payload upstream.
+# It can be used to test TCP tunneling as described in docs/root/intro/arch_overview/http/upgrades.rst
+# or used to test CONNECT directly, by running `curl -k -v -x 127.0.0.1:10001 https://www.google.com`
+admin:
+  address:
+    socket_address:
+      protocol: TCP
+      address: 127.0.0.1
+      port_value: 9902
+static_resources:
+  listeners:
+    - name: h2_over_tls
+      address:
+        socket_address:
+          protocol: TCP
+          address: 127.0.0.1
+          port_value: 10001
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: local_service
+                      domains:
+                        - "*"
+                      routes:
+                        - match:
+                            connect_matcher:
+                              {}
+                          route:
+                            cluster: some_service
+                            upgrade_configs:
+                              - upgrade_type: CONNECT
+                                connect_config:
+                                  {}
+                http_filters:
+                  - name: envoy.filters.http.router
+                http2_protocol_options:
+                  allow_connect: true
+                upgrade_configs:
+                  - upgrade_type: CONNECT
+          transport_socket:
+            name: envoy.transport_sockets.tls
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+              common_tls_context:
+                tls_certificates:
+                  - certificate_chain: { filename: "./cert.pem" }
+                    private_key: { filename: "./key.pem" }
+                alpn_protocols:
+                  - h2
+                tls_params:
+                  cipher_suites: ["AES128-GCM-SHA256"]
+    - name: h2_over_plaintext
+      address:
+        socket_address:
+          protocol: TCP
+          address: 127.0.0.1
+          port_value: 10002
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: local_service
+                      domains:
+                        - "*"
+                      routes:
+                        - match:
+                            connect_matcher:
+                              { }
+                          route:
+                            cluster: some_service
+                            upgrade_configs:
+                              - upgrade_type: CONNECT
+                                connect_config:
+                                  { }
+                http_filters:
+                  - name: envoy.filters.http.router
+                http2_protocol_options:
+                  allow_connect: true
+                upgrade_configs:
+                  - upgrade_type: CONNECT
+  clusters:
+    - name: some_service
+      connect_timeout: 0.25s
+      type: STATIC
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: some_service
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 8081
+

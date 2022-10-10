@@ -1,0 +1,17 @@
+#
+#common_tls_context:
+#tls_certificate_sds_secret_configs:
+#  sds_config:
+#    path: /etc/envoy/certs.yaml
+#validation_context_sds_secret_config:
+#  sds_config:
+#    path: /etc/envoy/validation_context.yaml
+
+
+resources:
+  - "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.Secret"
+    tls_certificate:
+      certificate_chain:
+        filename: /var/run/gke-spiffe/certs/certificates.pem
+      private_key:
+        filename: /var/run/gke-spiffe/certs/private_key.pem

@@ -1,0 +1,5 @@
+resources:
+  - "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.Secret"
+    validation_context:
+      trusted_ca:
+        filename: /var/run/gke-spiffe/certs/ca_certificates.pem
