@@ -9,7 +9,7 @@ istio/istio repo has some pre-generated certs.
 - admin on :17000
 - xds-grpc on 127.0.0.1:15010
 
-Additional manual configs to local services, manually configured:
+Additional manual configs to local services:
 Listeners:
 - :17003 TCP to 'pilot_http' on 127.0.0.1:17007
 - :17001 TCP 'use_original_dst' - manual iptables port.
