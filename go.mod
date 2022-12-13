@@ -28,6 +28,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.1
 	github.com/google/ko v0.8.3 // indirect
+	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
 	github.com/vdemeester/k8s-pkg-credentialprovider v1.17.4 // indirect
 	gonum.org/v1/netlib v0.0.0-20190331212654-76723241ea4e // indirect
 	istio.io/api v0.0.0-20210507141635-02def630fd33

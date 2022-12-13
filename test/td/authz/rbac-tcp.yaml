@@ -1,0 +1,92 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: all1
+  namespace: test
+spec:
+  action: ALLOW
+  rules:
+    # All TCP fields
+    - from:
+        - source:
+            # Doc requires the full format
+            principals: ["principal","cluster.local/ns/default/sa/productpage"]
+            notPrincipals: ["not-principal", "cluster.local/ns/default/sa/default"]
+            requestPrincipals: ["requestPrincipals"]
+            notRequestPrincipals: ["not-requestPrincipals", "not-principal@cluster.local"]
+            namespaces: ["ns", "ns2"]
+            notNamespaces: ["not-ns", "not-ns2"]
+            ipBlocks: ["1.2.3.4", "10.1.10.0/24"]
+            remoteIpBlocks: ["10.250.90.4", "10.1.11.0/24"]
+            notIpBlocks: ["9.0.0.1", "10.1.12.0/24"]
+            notRemoteIpBlocks: ["10.133.154.65","10.1.13.0/24"]
+      to:
+        - operation:
+            ports: ["80", "81"]
+            notPorts: ["8000", "8002"]
+      when:
+        - key: "source.ip"
+          values: ["10.10.10.10", "10.1.10.14/24"]
+          notValues: ["90.10.10.10", "10.1.10.15/24"]
+        - key: "remote.ip"
+          values: ["192.168.7.7", "10.1.16.0/24"]
+          notValues: ["192.168.10.9", "10.1.17.0/24"]
+        - key: "source.namespace"
+          values: ["ns"]
+          notValues: ["not-ns"]
+        - key: "source.principal"
+          values: ["principal"]
+          notValues: ["not-principal"]
+          # Doc: iss/sub format
+        - key: "request.auth.principal"
+          values: ["iss1/sub1"]
+          notValues: ["iss2/not-requestPrincipals"]
+        - key: "request.auth.audiences"
+          values: ["audiences"]
+          notValues: ["not-audiences"]
+        - key: "request.auth.presenter"
+          values: ["presenter"]
+          notValues: ["not-presenter"]
+        - key: "request.auth.claims[iss]"
+          values: ["iss"]
+          notValues: ["not-iss"]
+        - key: "destination.ip"
+          values: ["10.10.10.10"]
+          notValues: ["90.10.10.10"]
+        - key: "destination.port"
+          values: ["91"]
+          notValues: ["9001"]
+        - key: "connection.sni"
+          values: ["exact.com"]
+          notValues: ["not-exact.com"]
+#        - key: "experimental.envoy.filters.a.b[c]"
+#          values: ["exact"]
+#          notValues: ["not-exact"]
+    - from:
+        - source:
+            requestPrincipals: ["id-1"]
+      to:
+        - operation:
+            ports: ["90"]
+    - from:
+        - source:
+            namespaces: ["ns-1"]
+      to:
+        - operation:
+            ports: ["91"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: httpbin-audit
+  namespace: foo
+spec:
+  action: AUDIT
+  rules:
+    - from:
+        - source:
+            requestPrincipals: ["audit-id-1"]
+      to:
+        - operation:
+            ports: ["101"]
+---

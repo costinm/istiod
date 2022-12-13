@@ -52,3 +52,16 @@ spec:
         host: istiod-{{ .Values.revision }}.istio-system.svc.cluster.local
         port:
           number: 443
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: hgate-istiod
+spec:
+  host: istiod.istio-system.svc.cluster.local
+  trafficPolicy:
+    portLevelSettings:
+      - port:
+          number: 15012
+        tls:
+          mode: DISABLE

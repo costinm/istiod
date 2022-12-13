@@ -32,8 +32,14 @@ function istioEnvSet() {
   export BUILD_WITH_CONTAINER=0
 }
 
-alias testgrpc="go test -tags=integ ./tests/integration/pilot/ -v -run TestTraffic/virtualservice/shifting-80/proxyless-grpc --istio.test.nocleanup"
 
+function kns() {
+
+  kubectl config set-context --current --namespace=$1
+  # View with: kubectl config view  --minify -o jsonpath={.contexts[0].context.namespace}
+
+}
+aliast testgrpc="go test -tags=integ ./tests/integration/pilot/ -v -run TestTraffic/virtualservice/shifting-80/proxyless-grpc --istio.test.nocleanup"
 alias kwatch="kubectl get events --all-namespaces -w"
 alias kall="kubectl get all --all-namespaces -o wide"
 alias kpo="kubectl get po --all-namespaces -o wide"

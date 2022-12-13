@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="istiod" type="GoApplicationRunConfiguration" factoryName="Go Application">
-    <module name="ws" />
+    <module name="istiod" />
     <working_directory value="$PROJECT_DIR$/../istio" />
     <parameters value="discovery " />
     <envs>
