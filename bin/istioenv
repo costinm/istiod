@@ -32,7 +32,7 @@ function istioEnvSet() {
   export BUILD_WITH_CONTAINER=0
 }
 
-aliast testgrpc="go test -tags=integ ./tests/integration/pilot/ -v -run TestTraffic/virtualservice/shifting-80/proxyless-grpc --istio.test.nocleanup"
+alias testgrpc="go test -tags=integ ./tests/integration/pilot/ -v -run TestTraffic/virtualservice/shifting-80/proxyless-grpc --istio.test.nocleanup"
 
 alias kwatch="kubectl get events --all-namespaces -w"
 alias kall="kubectl get all --all-namespaces -o wide"
@@ -47,6 +47,7 @@ alias krbac="kubectl auth can-i --list"
 # In minikube this is the pod range, like 172.17.0.x
 # Also minikube seems to use 192.168.99.1 for the host, .100 for the VM
 alias dockerips="docker ps -q | xargs -n 1 docker inspect --format '{{ .NetworkSettings.IPAddress }} {{ .Name }}' | sed 's/ \// /'"
+alias kexplain="kubectl explain --recursive"
 
 alias kis='kubectl -n istio-system'
 alias kii='kubectl -n istio-ingress'
@@ -431,14 +432,13 @@ function pilot-exec-envoy() {
     kexec istio=pilot istio-proxy $ns
 }
 function pilot-exec() {
-    local ns=${1:-istio-system}
-    kexec istio=pilot discovery $ns
+    kexec istio-system istio=pilot discovery $ns
 }
 
-function istio-exec-galley() {
-    local ns=${1:-istio-system}
-    kexec istio=galley galley istio-system
+function pilot-metrics() {
+    kexec istio-system istio=pilot discovery  -- curl localhost:15014/metrics
 }
+
 function istio-exec-pilot() {
     local ns=${1:-istio-system}
     kexec istio=pilot discovery istio-system
