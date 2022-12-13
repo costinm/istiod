@@ -1,0 +1,66 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # Using the same pattern as https://cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration#tags
+  # ( any other naming would work too - but better to use something consistently )
+  name: v1--fortio
+  namespace: session
+spec:
+  ports:
+    - port: 8080
+      name: http-echo
+    - port: 8081
+      name: grpc-echo
+  selector:
+    app: fortio
+    version: v1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: v1--fortio
+  namespace: session
+spec:
+  selector:
+    matchLabels:
+      app: fortio
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/proxyCPU: "10m"
+      labels:
+        app: fortio
+        version: v1
+    spec:
+      containers:
+        - name: echo
+          image: istio/app:1.12.0
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8081
+              name: grpc
+            - containerPort: 8079
+          args:
+            - server
+        - name: fortio
+          image: "costinm/fortio:latest"
+          ports:
+            - containerPort: 9080
+              name: http
+            - containerPort: 9081
+              name: grpc
+          args:
+            - server
+            - --http-port=9080
+            - --grpc-port=9081
+          resources:
+            requests:
+              cpu: 10m
+              memory: "512Mi"
+            limits:
+              cpu: "0.1"
+              memory: "1G"
+

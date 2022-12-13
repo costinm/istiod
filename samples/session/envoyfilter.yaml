@@ -1,0 +1,35 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: session
+  namespace: session
+spec:
+   workloadSelector:
+     labels:
+       istio: ingressgateway
+   configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        #context: SIDECAR_INBOUND
+        context: GATEWAY
+        listener:
+          portNumber: 8080
+          filterChain:
+            filter:
+              name: "envoy.filters.network.http_connection_manager"
+              subFilter:
+                name: "envoy.filters.http.router"
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.stateful_session
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSession
+            session_state:
+              name: envoy.http.stateful_session.cookie
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.http.stateful_session.cookie.v3.CookieBasedSessionState
+                cookie:
+                  name: session-fortio
+                  path: /
+                  ttl: 180s

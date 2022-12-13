@@ -1,0 +1,62 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: client
+  namespace: session
+spec:
+  ports:
+    - port: 8080
+      name: http-echo
+    - port: 8081
+      name: grpc-echo
+  selector:
+    app: client
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client
+  namespace: session
+spec:
+  selector:
+    matchLabels:
+      app: client
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/proxyCPU: "10m"
+      labels:
+        app: client
+    spec:
+      containers:
+        - name: fortio
+          image: "costinm/fortio:latest"
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8081
+              name: grpc
+          args:
+            - load
+            - -allow-initial-errors
+            - -t
+            - "0"
+            - -abort-on
+            - "123"
+            - -allow-initial-errors
+            - -c
+            - "3"
+            - -qps
+            - "10"
+            # This is the IP of the gateway - not sure how to represent this
+            - http://gateway:8080/echo?size=5000
+          resources:
+            requests:
+              cpu: 10m
+              memory: "512Mi"
+            limits:
+              cpu: "0.1"
+              memory: "1G"
+
