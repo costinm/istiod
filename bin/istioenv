@@ -39,7 +39,7 @@ function kns() {
   # View with: kubectl config view  --minify -o jsonpath={.contexts[0].context.namespace}
 
 }
-aliast testgrpc="go test -tags=integ ./tests/integration/pilot/ -v -run TestTraffic/virtualservice/shifting-80/proxyless-grpc --istio.test.nocleanup"
+alias testgrpc="go test -tags=integ ./tests/integration/pilot/ -v -run TestTraffic/virtualservice/shifting-80/proxyless-grpc --istio.test.nocleanup"
 alias kwatch="kubectl get events --all-namespaces -w"
 alias kall="kubectl get all --all-namespaces -o wide"
 alias kpo="kubectl get po --all-namespaces -o wide"
@@ -905,7 +905,16 @@ function istio-fwd() {
     pilot-fwd
 }
 
+function findGoogleAccounts() {
+  local ROLE=${1:-roles/trafficdirector.client}
+  gcloud projects get-iam-policy ${GCP_PROJECT} \
+      --flatten="bindings[].members" \
+      --filter="bindings.role=${ROLE}" \
+      --format="value(bindings.members)"
 
+  # May show group:${GCP_PROJECT}.svc.id.goog:/allAuthenticatedUsers/
+
+}
 function port-registry() {
 
   POD=$(kubectl get pods --namespace kube-system -l k8s-app=kube-registry \
