@@ -6,7 +6,7 @@ metadata:
 spec:
    workloadSelector:
      labels:
-       istio: ingressgateway
+       istio: session
    configPatches:
     - applyTo: HTTP_FILTER
       match:
@@ -33,3 +33,133 @@ spec:
                   name: session-fortio
                   path: /
                   ttl: 180s
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: session-route
+  namespace: session
+spec:
+  workloadSelector:
+    labels:
+      istio: sessionx
+  configPatches:
+    - applyTo: HTTP_ROUTE
+      match:
+        #context: SIDECAR_INBOUND
+        context: GATEWAY
+        routeConfiguration:
+          portNumber: 8080
+          vhost:
+            route:
+              # Only in master (1.17)
+              name: session.v1--fortio.0
+              action: ANY
+      patch:
+        operation: MERGE
+        value:
+          typed_per_filter_config:
+            envoy.filters.http.stateful_session:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSessionPerRoute
+              #                disabled: true
+              stateful_session:
+                session_state:
+                  name: envoy.http.stateful_session.cookie
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.http.stateful_session.cookie.v3.CookieBasedSessionState
+                    cookie:
+                      name: session-fortioroute1
+                      path: /
+                      ttl: 180s
+    - applyTo: HTTP_ROUTE
+      match:
+        #context: SIDECAR_INBOUND
+        context: GATEWAY
+        routeConfiguration:
+          portNumber: 8080
+          vhost:
+            route:
+              action: ANY
+              name: session.v2--fortio.0
+      patch:
+        operation: MERGE
+        value:
+            typed_per_filter_config:
+              envoy.filters.http.stateful_session:
+                "@type": type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSessionPerRoute
+#                disabled: true
+                stateful_session:
+                  session_state:
+                    name: envoy.http.stateful_session.cookie
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.http.stateful_session.cookie.v3.CookieBasedSessionState
+                      cookie:
+                        name: session-fortioroute2
+                        path: /
+                        ttl: 180s
+    - applyTo: HTTP_ROUTE
+      match:
+        #context: SIDECAR_INBOUND
+        context: GATEWAY
+        routeConfiguration:
+          portNumber: 8080
+          vhost:
+            route:
+              action: ANY
+              name: session.http.0
+      patch:
+        operation: MERGE
+        value:
+          typed_per_filter_config:
+            envoy.filters.http.stateful_session:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSessionPerRoute
+              #                disabled: true
+              stateful_session:
+                session_state:
+                  name: envoy.http.stateful_session.cookie
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.http.stateful_session.cookie.v3.CookieBasedSessionState
+                    cookie:
+                      name: session-fortioroute-http
+                      path: /
+                      ttl: 180s
+---
+# Will add to all response for the selected gateway:
+# - a header containing the base64 encoded IP:port of the upstrem host the request is sent to.
+# - allows a request header with the same value to be used to select the same host
+#   but requires that the request is routed to the same cluster
+# This doesn't work in Istio 1.16 - header session state is not included.
+#apiVersion: networking.istio.io/v1alpha3
+#kind: EnvoyFilter
+#metadata:
+#  name: server-ip-header
+#  namespace: session
+#spec:
+#  workloadSelector:
+#    labels:
+#      istio: session
+#  configPatches:
+#    - applyTo: HTTP_FILTER
+#      match:
+#        # TODO: also for SIDECAR_OUTBOUND
+#        context: GATEWAY
+#        listener:
+#          # All ports for 'internal gateways' and waypoints.
+#          # Internet gateway should not do this.
+#          filterChain:
+#            filter:
+#              name: "envoy.filters.network.http_connection_manager"
+#              subFilter:
+#                name: "envoy.filters.http.router"
+#      patch:
+#
+#        operation: INSERT_BEFORE
+#        value:
+#          name: envoy.filters.http.stateful_session
+#          typed_config:
+#            "@type": type.googleapis.com/envoy.extensions.filters.http.stateful_session.v3.StatefulSession
+#            session_state:
+#              name: envoy.http.stateful_session.header
+#              typed_config:
+#                "@type": type.googleapis.com/envoy.extensions.http.stateful_session.header.v3.HeaderBasedSessionState
+#                name: server-addr

@@ -16,6 +16,27 @@ spec:
     app: fortio
     version: v2
 ---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: v2--fortio
+  namespace: session
+spec:
+  parentRefs:
+    - name: gateway
+      namespace: session
+    - kind: Service
+      name: fortio
+      port: 8080
+  rules:
+    - matches:
+        - headers:
+            - name: x-istio-cluster
+              value: "outbound|8080||v2--fortio.session.svc.cluster.local"
+      backendRefs:
+        - name: v2--fortio
+          port: 8080
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:

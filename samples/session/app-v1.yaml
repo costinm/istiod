@@ -16,6 +16,32 @@ spec:
     app: fortio
     version: v1
 ---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: v1--fortio
+  namespace: session
+spec:
+  parentRefs:
+    # The rule is applied on the gateway
+    - name: gateway
+      namespace: session
+      port: 8080
+    # The route also applies to client sidecars and waypoints (mesh/GAMMA)
+    - kind: Service
+      name: fortio
+      port: 8080
+  rules:
+    - matches:
+        - headers:
+            # Any other tag name would work. This one in particular will make the route work
+            # with knative too.
+            - name: x-istio-cluster
+              value: "outbound|8080||v1--fortio.session.svc.cluster.local"
+      backendRefs:
+        - name: v1--fortio
+          port: 8080
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -45,6 +71,13 @@ spec:
             - containerPort: 8079
           args:
             - server
+          resources:
+            requests:
+              cpu: 10m
+              memory: "512Mi"
+            limits:
+              cpu: "0.1"
+              memory: "1G"
         - name: fortio
           image: "costinm/fortio:latest"
           ports:

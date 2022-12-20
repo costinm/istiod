@@ -46,10 +46,8 @@ spec:
             - -abort-on
             - "123"
             - -allow-initial-errors
-            - -c
-            - "3"
             - -qps
-            - "10"
+            - "2"
             # This is the IP of the gateway - not sure how to represent this
             - http://gateway:8080/echo?size=5000
           resources:

@@ -5,6 +5,7 @@ resources:
   - namespace.yaml
   - gateway.yaml
   - routes.yaml
+  - envoyfilter.yaml
   - service.yaml
   - app-v1.yaml
   - app-v2.yaml

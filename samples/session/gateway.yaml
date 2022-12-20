@@ -7,7 +7,7 @@ metadata:
     test2: fromyaml
   labels:
     gateway.istio.io/managed: istio.io-gateway-controller
-    istio: ingressgateway
+    istio: session
   name: gateway
   namespace: session
   # owner not set - means if Gateway is deleted, the Service IP is preserved
@@ -32,7 +32,7 @@ metadata:
     fromyaml: test1
   labels:
     gateway.istio.io/managed: istio.io-gateway-controller
-    istio: ingressgateway
+    istio: session
   name: gateway
   namespace: session
 spec:
@@ -53,7 +53,7 @@ spec:
         inject.istio.io/templates: gateway
         test: test1
       labels:
-        istio: ingressgateway
+        istio: session
         istio.io/gateway-name: gateway
         sidecar.istio.io/inject: "true"
     spec:
@@ -107,8 +107,7 @@ metadata:
     #networking.istio.io/service-type: LoadBalancer
   labels:
     # To make this consistent with istio
-    istio: ingressgateway
-
+    istio: session
 spec:
   gatewayClassName: istio
   listeners:

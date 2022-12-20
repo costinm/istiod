@@ -9,38 +9,20 @@ spec:
     # The rule is applied on the gateway
     - name: gateway
       namespace: session
+
     # The route also applies to client sidecars and waypoints (mesh/GAMMA)
     - kind: Service
       name: fortio
       #port: 8080
   rules:
-    - matches:
-        - headers:
-            # Any other tag name would work. This one in particular will make the route work
-            # with knative too.
-            - name: knative-serving-tag
-              value: "outbound|8080||v1--fortio.session.svc.cluster.local"
-      backendRefs:
-        - name: v1--fortio
-          port: 8080
-
-    - matches:
-        - headers:
-            - name: knative-serving-tag
-              value: "outbound|8080||v2--fortio.session.svc.cluster.local"
-      backendRefs:
-        - name: v2--fortio
-          port: 8080
-
-
     # Default rule - traffic split or full traffic to one version
     - backendRefs:
         - name: v1--fortio
           port: 8080
-          weight: 90
-        - name: v2--fortio
-          port: 8000
           weight: 10
+        - name: v2--fortio
+          port: 8080
+          weight: 90
           # All traffic to v2 - v1 still gets existing sessions
 #        - name: v2--fortio
 #          port: 8080
@@ -48,7 +30,7 @@ spec:
         - type: ResponseHeaderModifier
           responseHeaderModifier:
             add:
-              - name: knative-serving-tag
+              - name: x-istio-cluster
                 value: "%UPSTREAM_CLUSTER%"
 #              - name: upstream-info
 #                value: "%UPSTREAM_HOST%-%UPSTREAM-CLUSTER%-xxx"
@@ -66,4 +48,4 @@ spec:
   rules:
       - backendRefs:
         - name: v2--fortio
-          port: 8001
+          port: 8081
