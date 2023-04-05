@@ -1,0 +1,89 @@
+# GKE specific configs - Gateway, etc
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: Gateway
+metadata:
+  name: gateway-ilb
+  namespace: session2
+  labels:
+    # To make this consistent with istio
+    istio: session
+spec:
+  gatewayClassName: gke-l7-rilb
+  listeners:
+    # Creating a second Gateway will result in 2 deployments ( and service, LB, address, etc)
+    - name: default
+      port: 8080
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          #from: All
+          from: Selector
+          selector:
+            matchLabels:
+              # This label is added automatically as of K8s 1.22
+              # to all namespaces
+              kubernetes.io/metadata.name: session2
+    - name: grpc
+      port: 8081
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: session2
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: Gateway
+metadata:
+  name: gateway-td
+  namespace: session2
+  labels:
+    # To make this consistent with istio
+    istio: session
+spec:
+  gatewayClassName: gke-td
+  listeners:
+    # Creating a second Gateway will result in 2 deployments ( and service, LB, address, etc)
+    - name: default
+      port: 8080
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          #from: All
+          from: Selector
+          selector:
+            matchLabels:
+              # This label is added automatically as of K8s 1.22
+              # to all namespaces
+              kubernetes.io/metadata.name: session2
+    - name: grpc
+      port: 8081
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: session2
+---
+apiVersion: networking.gke.io/v1alpha1
+kind: ServiceDirectoryRegistrationPolicy
+metadata:
+  # Only the name "default" is allowed.
+  name: default
+  # The ServiceDirectoryRegistrationPolicy is a namespaced resource
+  namespace: session2
+spec:
+  resources:
+    # Kind specifies the types of Kubernetes resources that can be synced into Service Directory.
+    - kind: Service
+      # Selector is a label selector for the resource types specified in Kind.
+      selector:
+        matchLabels:
+          istio: session
+      # annotationsToSync specifies the annotations that are matched and imported.
+      # Any annotations that do not match this set of keys will not be imported into Service Directory.
+      #annotationsToSync:
+      #  - ANNOTATIONS

@@ -1,0 +1,75 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # Using the same pattern as https://cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration#tags
+  # ( any other naming would work too - but better to use something consistently )
+  name: v2--fortio
+  namespace: session2
+spec:
+  ports:
+    - port: 8080
+      name: http-echo
+    - port: 8081
+      name: grpc-echo
+  selector:
+    app: fortio
+    version: v2
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: v2--fortio
+  namespace: session2
+spec:
+  parentRefs:
+    - name: gateway
+      namespace: session2
+    - kind: Service
+      name: fortio
+      port: 8080
+  rules:
+    - matches:
+        - headers:
+            - name: x-istio-cluster
+              value: "outbound|8080||v2--fortio.session.svc.cluster.local"
+      backendRefs:
+        - name: v2--fortio
+          port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: v2--fortio
+  namespace: session2
+spec:
+  selector:
+    matchLabels:
+      app: fortio
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/proxyCPU: "10m"
+      labels:
+        app: fortio
+        version: v2
+    spec:
+      containers:
+        - name: fortio
+          image: "costinm/fortio:latest"
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8081
+              name: grpc
+          args:
+            - server
+          resources:
+            requests:
+              cpu: 10m
+              memory: "512Mi"
+            limits:
+              cpu: "0.1"
+              memory: "1G"
+

@@ -1,0 +1,17 @@
+apiVersion: skaffold/v3
+kind: Config
+metadata:
+  name:	session2
+
+deploy:
+  helm:
+    releases:
+      - name: session2
+        chartPath: .
+        namespace: session2
+
+portForward:
+  - resourceType: Service
+    resourceName: gateway
+    port: 8080
+    localPort: 9880

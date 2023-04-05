@@ -1,0 +1,15 @@
+apiVersion: skaffold/v3
+kind: Config
+metadata:
+  name: ambient-stability
+deploy:
+  helm:
+    releases:
+    - name: gke-ingress
+      chartPath: .
+      namespace: gke-ingress
+portForward:
+- resourceType: deployment
+  resourceName: fortio
+  port: 8080
+  localPort: 11080

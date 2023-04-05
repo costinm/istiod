@@ -1,0 +1,16 @@
+apiVersion: skaffold/v2beta16
+kind: Config
+metadata:
+  name: fortio
+deploy:
+  helm:
+    releases:
+    - name: fortio
+      chartPath: .
+      namespace: fortio
+portForward:
+- resourceType: pod
+  resourceName: fortio
+  namespace: fortio
+  port: 8080
+  localPort: 11080

@@ -1,0 +1,14 @@
+{{- if .Values.waypoint }}
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: Gateway
+metadata:
+  # name: {{ .Release.Namespace }}
+  name: namespace
+spec:
+  gatewayClassName: istio-waypoint
+  listeners:
+    - name: mesh
+      port: 15008
+      protocol: ALL
+---
+{{- end }}

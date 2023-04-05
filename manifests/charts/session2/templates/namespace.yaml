@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: session2
+  labels:
+    # If Ambient is deployed, use it.
+    istio.io/dataplane-mode: ambient

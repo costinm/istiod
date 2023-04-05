@@ -1,0 +1,51 @@
+
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: http
+  namespace: session2
+spec:
+  parentRefs:
+    # The rule is applied on the gateway
+    - name: gateway
+      namespace: session2
+
+    # The route also applies to client sidecars and waypoints (mesh/GAMMA)
+    - kind: Service
+      name: fortio
+      #port: 8080
+  rules:
+    # Default rule - traffic split or full traffic to one version
+    - backendRefs:
+        - name: v1--fortio
+          port: 8080
+          weight: 10
+        - name: v2--fortio
+          port: 8080
+          weight: 90
+          # All traffic to v2 - v1 still gets existing sessions
+#        - name: v2--fortio
+#          port: 8080
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            add:
+              - name: x-istio-cluster
+                value: "%UPSTREAM_CLUSTER%"
+#              - name: upstream-info
+#                value: "%UPSTREAM_HOST%-%UPSTREAM-CLUSTER%-xxx"
+
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: grpc
+  namespace: session2
+spec:
+  parentRefs:
+    - name: gateway-grpc
+      namespace: session2
+  rules:
+      - backendRefs:
+        - name: v2--fortio
+          port: 8081
