@@ -1,0 +1,105 @@
+# Revision selects a specific istiod control plane.
+# If empty, default istiod will be used.
+xdsAddress: "istiod.istio-system.svc:15012"
+
+####### Standard boilerplate #################3
+
+# ImagePullSecrets for the ServiceAccount, list of secrets in the same namespace
+# to use for pulling any images in pods that reference this ServiceAccount.
+# For components that don't use ServiceAccounts (i.e. grafana, servicegraph, tracing)
+# ImagePullSecrets will be added to the corresponding Deployment(StatefulSet) objects.
+# Must be set for any cluster configured with private docker registry.
+imagePullSecrets: []
+# - private-registry-key
+
+# Custom serviceAccount to use for the deployment.
+# If empty and imagePullSecrets is set, a service account with the
+# same name with the release will be used. Otherwise, "default" will be used.
+serviceAccountName: ""
+
+# If set, a PodDisruptionBudget with minAvailable will be created.
+#
+# This replaces podDisruptionBudget.enabled=true and allows customizing
+# the min.
+minAvailable: 1
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 1024Mi
+
+podAnnotations: {}
+
+# Example for enabling debug on the agent and envoy
+#podAnnotations:
+#  sidecar.istio.io/logLevel: debug
+#  sidecar.istio.io/debug: token:debug
+
+nodeSelector: {}
+tolerations: []
+
+# Specify the pod anti-affinity that allows you to constrain which nodes
+# your pod is eligible to be scheduled based on labels on pods that are
+# already running on the node rather than based on labels on nodes.
+# There are currently two types of anti-affinity:
+#    "requiredDuringSchedulingIgnoredDuringExecution"
+#    "preferredDuringSchedulingIgnoredDuringExecution"
+# which denote "hard" vs. "soft" requirements, you can define your values
+# in "podAntiAffinityLabelSelector" and "podAntiAffinityTermLabelSelector"
+# correspondingly.
+# For example:
+# podAntiAffinityLabelSelector:
+# - key: security
+#   operator: In
+#   values: S1,S2
+#   topologyKey: "kubernetes.io/hostname"
+# This pod anti-affinity rule says that the pod requires not to be scheduled
+# onto a node if that node is already running a pod with label having key
+# "security" and value "S1".
+podAntiAffinityLabelSelector: []
+podAntiAffinityTermLabelSelector: []
+
+# Kubernetes >=v1.11.0 will create two PriorityClass, including system-cluster-critical and
+# system-node-critical, it is better to configure this in order to make sure your Istio pods
+# will not be killed because of low priority class.
+# Refer to https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/#priorityclass
+# for more detail.
+priorityClassName: ""
+
+# Default node tolerations to be applied to all deployments so that all pods can be
+# scheduled to a particular nodes with matching taints. Each component can overwrite
+# these default values by adding its tolerations block in the relevant section below
+# and setting the desired values.
+# Configure this field in case that all pods of Istio control plane are expected to
+# be scheduled to particular nodes with specified taints.
+defaultTolerations: []
+
+
+# Specify image pull policy if default behavior isn't desired.
+# Default behavior: latest images will be Always else IfNotPresent.
+imagePullPolicy: ""
+
+# Default image - will be replaced by injection.
+# The helm template also works without injection.
+#image: proxyv2
+
+# Default hub for Istio images.
+# Releases are published to docker hub under 'istio' project.
+# Dev builds from prow are on gcr.io
+hub: gcr.io/istio-testing
+
+# Default tag for Istio images.
+tag: latest
+
+# Specify pod scheduling arch(amd64, ppc64le, s390x) and weight as follows:
+#   0 - Never scheduled
+#   1 - Least preferred
+#   2 - No preference
+#   3 - Most preferred
+arch:
+  amd64: 2
+  s390x: 2
+  ppc64le: 2

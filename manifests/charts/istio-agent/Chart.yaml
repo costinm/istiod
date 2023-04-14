@@ -1,0 +1,11 @@
+apiVersion: v1
+name: istio-agent
+version: 1.0.0
+tillerVersion: ">=3.0.0"
+description: Per node istio agent, provides DNS, XDS proxy, MDS
+keywords:
+  - istio
+sources:
+  - http://github.com/istio/istio
+engine: gotpl
+icon: https://istio.io/latest/favicons/android-192x192.png

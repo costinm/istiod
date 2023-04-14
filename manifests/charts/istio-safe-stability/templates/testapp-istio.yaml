@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: echo
+    istio.io/persistent-session: grpc-session-cookie
+  name: echo-grpc-v1
+spec:
+  selector:
+    app: echo
+    version: v1
+  type: ClusterIP
+  ports:
+    - name: grpc
+      port: 7070
+      targetPort: 17070
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: echo
+      version: v1
+  template:
+    metadata:
+      annotations:
+        # This enables 'envoy-less' mode.
+        # V1 is using a sidecar !!!
+        # inject.istio.io/templates: grpc-agent
+
+        # This is the application prom port - will be replaced by 15020
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+
+        #prometheus.istio.io/merge-metrics: "false"
+
+        # Required: will put istio-proxy first, not start app until bootstrap is generated
+        # and certs ready
+        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+      labels:
+        sidecar.istio.io/inject: "true"
+        app: echo
+        version: v1
+    spec:
+      containers:
+        - args:
+            - --metrics=9090
+            - --port
+            - "18080"
+            - --tcp
+            - "19090"
+            - --grpc
+            - "17070"
+            - --grpc
+            - "17171"
+            - --port
+            - "3333"
+            - --port
+            - "8080"
+            - --version
+            - v1
+            - --crt=/cert.crt
+            - --key=/cert.key
+          env:
+            - name: INSTANCE_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+          image: costinm/app:latest
+          #image: gcr.io/istio-testing/app:latest
+          #image: gcr.io/dmeshgate/grpcmesh/uecho:latest
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 10
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: tcp-health-port
+            timeoutSeconds: 1
+          name: app
+          ports:
+            - containerPort: 17070
+              protocol: TCP
+            - containerPort: 17171
+              protocol: TCP
+            - containerPort: 8080
+              protocol: TCP
+            - containerPort: 3333
+              name: tcp-health-port
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 1
+            periodSeconds: 2
+            successThreshold: 1
+            timeoutSeconds: 1
+          securityContext:
+            runAsGroup: 1338
+            runAsUser: 1338
+          startupProbe:
+            failureThreshold: 10
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: tcp-health-port
+            timeoutSeconds: 1
+          resources:
+            limits:
+              cpu: 100m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+
+---

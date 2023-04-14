@@ -1,16 +1,20 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="istiod" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="istiod" />
-    <working_directory value="$PROJECT_DIR$/../istio" />
+    <working_directory value="$PROJECT_DIR$" />
     <parameters value="discovery " />
     <envs>
-      <env name="VALIDATION_WEBHOOK_CONFIG_NAME" value="" />
+      <env name="CA_TRUSTED_NODE_ACCOUNTS" value="istio-system/ztunnel\,kube-system/ztunnel" />
       <env name="INJECTION_WEBHOOK_CONFIG_NAME" value="" />
-      <env name="XDS_AUTH" value="true" />
+      <env name="PILOT_ENABLE_AMBIENT_CONTROLLERS" value="true" />
+      <env name="PILOT_ENABLE_HBONE" value="true" />
       <env name="PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION" value="true" />
+      <env name="PILOT_ENABLE_WORKLOAD_ENTRY_HEALTHCHECKS" value="true" />
+      <env name="VALIDATION_WEBHOOK_CONFIG_NAME" value="" />
+      <env name="XDS_AUTH" value="true" />
     </envs>
     <kind value="DIRECTORY" />
-    <directory value="$PROJECT_DIR$/../istio/pilot/cmd/pilot-discovery" />
+    <directory value="$PROJECT_DIR$/istio/pilot/cmd/pilot-discovery" />
     <method v="2" />
   </configuration>
 </component>

@@ -1,0 +1,52 @@
+{{/*apiVersion: apps/v1*/}}
+{{/*kind: Deployment*/}}
+{{/*metadata:*/}}
+{{/*  name: echo-cpp-client*/}}
+{{/*spec:*/}}
+{{/*  replicas: 1*/}}
+{{/*  selector:*/}}
+{{/*    matchLabels:*/}}
+{{/*      app: echo-cpp-client*/}}
+{{/*      version: v1*/}}
+{{/*  template:*/}}
+{{/*    metadata:*/}}
+{{/*      annotations:*/}}
+{{/*        inject.istio.io/templates: grpc-agent*/}}
+{{/*        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'*/}}
+{{/*      labels:*/}}
+{{/*        sidecar.istio.io/inject: "true"*/}}
+{{/*        app: echo-cpp-client*/}}
+{{/*        version: v1*/}}
+{{/*    spec:*/}}
+{{/*      containers:*/}}
+{{/*        - args:*/}}
+{{/*            - --print_response=true*/}}
+{{/*            - --qps=1*/}}
+{{/*            - --server=xds:///echo-cpp-grpc-v1:8080*/}}
+{{/*          env:*/}}
+{{/*            - name: INSTANCE_IP*/}}
+{{/*              valueFrom:*/}}
+{{/*                fieldRef:*/}}
+{{/*                  apiVersion: v1*/}}
+{{/*                  fieldPath: status.podIP*/}}
+{{/*            - name: GRPC_VERBOSITY*/}}
+{{/*              value: "DEBUG"*/}}
+{{/*            - name: GRPC_TRACE*/}}
+{{/*              value: "xds_client,xds_resolver,xds_cluster_manager_lb,cds_lb,eds_lb,xds_cluster_resolver_lb,priority_lb,xds_cluster_impl_lb,weighted_target_lb,lrs_lb,xds_server_config_fetcher"*/}}
+{{/*          image: costinm/interop-client:latest*/}}
+{{/*          imagePullPolicy: Always*/}}
+{{/*          resources:*/}}
+{{/*            limits:*/}}
+{{/*              cpu: 100m*/}}
+{{/*              memory: 256Mi*/}}
+{{/*            requests:*/}}
+{{/*              cpu: 100m*/}}
+{{/*              memory: 128Mi*/}}
+{{/*          name: app*/}}
+{{/*          ports:*/}}
+{{/*            - containerPort: 50052*/}}
+{{/*              protocol: TCP*/}}
+{{/*          securityContext:*/}}
+{{/*            runAsGroup: 1338*/}}
+{{/*            runAsUser: 1338*/}}
+{{/*---*/}}

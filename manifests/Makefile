@@ -23,7 +23,7 @@ deploy/namespaces:
 
 # A single version of Istiod - using a version-based revision name.
 # The version will be associated with labels using in the other charts.
-deploy/istiod-rev:
+deploy/istiod:
 	# Install istiod.
 	# Telemetry configs can be installed as a separate chart - this
 	# avoids upgrade issues for 1.4 skip-version.

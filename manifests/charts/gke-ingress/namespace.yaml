@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: gke-ingress
-  labels:
-    istio.io/dataplane-mode: ambient

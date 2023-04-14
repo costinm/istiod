@@ -23,6 +23,9 @@ export BINDIR=${ISTIO_SRC}/out/linux_amd64/release
 export LOG_DIR=${BINDIR}/logs
 export PATH=${BINDIR}:${PATH}
 
+export ISTIO_DOCKER_BUILDER=crane
+
+
 function istioEnvSet() {
   export OUT_DIR=$ISTIO_GO/out
   export OUT=${OUT_DIR}
@@ -102,21 +105,48 @@ function kexec() {
     local container=$3
     shift; shift; shift
 
-    kubectl --namespace=$ns exec -it $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') -c $container -- $*
+    kubectl --namespace=$ns exec  $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') -c $container -- $*
 }
 
-function kcdump() {
-  kexec1 $1 $2 istio-proxy curl localhost:15000/config_dump
-}
-
-function kexec1() {
+function kexecit() {
     local ns=$1
     local label=$2
     local container=$3
     shift; shift; shift
 
-    kubectl --namespace=$ns exec $(kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}') -c $container -- $*
+    if [[ $container != "" ]]; then
+      container="-c $container"
+    fi
+
+    kubectl --namespace=$ns exec -it  $(kpod $ns $label) $container -- $*
 }
+
+# Find the first pod in namespace with label.
+# TODO: If label doesn't contain '=', use well-known k8s label
+# https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/
+function kpod() {
+  local ns=$1
+  local label=$2
+
+  if [[ $label != *""=""* ]] ; then
+    label="app=$label"
+  fi
+
+  kubectl --namespace=$ns get -l $label pod -o=jsonpath='{.items[0].metadata.name}'
+}
+
+function kexecite() {
+    local ns=$1
+    local label=$2
+    shift; shift
+
+    kubectl alpha debug -n $ns -it --image=nicolaka/netshoot --target=debug $(kpod $ns $label)  -- $*
+}
+
+function kcdump() {
+  kexec $1 $2 istio-proxy curl localhost:15000/config_dump
+}
+
 
 
 function logs-gateway() {
@@ -128,6 +158,11 @@ function exec-gateway() {
     kexec istio-system app=ingressgateway istio-proxy  $*
 }
 
+function exec-pilot() {
+    kexec istio-system app=pilot discovery $*
+}
+
+
 function logs-ingress() {
     istioctl proxy-status -i istio-system
     klog istio-system app=ingressgateway istio-proxy $*
@@ -136,12 +171,28 @@ function exec-ingress() {
     kexec istio-system app=ingressgateway istio-proxy  $*
 }
 
+function exec-ztunnel() {
+    kexec istio-system app=ztunnel istio-proxy  $*
+}
+
+function exec-waypoint() {
+    kexec ${NS} app=ingressgateway istio-proxy  $*
+}
+
 function logs-inject() {
     klog istio-system istio=sidecar-injector sidecar-injector-webhook $*
 }
 
 function logs-pilot() {
     klog istio-system istio=pilot discovery  $*
+}
+
+function logs-ztunnel() {
+    klog istio-system app=ztunnel istio-proxy  $*
+}
+
+function logs-cni() {
+    klog kube-system k8s-app=istio-cni-node install-cni $*
 }
 
 function logs-fortio() {

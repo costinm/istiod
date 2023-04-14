@@ -3,11 +3,7 @@
 # - 'go get github.com/costinm/istiod/cmd/istiod'
 # - from IDE using normal run/debug command
 
-ISTIOD=$(shell cd .; pwd)
-ISTIO_SRC=$(shell cd ../istio; pwd)
-TOP=$(shell cd ${BASE}/../../..; pwd)
 
-BASE=$(shell cd .; pwd)
 GOPATH=${HOME}/go
 
 -include .local.mk
@@ -55,6 +51,9 @@ build/istio-agent:
 
 run/istiod:
 	cd ${ISTIO_SRC} && ${BINDIR}/pilot-discovery discovery
+
+gen:
+	cd proto && buf generate
 
 # Fetch bootstrap token and root cert
 # John's script:
@@ -326,10 +325,11 @@ okteto:
 	#go run github.com/okteto/okteto up
 	/ws/istio-stable/bin/okteto up
 
-CHARTS=./manifests/charts
-ISTIO_CHARTS=../istio/manifests/charts
-include manifests/Makefile
+#CHARTS=./manifests/charts
+#ISTIO_CHARTS=../istio/manifests/charts
+#include manifests/Makefile
 
+include tools/common.mk
 
 # Configure istio-gate with custom config
 deploy/gw-istio-gate-cfg-sample:
@@ -374,18 +374,6 @@ docker/pilot:
 docker/proxyv2:
 	cd ${TOP}/src/istio.io/istio && $(MAKE) docker.proxyv2  DOCKER_ALL_VARIANTS=default
 
-images:
-	cd ${TOP}/src/istio.io/istio && $(MAKE) docker.pilot docker.proxyv2  DOCKER_ALL_VARIANTS=default
-
-push/pilot:
-	cd ${TOP}/src/istio.io/istio && $(MAKE) push.docker.pilot  DOCKER_ALL_VARIANTS=default
-
-push/proxyv2:
-	cd ${TOP}/src/istio.io/istio && $(MAKE) push.docker.proxyv2  DOCKER_ALL_VARIANTS=default
-
-# Push using TAG - to registry running in k8s
-push:
-	cd ${TOP}/src/istio.io/istio && $(MAKE) docker.pilot push.docker.proxyv2  DOCKER_ALL_VARIANTS=default
 
 # Retag the local registry images, push do dockerhub
 push/up:
@@ -430,5 +418,5 @@ events-watch:
 skaffold.istiod:
 	docker tag costinm/pilot:latest ${IMAGE}
 
-include samples/docker/Makefile
+#include samples/docker/Makefile
 

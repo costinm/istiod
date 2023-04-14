@@ -1,0 +1,55 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: fortiogw
+  #namespace: '601426346923'
+  #selfLink: /apis/serving.knative.dev/v1/namespaces/601426346923/services/fortiogw
+  labels:
+    cloud.googleapis.com/location: us-central1
+  annotations:
+    run.googleapis.com/client-name: gcloud
+    #serving.knative.dev/creator: costin@google.com
+    #serving.knative.dev/lastModifier: costin@google.com
+    client.knative.dev/user-image: gcr.io/wlhe-cr/krun:costin
+    run.googleapis.com/launch-stage: ALPHA
+    run.googleapis.com/ingress: all
+    run.googleapis.com/ingress-status: all
+spec:
+  template:
+    metadata:
+      #name: fortiogw-00012-qov
+      annotations:
+        run.googleapis.com/client-name: gcloud
+        run.googleapis.com/network-interfaces: '[{"network": "default", "subnetwork":
+          "default"}]'
+        client.knative.dev/user-image: gcr.io/wlhe-cr/krun:costin
+        autoscaling.knative.dev/minScale: '1'
+        run.googleapis.com/execution-environment: gen2
+        autoscaling.knative.dev/maxScale: '3'
+    spec:
+      containerConcurrency: 10
+      timeoutSeconds: 900
+      serviceAccountName: k8s-fortio@wlhe-cr.iam.gserviceaccount.com
+      containers:
+      - image: gcr.io/wlhe-cr/krun:costin
+        ports:
+        - name: http1
+          containerPort: 8080
+        env:
+        - name: ISTIO_META_INTERCEPTION_MODE
+          value: NONE
+        - name: TRUST_DOMAIN
+          value: cluster.local
+        - name: GATEWAY_NAME
+          value: fortiogw
+        - name: MESH
+          value: //container.googleapis.com/projects/wlhe-cr/locations/us-central1-c/clusters/istio
+        - name: DEPLOY
+          value: 221016-0450
+        resources:
+          limits:
+            cpu: '1'
+            memory: 1G
+  traffic:
+  - percent: 100
+    latestRevision: true

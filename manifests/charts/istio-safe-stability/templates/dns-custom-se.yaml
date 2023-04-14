@@ -1,0 +1,16 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: dns-custom-se
+spec:
+  hosts:
+    - "*.dns.example.com"
+    - customdns.example.com
+    - customdns.example.global
+    - customdns.example.mesh
+  addresses:
+    - 17.17.17.17
+    - 9.9.9.9
+  resolution: STATIC
+  endpoints:
+    - address: 10.1.10.1

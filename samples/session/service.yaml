@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: fortio
   namespace: session
+  label:
+    istio.io/persistent-session: GCILB
 spec:
   ports:
     - port: 8080

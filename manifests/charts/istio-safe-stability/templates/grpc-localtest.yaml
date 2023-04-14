@@ -1,0 +1,116 @@
+{{/*# Based on: https://github.com/eugeneo/grpc-istio*/}}
+
+{{/*apiVersion: v1*/}}
+{{/*kind: Service*/}}
+{{/*metadata:*/}}
+{{/*  name: echo-frontend-service*/}}
+{{/*spec:*/}}
+{{/*  selector:*/}}
+{{/*    app: echo-frontend*/}}
+{{/*  ports:*/}}
+{{/*    - name: grpc*/}}
+{{/*      port: 4004*/}}
+{{/*      targetPort: 4004*/}}
+{{/*  type: NodePort*/}}
+{{/*---*/}}
+{{/*apiVersion: v1*/}}
+{{/*kind: Service*/}}
+{{/*metadata:*/}}
+{{/*  name: echo-backend-service*/}}
+{{/*  labels:*/}}
+{{/*    istio.io/persistent-session: grpc-session-cookie*/}}
+{{/*spec:*/}}
+{{/*  selector:*/}}
+{{/*    app: echo-backend*/}}
+{{/*  ports:*/}}
+{{/*    - name: grpc*/}}
+{{/*      port: 4004*/}}
+{{/*      targetPort: 4004*/}}
+{{/*---*/}}
+{{/*apiVersion: apps/v1*/}}
+{{/*kind: Deployment*/}}
+{{/*metadata:*/}}
+{{/*  name: echo-backend*/}}
+{{/*spec:*/}}
+{{/*  replicas: 3*/}}
+{{/*  selector:*/}}
+{{/*    matchLabels:*/}}
+{{/*      app: echo-backend*/}}
+{{/*  template:*/}}
+{{/*    metadata:*/}}
+{{/*      labels:*/}}
+{{/*        app: echo-backend*/}}
+{{/*        group: g1*/}}
+{{/*        sidecar.istio.io/inject: "true"*/}}
+{{/*      annotations:*/}}
+{{/*        inject.istio.io/templates: grpc-agent*/}}
+{{/*        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'*/}}
+{{/*    spec:*/}}
+{{/*      containers:*/}}
+{{/*        - name: echo-server*/}}
+{{/*          image: grpctesting/istio_echo_cpp:v1.54.0*/}}
+{{/*          env:*/}}
+{{/*            - name: POD_NAME*/}}
+{{/*              valueFrom:*/}}
+{{/*                fieldRef:*/}}
+{{/*                  fieldPath: metadata.name*/}}
+{{/*            - name: GRPC_TRACE*/}}
+{{/*              value: cds_lb,glb,round_robin,xds_client,xds_resolver*/}}
+{{/*            - name: GRPC_VERBOSITY*/}}
+{{/*              value: INFO*/}}
+{{/*            - name: GRPC_EXPERIMENTAL_XDS_ENABLE_OVERRIDE_HOST*/}}
+{{/*              value: "true"*/}}
+{{/*          #args: ["--id=$(POD_NAME)"]*/}}
+{{/*          ports:*/}}
+{{/*            - containerPort: 4004*/}}
+{{/*          #imagePullPolicy: Never*/}}
+{{/*          resources:*/}}
+{{/*            limits:*/}}
+{{/*              cpu: 100m*/}}
+{{/*              memory: 256Mi*/}}
+{{/*            requests:*/}}
+{{/*              cpu: 100m*/}}
+{{/*              memory: 128Mi*/}}
+{{/*---*/}}
+{{/*apiVersion: apps/v1*/}}
+{{/*kind: Deployment*/}}
+{{/*metadata:*/}}
+{{/*  name: echo-frontend*/}}
+{{/*spec:*/}}
+{{/*  replicas: 1*/}}
+{{/*  selector:*/}}
+{{/*    matchLabels:*/}}
+{{/*      app: echo-frontend*/}}
+{{/*  template:*/}}
+{{/*    metadata:*/}}
+{{/*      labels:*/}}
+{{/*        sidecar.istio.io/inject: "true"*/}}
+{{/*        app: echo-frontend*/}}
+{{/*      annotations:*/}}
+{{/*        inject.istio.io/templates: grpc-agent*/}}
+{{/*        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'*/}}
+{{/*    spec:*/}}
+{{/*      containers:*/}}
+{{/*        - name: echo-server*/}}
+{{/*          env:*/}}
+{{/*            - name: POD_NAME*/}}
+{{/*              valueFrom:*/}}
+{{/*                fieldRef:*/}}
+{{/*                  fieldPath: metadata.name*/}}
+{{/*            - name: GRPC_TRACE*/}}
+{{/*              value: cds_lb,glb,round_robin,xds_client,xds_resolver*/}}
+{{/*            - name: GRPC_VERBOSITY*/}}
+{{/*              value: INFO*/}}
+{{/*            - name: GRPC_EXPERIMENTAL_XDS_ENABLE_OVERRIDE_HOST*/}}
+{{/*              value: "true"*/}}
+{{/*          args: ["xds://echo-backend-service:4004"]*/}}
+{{/*          image: grpctesting/istio_echo_cpp:v1.54.0*/}}
+{{/*          ports:*/}}
+{{/*            - containerPort: 4004*/}}
+{{/*          resources:*/}}
+{{/*            limits:*/}}
+{{/*              cpu: 100m*/}}
+{{/*              memory: 256Mi*/}}
+{{/*            requests:*/}}
+{{/*              cpu: 100m*/}}
+{{/*              memory: 128Mi*/}}

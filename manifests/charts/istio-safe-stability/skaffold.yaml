@@ -1,0 +1,17 @@
+apiVersion: skaffold/v3
+kind: Config
+metadata:
+  name: istio-safe-stability
+deploy:
+  helm:
+    releases:
+    - name: istio-safe-stability
+      chartPath: .
+      namespace: istio-safe-stability
+      createNamespace: true
+portForward:
+- resourceType: deployment
+  resourceName: echo-cpp-v2
+  namespace: istio-safe-stability
+  port: 8080
+  localPort: 12080

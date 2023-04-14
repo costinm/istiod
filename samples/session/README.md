@@ -51,4 +51,6 @@ istioctl pc l ${POD}.session --port 8080 -o yaml |grep stateful_session -A 10
 
 # Show routes
 istioctl pc r ${POD}.session --name http.8080 -o yaml
+
+curl http://localhost:9880/debug -v -H "x-istio-cluster: outbound|8080||v2--fortio.session.svc.cluster.local" -H "Cookie: session-fortioroute2=MTAuNDguMC4xNzE6ODA4MA==" 
 ```
