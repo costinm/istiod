@@ -1,0 +1,21 @@
+# GKE project registered in hub
+# gcloud alpha container hub service-directory enable
+apiVersion: networking.gke.io/v1alpha1
+kind: ServiceDirectoryRegistrationPolicy
+metadata:
+  # Only the name "default" is allowed.
+  name: default
+  # The ServiceDirectoryRegistrationPolicy is a namespaced resource
+spec:
+  resources:
+    # Kind specifies the types of Kubernetes resources that can be synced into Service Directory.
+    - kind: Service
+      # Selector is a label selector for the resource types specified in Kind.
+      selector:
+        matchLabels:
+          app.kubernetes.io/managed-by: Helm
+          #app: fortio
+      # annotationsToSync specifies the annotations that are matched and imported.
+      # Any annotations that do not match this set of keys will not be imported into Service Directory.
+      #annotationsToSync:
+      #  - ANNOTATIONS
