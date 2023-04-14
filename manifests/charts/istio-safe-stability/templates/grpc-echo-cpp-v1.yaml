@@ -48,6 +48,8 @@ spec:
                 fieldPath: status.podIP
           - name: GRPC_VERBOSITY
             value: "DEBUG"
+          - name: GRPC_EXPERIMENTAL_XDS_ENABLE_OVERRIDE_HOST
+            value: "1"
           - name: GRPC_TRACE
             value: "xds_client,xds_resolver,xds_cluster_manager_lb,cds_lb,eds_lb,xds_cluster_resolver_lb,priority_lb,xds_cluster_impl_lb,weighted_target_lb,lrs_lb,xds_server_config_fetcher"
           image: grpctesting/istio_echo_cpp:v1.53.0
