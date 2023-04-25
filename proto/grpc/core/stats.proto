@@ -15,7 +15,7 @@
 syntax = "proto3";
 
 package grpc.core;
-option go_package="github.com/costinm/grpc-mesh/gen/proto/go/grpc/core";
+option go_package="github.com/costinm/istiod/gen/grpc-go/grpc/core";
 
 message Bucket {
   double start = 1;

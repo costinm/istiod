@@ -1,5 +1,5 @@
 version: v1
-name: "buf.build/costin/grpc-mesh"
+name: "buf.build/costin/istiod"
 deps: []
 build:
   excludes: []

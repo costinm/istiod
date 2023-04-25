@@ -15,7 +15,7 @@
 syntax = "proto3";
 
 package istio.workload;
-option go_package="github.com/costinm/grpc-mesh/gen/proto/go/xds";
+option go_package="github.com/costinm/istiod/gen/grpc-go/xds";
 
 message Workload {
   // Name represents the name for the workload.

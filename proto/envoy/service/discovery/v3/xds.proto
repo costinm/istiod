@@ -6,7 +6,7 @@ package envoy.service.discovery.v3;
 import "xds/envoy_simplified.proto";
 import "xds/delta.proto";
 
-option go_package="github.com/costinm/grpc-mesh/gen/proto/go/envoy/service/discovery/v3";
+option go_package="github.com/costinm/istiod/gen/grpc-go/envoy/service/discovery/v3";
 
 //	ServiceName: "envoy.service.discovery.v2.AggregatedDiscoveryService",
 

@@ -5,7 +5,7 @@ plugins:
     opt:
       - paths=source_relative
 
-  - remote: buf.build/grpc/plugins/go:v1.2.0-1
+  - plugin: buf.build/grpc/go
     out: ../gen/grpc-go
     opt:
       - paths=source_relative

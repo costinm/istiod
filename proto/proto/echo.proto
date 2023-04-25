@@ -18,7 +18,7 @@ import "google/protobuf/wrappers.proto";
 
 // Generate with protoc --go_out=. echo.proto -I /work/common-protos/ -I.
 package proto;
-option go_package="github.com/costinm/grpc-mesh/gen/proto/go/proto";
+option go_package="github.com/costinm/istiod/gen/grpc-go/proto";
 
 service EchoTestService {
   rpc Echo (EchoRequest) returns (EchoResponse);

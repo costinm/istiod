@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package xds;
-option go_package="github.com/costinm/grpc-mesh/gen/proto/go/xds";
+option go_package="github.com/costinm/istiod/gen/grpc-go/xds";
 option java_generic_services = true;
 
 

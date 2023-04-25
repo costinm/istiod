@@ -24,7 +24,7 @@ import "grpc/testing/messages.proto";
 package grpc.testing;
 
 option java_package = "io.grpc.testing.integration";
-option go_package="github.com/costinm/grpc-mesh/gen/proto/go/grpc/testing";
+option go_package="github.com/costinm/istiod/gen/grpc-go/grpc/testing";
 
 // A simple service to test the various types of RPCs and experiment with
 // performance with various types of payload.
