@@ -1,0 +1,78 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # Using the same pattern as https://cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration#tags
+  # ( any other naming would work too - but better to use something consistently )
+  name: {{ .Values.version }}--{{ .Values.name }}
+  labels:
+    # Istio specific. Requires PILOT_ENABLE_PERSISTENT_SESSION_FILTER
+    istio.io/persistent-session: "{{ .Values.name }}"
+spec:
+  ports:
+    {{ if eq .Values.lang "cpp"}}
+    - name: grpc
+      port: 7070
+      targetPort: 7070
+    {{ else }}
+    - port: 8080
+      name: http-echo
+    - port: 8081
+      name: grpc-echo
+    {{ end }}
+  # Inside K8S this makes sure the client IP is used for affinity.
+  # This should work for non-Istio clients.
+  sessionAffinity: ClientIP
+  selector:
+    app: {{ .Values.name }}
+    version: {{ .Values.version }}
+---
+
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: {{ .Values.version }}--{{ .Values.name }}
+spec:
+  parentRefs:
+    # The rule is applied on the gateway
+    - name: gateway
+
+      #port: 8080
+    # The route also applies to client sidecars and waypoints (mesh/GAMMA)
+    - kind: Service
+      name: echo
+      #port: 8080
+  rules:
+    - matches:
+        - headers:
+            # Any other tag name would work. This one in particular will make the route work
+            # with knative too.
+            - name: x-istio-cluster
+              value: "outbound|8080||{{ .Values.version }}--{{ .Values.name }}.{{ .Release.Namespace }}.svc.cluster.local"
+      backendRefs:
+        - name: {{ .Values.version }}--{{ .Values.name }}
+          port: 8080
+---
+{{/*apiVersion: security.istio.io/v1beta1*/}}
+{{/*kind: PeerAuthentication*/}}
+{{/*metadata:*/}}
+{{/*    name: echo-cpp-grpc-{{ .Values.version }}*/}}
+{{/*spec:*/}}
+{{/*    selector:*/}}
+{{/*      matchLabels:*/}}
+{{/*        app: echo-cpp*/}}
+{{/*        version: {{ .Values.version }}*/}}
+{{/*    portLevelMtls:*/}}
+{{/*      8080:*/}}
+{{/*        mode: DISABLE*/}}
+{{/*---*/}}
+{{/*apiVersion: networking.istio.io/v1alpha3*/}}
+{{/*kind: DestinationRule*/}}
+{{/*metadata:*/}}
+{{/*  name: echo-cpp-grpc-{{ .Values.version }}*/}}
+{{/*spec:*/}}
+{{/*  host: echo-cpp-grpc-{{ .Values.version }}.{{ .Release.Namespace }}.svc.cluster.local*/}}
+{{/*  trafficPolicy:*/}}
+{{/*    tls:*/}}
+{{/*      mode: DISABLE*/}}
+{{/*---*/}}

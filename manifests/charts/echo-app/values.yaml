@@ -1,0 +1,8 @@
+version: v1
+name: testecho
+lang: go
+replicas: 2
+xdsServer: istiod.istio-system.svc:15012
+# grpc-agent, istio or none
+sidecar: istio
+#image:

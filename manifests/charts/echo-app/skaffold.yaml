@@ -1,0 +1,58 @@
+apiVersion: skaffold/v3
+kind: Config
+metadata:
+  name: istio-safe-stability
+deploy:
+  helm:
+    releases:
+    - name: echo-v1
+      chartPath: .
+      namespace: istio-safe-stability
+      createNamespace: true
+    - name: echo-v2-cpp
+      chartPath: .
+      namespace: istio-safe-stability
+      createNamespace: true
+      setValues:
+        lang: cpp
+        name: echo-cpp
+        version: v2
+    - name: echo-v3-cpp-sidecar
+      chartPath: .
+      namespace: istio-safe-stability
+      createNamespace: true
+      setValues:
+        lang: cpp
+        name: echo-cpp-sidecar
+        version: v3
+        sidecar: grpc-agent
+    - name: echo-v4-uecho
+      chartPath: .
+      namespace: istio-safe-stability
+      createNamespace: true
+      setValues:
+        lang: go
+        name: echo-micro
+        version: v4
+        sidecar: none
+        #image:
+    - name: echo-v3-cpp-raw
+      chartPath: .
+      namespace: istio-safe-stability
+      createNamespace: true
+      setValues:
+        lang: cpp
+        name: echo-cpp-raw
+        version: v5
+        sidecar: none
+portForward:
+- resourceType: deployment
+  resourceName: echo-cpp-v2
+  namespace: istio-safe-stability
+  port: 8080
+  localPort: 12080
+
+- resourceType: Service
+  resourceName: gateway
+  port: 8080
+  localPort: 9880

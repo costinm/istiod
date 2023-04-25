@@ -1,0 +1,247 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.version }}--{{ .Values.name }}
+
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+      version: {{ .Values.version }}
+  replicas: {{ .Values.replicas }}
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        # With istio sidecar, this will be replaced by istio port,
+        # and merged with envoy metrics
+        prometheus.io/port: "9090"
+
+        sidecar.istio.io/proxyCPU: "10m"
+
+        {{ if eq .Values.sidecar "none"}}
+        # If workload certs are enabled, workload-certs will be configured.
+        # The deployment will detect the presence of the files,
+        # may load the config to identify the pool (initially we'll use a hard-coded default name)
+        # Must also configure cas_template.
+        #
+        # Note: if sidecar is enabled, it will do this automatically
+        # if global.caName == GkeWorkloadCertificate - but if it is not
+        # set globally, would conflict with another volume created.
+        #
+        security.cloud.google.com/use-workload-certificates: ""
+        {{ end }}
+
+        {{ if eq .Values.sidecar "grpc-agent"}}
+        inject.istio.io/templates: grpc-agent
+        sidecar.istio.io/inject: "true"
+        {{ else if eq .Values.sidecar "istio" }}
+        sidecar.istio.io/inject: "true"
+        {{ else if eq .Values.sidecar "none" }}
+        sidecar.istio.io/inject: "false"
+        {{ end }}
+
+        # Required: will put istio-proxy first, not start app until bootstrap is generated
+        # and certs ready
+        proxy.istio.io/config: '{"holdApplicationUntilProxyStarts": true}'
+
+      labels:
+        {{ if eq .Values.sidecar "none"}}
+        {{ else }}
+        sidecar.istio.io/inject: "true"
+        {{ end }}
+
+        # If set, enables draining state reporting even if the slice doesn't include
+        # the status.
+        #istio.io/draining: "1"
+
+        app: {{ .Values.name }}
+        version: {{ .Values.version }}
+        app.kubernetes.io/name: {{ .Values.name }}
+        #app.kubernetes.io/instance: echo
+        app.kubernetes.io/version: {{ .Values.version }}
+    spec:
+      terminationGracePeriodSeconds: 120
+      containers:
+        # Include fortio too
+        - name: fortio
+          image: "costinm/fortio:latest"
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8081
+              name: grpc
+          args:
+            - server
+{{/*            - load*/}}
+{{/*            - -allow-initial-errors*/}}
+{{/*            - -t*/}}
+{{/*            - "0"*/}}
+{{/*            - -abort-on*/}}
+{{/*            - "123"*/}}
+{{/*            - -allow-initial-errors*/}}
+{{/*            - -qps*/}}
+{{/*            - "2"*/}}
+{{/*            # This is the IP of the gateway - not sure how to represent this*/}}
+{{/*            - http://gateway:8080/echo?size=5000*/}}
+          resources:
+            requests:
+              cpu: 10m
+              memory: "512Mi"
+            limits:
+              cpu: "0.1"
+              memory: "1G"
+        - name: debug
+          image: nicolaka/netshoot
+          command:
+            - sleep
+            - "365d"
+          env:
+            - name: INSTANCE_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: GRPC_VERBOSITY
+              # INFO
+              value: "DEBUG"
+            - name: GRPC_EXPERIMENTAL_XDS_ENABLE_OVERRIDE_HOST
+              value: "1"
+            - name: GRPC_TRACE
+              #cds_lb,glb,round_robin,xds_client,xds_resolver
+              value: "xds_client,xds_resolver,xds_cluster_manager_lb,cds_lb,eds_lb,xds_cluster_resolver_lb,priority_lb,xds_cluster_impl_lb,weighted_target_lb,lrs_lb,xds_server_config_fetcher"
+            - name: GRPC_XDS_BOOTSTRAP
+              value: "/tmp/grpc-xds/td-grpc-bootstrap.json"
+          volumeMounts:
+            - name: grpc-td-conf
+              mountPath: /tmp/grpc-xds/
+          resources:
+            requests:
+              cpu: 10m
+              memory: "512Mi"
+            limits:
+              cpu: "0.1"
+              memory: "1G"
+        - name: app
+      {{ if eq .Values.lang "cpp"}}
+      {{ else }}
+      {{ end }}
+      {{ if eq .Values.lang "cpp"}}
+          image: grpctesting/istio_echo_cpp:v1.54.0
+      {{ else }}
+          image: gcr.io/istio-testing/app:latest
+          #image: gcr.io/dmeshgate/grpcmesh/uecho:latest
+          args:
+            - --metrics=9090
+            - --port
+            - "18080"
+            - --tcp
+            - "19090"
+            - --grpc
+            - "7070"
+            - --port
+            - "3333"
+            - --port
+            - "9080"
+            - --version
+            - "{{ .Values.version }}"
+{{/*            - --crt=/cert.crt*/}}
+{{/*            - --key=/cert.key*/}}
+      {{ end }}
+          env:
+            - name: INSTANCE_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+
+            - name: GRPC_VERBOSITY
+              # INFO
+              value: "DEBUG"
+            - name: GRPC_EXPERIMENTAL_XDS_ENABLE_OVERRIDE_HOST
+              value: "1"
+            - name: GRPC_TRACE
+              #cds_lb,glb,round_robin,xds_client,xds_resolver
+              value: "xds_client,xds_resolver,xds_cluster_manager_lb,cds_lb,eds_lb,xds_cluster_resolver_lb,priority_lb,xds_cluster_impl_lb,weighted_target_lb,lrs_lb,xds_server_config_fetcher"
+          lifecycle:
+            preStop:
+              exec:
+                command: [ "/usr/bin/sleep","100" ]
+          livenessProbe:
+            failureThreshold: 10
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: grpc
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 1
+            periodSeconds: 2
+            successThreshold: 1
+            timeoutSeconds: 1
+          startupProbe:
+            failureThreshold: 10
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: grpc
+            timeoutSeconds: 1
+
+          ports:
+      {{ if eq .Values.lang "cpp"}}
+            - containerPort: 7070
+              name: grpc
+      {{ else }}
+            - containerPort: 8080
+              name: http
+            - containerPort: 8081
+              name: grpc
+            - containerPort: 8079
+      {{ end }}
+
+          resources:
+            requests:
+              cpu: 10m
+              memory: "512Mi"
+            limits:
+              cpu: "0.1"
+              memory: "1G"
+
+  {{ if eq .Values.xdsServer "td" }}
+      initContainers:
+        - args:
+            - --output
+            - "/tmp/bootstrap/td-grpc-bootstrap.json"
+          image: gcr.io/trafficdirector-prod/td-grpc-bootstrap:0.14.0
+          imagePullPolicy: IfNotPresent
+          name: grpc-td-init
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 10m
+              memory: 100Mi
+          volumeMounts:
+            - name: grpc-td-conf
+              mountPath: /tmp/bootstrap/
+  {{ end }}
+
+      volumes:
+        - name: grpc-td-conf
+          emptyDir:
+            medium: Memory
